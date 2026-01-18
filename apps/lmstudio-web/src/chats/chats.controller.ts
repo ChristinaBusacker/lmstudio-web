@@ -1,6 +1,5 @@
 import { Body, Controller, Delete, Get, Param, ParseBoolPipe, Post, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { SettingsService } from '../settings/settings.service';
 import { ChatsService } from './chats.service';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { ChatThreadResponseDto } from './dto/thread.dto';
@@ -9,12 +8,10 @@ import { ChatBranchingService } from './chat-branching.service';
 import { ActivateHeadDto } from './dto/activate-head.dto';
 
 @ApiTags('Chats')
-@Controller('chats') // because globalPrefix is "api"
+@Controller('chats')
 export class ChatsController {
-  // in chats.controller.ts
   constructor(
     private readonly chats: ChatsService,
-    private readonly settings: SettingsService,
     private readonly thread: ChatThreadQueryService,
     private readonly branching: ChatBranchingService,
   ) {}
@@ -26,7 +23,7 @@ export class ChatsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get chat with messages and runs' })
+  @ApiOperation({ summary: 'Get chat meta' })
   @ApiParam({ name: 'id', example: 'b7a1b0f7-9f2e-4d3f-9e5a-2b19a9c6e2dd' })
   getChat(@Param('id') id: string) {
     return this.chats.getChat(id);

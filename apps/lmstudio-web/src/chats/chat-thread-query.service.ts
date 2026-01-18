@@ -54,10 +54,10 @@ export class ChatThreadQueryService {
           deletedAt: m.deletedAt?.toISOString() ?? null,
           editedAt: m.editedAt?.toISOString() ?? null,
           createdAt: m.createdAt.toISOString(),
+          variantsCount: counts.get(m.id) ?? 0,
           activeVariant: {
             id: safe.id,
             variantIndex: safe.variantIndex,
-            variantsCount: counts.get(m.id) ?? 0,
             isActive: true,
             content: safe.content,
             reasoning: opts?.includeReasoning ? (safe.reasoning ?? null) : undefined,

@@ -24,9 +24,8 @@ export class MessagesService {
     const msg = await this.getById(messageId);
     if (!msg) throw new NotFoundException(`Message not found: ${messageId}`);
 
-    // If already deleted, do nothing (idempotent behavior)
     if (!msg.deletedAt) {
-      await this.messages.softDelete(messageId);
+      await this.messages.update({ id: messageId }, { deletedAt: new Date() });
     }
 
     const chat = await this.chats.getChat(msg.chatId);

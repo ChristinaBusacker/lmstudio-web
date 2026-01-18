@@ -12,9 +12,6 @@ export class ThreadVariantDto {
 
   @ApiPropertyOptional() stats?: any | null;
 
-  @ApiProperty({ description: 'Number of variants stored for this message' })
-  variantsCount!: number;
-
   @ApiProperty() createdAt!: string;
 }
 
@@ -28,6 +25,9 @@ export class ThreadMessageDto {
 
   @ApiPropertyOptional() deletedAt?: string | null;
   @ApiPropertyOptional() editedAt?: string | null;
+
+  @ApiProperty({ description: 'Number of variants stored for this message' })
+  variantsCount!: number;
 
   @ApiProperty() createdAt!: string;
 
