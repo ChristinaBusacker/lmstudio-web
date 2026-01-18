@@ -2,45 +2,67 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ThreadVariantDto {
-  @ApiProperty() id!: string;
-  @ApiProperty() variantIndex!: number;
-  @ApiProperty() isActive!: boolean;
-  @ApiProperty() content!: string;
+  @ApiProperty({ type: String }) id!: string;
+  @ApiProperty({ type: Number }) variantIndex!: number;
+  @ApiProperty({ type: Boolean }) isActive!: boolean;
+  @ApiProperty({ type: String }) content!: string;
 
-  @ApiPropertyOptional({ description: 'Only present if includeReasoning=true' })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: 'Only present if includeReasoning=true',
+  })
   reasoning?: string | null;
 
-  @ApiPropertyOptional() stats?: any | null;
+  @ApiPropertyOptional({
+    type: 'object',
+    nullable: true,
+    additionalProperties: true,
+  })
+  stats?: any | null;
 
-  @ApiProperty() createdAt!: string;
+  @ApiProperty({ type: String, format: 'date-time' })
+  createdAt!: string;
 }
 
 export class ThreadMessageDto {
-  @ApiProperty() id!: string;
-  @ApiProperty() chatId!: string;
+  @ApiProperty({ type: String }) id!: string;
+  @ApiProperty({ type: String }) chatId!: string;
+
   @ApiProperty({ enum: ['system', 'user', 'assistant'] })
   role!: 'system' | 'user' | 'assistant';
 
-  @ApiPropertyOptional() parentMessageId?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  parentMessageId?: string | null;
 
-  @ApiPropertyOptional() deletedAt?: string | null;
-  @ApiPropertyOptional() editedAt?: string | null;
+  @ApiPropertyOptional({ type: String, format: 'date-time', nullable: true })
+  deletedAt?: string | null;
 
-  @ApiProperty({ description: 'Number of variants stored for this message' })
+  @ApiPropertyOptional({ type: String, format: 'date-time', nullable: true })
+  editedAt?: string | null;
+
+  @ApiProperty({ type: Number, description: 'Number of variants stored for this message' })
   variantsCount!: number;
 
-  @ApiProperty() createdAt!: string;
+  @ApiProperty({ type: String, format: 'date-time' })
+  createdAt!: string;
 
   @ApiProperty({ type: ThreadVariantDto })
   activeVariant!: ThreadVariantDto;
 }
 
 export class ChatThreadResponseDto {
-  @ApiProperty() chatId!: string;
+  @ApiProperty({ type: String })
+  chatId!: string;
 
-  @ApiPropertyOptional() title?: string | null;
-  @ApiPropertyOptional() folderId?: string | null;
-  @ApiPropertyOptional() activeHeadMessageId?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  title?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  folderId?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  activeHeadMessageId?: string | null;
 
   @ApiProperty({ type: [ThreadMessageDto] })
   messages!: ThreadMessageDto[];

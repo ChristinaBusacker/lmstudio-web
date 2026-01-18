@@ -3,8 +3,10 @@ import { IsOptional, IsString } from 'class-validator';
 
 export class ActivateHeadDto {
   @ApiPropertyOptional({
-    description: 'Message id to become new head. null resets the head.',
+    type: String,
     nullable: true,
+    description: 'Message id to become new head. null resets the head.',
+    example: null,
   })
   @IsOptional()
   @IsString()

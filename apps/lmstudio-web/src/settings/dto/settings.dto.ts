@@ -1,48 +1,34 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsObject, IsOptional, IsString, MinLength } from 'class-validator';
 
-/**
- * JSON-like params bag for a settings profile.
- *
- * We keep it flexible, but still describe it in OpenAPI as
- * an object with arbitrary properties.
- */
-export class SettingsParamsDto {
-  @ApiProperty({
-    type: 'object',
-    additionalProperties: true,
-    description: 'Arbitrary LM Studio / generation parameters (server validated by runtime usage).',
-    example: { modelKey: 'lmstudio-community/Meta-Llama-3-8B-Instruct', temperature: 0.7 },
-  })
-  @IsObject()
-  // NOTE: class-validator cannot validate "Record<string, any>" deeply by default.
-  // This at least ensures it's an object.
-  value!: Record<string, any>;
-}
-
 export class SettingsProfileDto {
-  @ApiProperty() id!: string;
+  @ApiProperty({ description: 'Profile id' })
+  id!: string;
 
-  @ApiProperty()
-  key!: string;
+  @ApiProperty({
+    description: 'Owner key (currently "default", later userId)',
+    example: 'default',
+  })
+  ownerKey!: string;
 
-  @ApiPropertyOptional({ nullable: true })
-  name!: string | null;
+  @ApiProperty({ description: 'Display name of the profile', example: 'Default' })
+  name!: string;
 
   @ApiProperty({
     type: 'object',
     additionalProperties: true,
-    description: 'Stored parameters for the profile.',
+    description: 'Stored generation parameters.',
+    example: { modelKey: 'qwen2.5-7b-instruct', temperature: 0.7, maxTokens: 800, topP: 0.9 },
   })
   params!: Record<string, any>;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Whether this profile is the default for its ownerKey' })
   isDefault!: boolean;
 
-  @ApiProperty()
+  @ApiProperty({ type: String, format: 'date-time' })
   createdAt!: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String, format: 'date-time' })
   updatedAt!: string;
 }
 
@@ -67,10 +53,6 @@ export class CreateSettingsProfileDto {
   @IsOptional()
   @IsBoolean()
   isDefault?: boolean;
-
-  // Optional: only if you want to expose ownerKey publicly later.
-  // For now, keep it server-owned ("default") and omit this from DTO.
-  // ownerKey?: string;
 }
 
 export class UpdateSettingsProfileDto {
@@ -93,11 +75,4 @@ export class UpdateSettingsProfileDto {
   @IsOptional()
   @IsBoolean()
   isDefault?: boolean;
-}
-
-export class SetDefaultProfileDto {
-  @ApiProperty({ description: 'Profile key to mark as default' })
-  @IsString()
-  @MinLength(1)
-  key!: string;
 }

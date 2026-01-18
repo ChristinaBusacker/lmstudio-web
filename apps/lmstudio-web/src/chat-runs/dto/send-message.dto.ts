@@ -1,9 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, IsObject } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsObject, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 
 export class SendMessageDto {
   @ApiProperty({ example: 'Explain NestJS modules briefly.' })
   @IsString()
+  @MinLength(1)
   content!: string;
 
   @ApiProperty({
@@ -13,8 +14,7 @@ export class SendMessageDto {
   @IsUUID()
   clientRequestId!: string;
 
-  @ApiProperty({
-    required: false,
+  @ApiPropertyOptional({
     description: 'Settings profile id (preferred). Server resolves and freezes snapshot.',
     example: '9c1f3f8a-2d3b-4baf-9dd6-3c1f0c2f4a11',
   })
@@ -22,8 +22,9 @@ export class SendMessageDto {
   @IsUUID()
   settingsProfileId?: string;
 
-  @ApiProperty({
-    required: false,
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
     description:
       'Optional override snapshot (dev / power user). Server will merge with defaults and freeze.',
     example: { temperature: 0.7, maxTokens: 800, topP: 0.9, modelKey: 'qwen2.5-7b-instruct' },

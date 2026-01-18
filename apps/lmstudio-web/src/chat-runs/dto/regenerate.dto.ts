@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsUUID } from 'class-validator';
 
 export class RegenerateDto {
@@ -9,7 +9,10 @@ export class RegenerateDto {
   @IsUUID()
   clientRequestId!: string;
 
-  @ApiProperty({ required: false, example: '9c1f3f8a-2d3b-4baf-9dd6-3c1f0c2f4a11' })
+  @ApiPropertyOptional({
+    example: '9c1f3f8a-2d3b-4baf-9dd6-3c1f0c2f4a11',
+    description: 'Optional settings profile id. If omitted, the default profile is used.',
+  })
   @IsOptional()
   @IsUUID()
   settingsProfileId?: string;

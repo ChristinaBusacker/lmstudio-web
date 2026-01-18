@@ -50,7 +50,7 @@ export class MessagesService {
 
     let currentId: string | null = activeHeadMessageId;
     while (currentId) {
-      const m = await this.messages.findOne({ where: { id: currentId } });
+      const m = await this.messages.findOne({ where: { id: currentId, chatId } });
       if (!m) break;
       if (!m.deletedAt) chain.push(m);
       currentId = m.parentMessageId;

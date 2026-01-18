@@ -136,4 +136,42 @@ export class RunsService {
     }
     return toUnlock.length;
   }
+
+  async listByChat(chatId: string, limit = 20) {
+    return this.runs.find({
+      where: { chatId },
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
+
+  async listActive(params?: { queueKey?: string; limit?: number }) {
+    const limit = params?.limit ?? 50;
+    const queueKey = params?.queueKey ?? 'default';
+
+    return this.runs.find({
+      where: {
+        queueKey,
+        status: In(['queued', 'running'] as any),
+      },
+      // UX: queued zuerst, dann running, jeweils nach createdAt
+      order: { status: 'ASC' as any, createdAt: 'ASC' as any },
+      take: limit,
+    });
+  }
+
+  async listActiveByChat(chatId: string, params?: { queueKey?: string; limit?: number }) {
+    const limit = params?.limit ?? 50;
+    const queueKey = params?.queueKey ?? 'default';
+
+    return this.runs.find({
+      where: {
+        chatId,
+        queueKey,
+        status: In(['queued', 'running'] as any),
+      },
+      order: { status: 'ASC' as any, createdAt: 'ASC' as any },
+      take: limit,
+    });
+  }
 }
