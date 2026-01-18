@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/lmstudio-web/src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "webpack": true,
+    "tsConfigPath": "apps/lmstudio-web/tsconfig.app.json"
+  },
+  "monorepo": true,
+  "root": "apps/lmstudio-web",
+  "projects": {
+    "lmstudio-web": {
+      "type": "application",
+      "root": "apps/lmstudio-web",
+      "entryFile": "main",
+      "sourceRoot": "apps/lmstudio-web/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/lmstudio-web/tsconfig.app.json"
+      }
+    }
+  }
+}
