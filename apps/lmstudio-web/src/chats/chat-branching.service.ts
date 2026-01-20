@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ChatsService } from '../chats/chats.service';
 import { MessagesService } from '../chats/messages.service';
+import { SseBusService } from '../sse/sse-bus.service';
 
 /**
  * Use-case service for chat branching / head switching.
@@ -12,6 +13,7 @@ export class ChatBranchingService {
   constructor(
     private readonly chats: ChatsService,
     private readonly messages: MessagesService,
+    private readonly sse: SseBusService,
   ) {}
 
   /**
@@ -34,6 +36,18 @@ export class ChatBranchingService {
     }
 
     await this.chats.setChatHead(chatId, messageId ?? null);
+
+    this.sse.publish({
+      type: 'chat.thread.changed',
+      chatId,
+      payload: { reason: 'activate-head' },
+    });
+    this.sse.publish({
+      type: 'chat.meta.changed',
+      chatId,
+      payload: { fields: ['activeHeadMessageId'] },
+    });
+
     return { chatId, activeHeadMessageId: messageId ?? null };
   }
 }

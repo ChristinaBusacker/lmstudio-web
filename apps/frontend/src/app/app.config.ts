@@ -2,10 +2,31 @@ import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/
 import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
+import { withNgxsReduxDevtoolsPlugin } from '@ngxs/devtools-plugin';
+import { provideStore } from '@ngxs/store';
+import { provideHttpClient } from '@angular/common/http';
+import { ChatsApi } from './core/api/chats.api';
+import { FoldersApi } from './core/api/folders.api';
+import { ModelsApi } from './core/api/models.api';
+import { RunsApiService } from './core/api/runs.api';
+import { ChatsState } from './core/state/chats/chats.state';
+import { FoldersState } from './core/state/folders/folders.state';
+import { ModelsState } from './core/state/models/models.state';
+import { RunsState } from './core/state/runs/runs.state';
+import { ChatDetailState } from './core/state/chat-detail/chat-detail.state';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes)
-  ]
+    provideRouter(routes),
+    provideStore(
+      [ChatsState, FoldersState, ModelsState, RunsState, ChatDetailState],
+      withNgxsReduxDevtoolsPlugin(),
+    ),
+    provideHttpClient(),
+    ChatsApi,
+    FoldersApi,
+    ModelsApi,
+    RunsApiService,
+  ],
 };

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MessageEntity } from './entities/message.entity';
 import { ChatsService } from './chats.service';
+import { SseBusService } from '../sse/sse-bus.service';
 
 @Injectable()
 export class MessagesService {
@@ -10,6 +11,7 @@ export class MessagesService {
     @InjectRepository(MessageEntity)
     private readonly messages: Repository<MessageEntity>,
     private readonly chats: ChatsService,
+    private readonly sse: SseBusService,
   ) {}
 
   async getById(messageId: string) {
@@ -33,6 +35,12 @@ export class MessagesService {
     if (chat && chat.activeHeadMessageId === msg.id) {
       await this.chats.setChatHead(chat.id, msg.parentMessageId ?? null);
     }
+
+    this.sse.publish({
+      type: 'chat.thread.changed',
+      chatId: msg.chatId,
+      payload: { reason: 'variant-changed' },
+    });
 
     return { messageId, deletedAt: new Date().toISOString() };
   }

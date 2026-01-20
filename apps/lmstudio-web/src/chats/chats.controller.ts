@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -6,6 +7,7 @@ import {
   NotFoundException,
   Param,
   ParseBoolPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -19,17 +21,24 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+
 import { ChatsService } from './chats.service';
-import { CreateChatDto } from './dto/create-chat.dto';
-import { ChatThreadResponseDto } from './dto/thread.dto';
 import { ChatThreadQueryService } from './chat-thread-query.service';
 import { ChatBranchingService } from './chat-branching.service';
+
+import { CreateChatDto } from './dto/create-chat.dto';
+import { ChatThreadResponseDto } from './dto/thread.dto';
 import { ActivateHeadDto } from './dto/activate-head.dto';
 import {
   ActivateHeadResponseDto,
   ChatMetaDto,
   SoftDeleteChatResponseDto,
 } from './dto/chat-meta.dto';
+import { ListChatsQueryDto } from './dto/list-chats.query.dto';
+import { ChatListItemDto } from './dto/chat-list-item.dto';
+import { RenameChatDto } from './dto/rename-chat.dto';
+import { MoveChatDto } from './dto/move-chat.dto';
+import { ChatFoldersService } from './chat-folders.service';
 
 @ApiTags('Chats')
 @Controller('chats')
@@ -38,15 +47,51 @@ export class ChatsController {
     private readonly chats: ChatsService,
     private readonly thread: ChatThreadQueryService,
     private readonly branching: ChatBranchingService,
+    private readonly folders: ChatFoldersService,
   ) {}
+
+  @Get()
+  @ApiOperation({ summary: 'List chats (sidebar / overview)' })
+  @ApiOkResponse({ type: [ChatListItemDto] })
+  async list(@Query() query: ListChatsQueryDto): Promise<ChatListItemDto[]> {
+    const list = await this.chats.listChats({
+      limit: query.limit,
+      cursor: query.cursor,
+      folderId: query.folderId,
+      includeDeleted: query.includeDeleted,
+    });
+
+    return list.map((c) => ({
+      id: c.id,
+      title: c.title ?? null,
+      folderId: c.folderId ?? null,
+      activeHeadMessageId: c.activeHeadMessageId ?? null,
+      defaultSettingsProfileId: c.defaultSettingsProfileId ?? null,
+      deletedAt: c.deletedAt ? c.deletedAt.toISOString() : null,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
+    }));
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create a chat' })
   @ApiCreatedResponse({ type: ChatMetaDto })
   @ApiBadRequestResponse({ description: 'Invalid payload' })
-  async createChat(@Body() body: CreateChatDto) {
-    // If title optional, service handles trim/null logic
+  createChat(@Body() body: CreateChatDto) {
     return this.chats.createChat(body.title);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Rename a chat' })
+  @ApiParam({ name: 'id', description: 'Chat id' })
+  @ApiOkResponse({ type: ChatMetaDto })
+  @ApiBadRequestResponse({ description: 'Invalid payload' })
+  @ApiNotFoundResponse({ description: 'Chat not found' })
+  async rename(@Param('id') id: string, @Body() dto: RenameChatDto) {
+    const chat = await this.chats.getChat(id);
+    if (!chat) throw new NotFoundException('Chat not found');
+
+    return this.chats.renameChat(id, dto.title);
   }
 
   @Get(':id')
@@ -80,8 +125,7 @@ export class ChatsController {
   @ApiNotFoundResponse({ description: 'Chat not found' })
   getThread(
     @Param('id') chatId: string,
-    @Query('includeReasoning', new ParseBoolPipe({ optional: true }))
-    includeReasoning?: boolean,
+    @Query('includeReasoning', new ParseBoolPipe({ optional: true })) includeReasoning?: boolean,
   ) {
     return this.thread.getThread(chatId, { includeReasoning });
   }
@@ -110,7 +154,22 @@ export class ChatsController {
     if (!chat) throw new NotFoundException('Chat not found');
 
     await this.chats.softDeleteChat(chatId);
-
     return { chatId, deletedAt: new Date().toISOString() };
+  }
+
+  @Patch(':id/move')
+  @ApiOperation({ summary: 'Move chat to folder (or remove folder assignment)' })
+  @ApiParam({ name: 'id', description: 'Chat id' })
+  @ApiOkResponse({ description: 'Chat moved' })
+  @ApiBadRequestResponse({ description: 'Folder not found or invalid payload' })
+  @ApiNotFoundResponse({ description: 'Chat not found' })
+  async moveChat(@Param('id') chatId: string, @Body() dto: MoveChatDto) {
+    const chat = await this.chats.getChat(chatId);
+    if (!chat) throw new NotFoundException('Chat not found');
+
+    const ok = await this.folders.moveChat(chatId, dto.folderId ?? null);
+    if (!ok) throw new BadRequestException('Folder not found');
+
+    return { chatId, folderId: dto.folderId ?? null };
   }
 }

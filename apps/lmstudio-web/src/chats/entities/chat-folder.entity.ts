@@ -26,4 +26,7 @@ export class ChatFolderEntity {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  @Column({ type: 'datetime', nullable: true })
+  deletedAt!: Date | null;
 }

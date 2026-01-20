@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ServeStaticModule, ServeStaticModuleOptions } from '@nestjs/serve-static';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import * as path from 'node:path';
+import { join } from 'path';
 import { ChatRunsModule } from './chat-runs/chat-runs.module';
 import { ChatsModule } from './chats/chats.module';
 import { ChatEntity } from './chats/entities/chat.entity';
@@ -16,25 +19,30 @@ const dbPath = process.env.DB_PATH
   ? process.env.DB_PATH
   : path.join(process.cwd(), 'data', 'app.sqlite');
 
+const uiOptions: ServeStaticModuleOptions = {
+  rootPath: join(__dirname, '..', 'ui'),
+  serveRoot: '/ui',
+  exclude: ['/api*'],
+};
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
+      useFactory: () => ({
         type: 'sqlite',
         database: dbPath,
-
-        // IMPORTANT: migrations > synchronize
         synchronize: false,
         migrationsRun: false,
         autoLoadEntities: true,
         entities: [ChatEntity, MessageEntity, RunEntity, GenerationSettingsProfileEntity],
         migrations: [__dirname + '/migrations/*.{ts,js}'],
-
         logging: ['error', 'warn'],
       }),
     }),
+
+    ServeStaticModule.forRoot(uiOptions),
     ChatsModule,
     RunsModule,
     ChatRunsModule,

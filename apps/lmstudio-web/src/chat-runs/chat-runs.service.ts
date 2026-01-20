@@ -127,6 +127,8 @@ export class ChatRunsService {
       parentMessageId: parentId,
     });
 
+    await this.chats.ensureAutoTitle(params.chatId, trimmed);
+
     // 2) create assistant placeholder node + empty active variant (run target)
     const assistantMsg = await this.chats.createAssistantPlaceholder({
       chatId: params.chatId,

@@ -42,6 +42,7 @@ async function bootstrap() {
   console.log(`LMStudio WebUI listening at http://localhost:3000`);
   console.log(`OpenAPI listening at http://localhost:3000/api/openapi.json`);
   console.log(`Swagger UI listening at http://localhost:3000/api/docs`);
+  console.log(`Web UI listening at http://localhost:3000/ui`);
 }
 
 bootstrap();

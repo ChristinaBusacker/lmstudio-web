@@ -13,11 +13,15 @@ import { MessagesService } from './messages.service';
 import { MessagesController } from './messages.controller';
 import { ChatThreadQueryService } from './chat-thread-query.service';
 import { ChatBranchingService } from './chat-branching.service';
+import { ChatFoldersService } from './chat-folders.service';
+import { FoldersController } from './chat-folders.controller';
+import { SseModule } from '../sse/sse.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ChatEntity, MessageEntity, ChatFolderEntity, MessageVariantEntity]),
     SettingsModule,
+    SseModule,
   ],
   providers: [
     ChatsService,
@@ -26,8 +30,9 @@ import { ChatBranchingService } from './chat-branching.service';
     MessagesService,
     ChatThreadQueryService,
     ChatBranchingService,
+    ChatFoldersService,
   ],
-  controllers: [ChatsController, MessagesController],
+  controllers: [ChatsController, MessagesController, FoldersController],
   exports: [
     ChatsService,
     ChatContextBuilder,
@@ -35,6 +40,7 @@ import { ChatBranchingService } from './chat-branching.service';
     MessagesService,
     ChatThreadQueryService,
     ChatBranchingService,
+    ChatFoldersService,
   ],
 })
 export class ChatsModule {}

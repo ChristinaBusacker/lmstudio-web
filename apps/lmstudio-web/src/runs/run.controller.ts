@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -11,11 +12,16 @@ import { RunsService } from './runs.service';
 import { RunStatusDto } from './dto/run-status.dto';
 import { ListRunsQueryDto } from './dto/list-runs.query.dto';
 import { ListActiveRunsQueryDto } from './dto/active-runs.dto';
+import { ChatEngineService } from '../chats/chat-engine.service';
+import { CancelRunResponseDto } from './dto/cancel-run-response.dto';
 
 @ApiTags('Runs')
 @Controller()
 export class RunsController {
-  constructor(private readonly runs: RunsService) {}
+  constructor(
+    private readonly runs: RunsService,
+    private readonly engine: ChatEngineService,
+  ) {}
 
   @Get('runs/:runId')
   @ApiOperation({ summary: 'Get run status by id' })
@@ -132,6 +138,43 @@ export class RunsController {
       createdVariantId: r.createdVariantId ?? null,
       createdAt: toIso(r.createdAt) ?? new Date().toISOString(),
       updatedAt: toIso(r.updatedAt) ?? new Date().toISOString(),
+    };
+  }
+
+  @Post('runs/:runId/cancel')
+  @ApiOperation({
+    summary: 'Cancel a run (best-effort)',
+    description:
+      'Attempts to abort the LM Studio stream for this run and marks it as canceled. ' +
+      'If the run already finished, it returns the unchanged status.',
+  })
+  @ApiParam({ name: 'runId', description: 'Run id' })
+  @ApiOkResponse({ type: CancelRunResponseDto })
+  @ApiNotFoundResponse({ description: 'Run not found' })
+  @ApiBadRequestResponse({ description: 'Run is not cancelable or other validation error' })
+  async cancel(@Param('runId') runId: string): Promise<CancelRunResponseDto> {
+    const run = await this.runs.getById(runId);
+    if (!run) throw new NotFoundException('Run not found');
+
+    // If already finished, do nothing but return status.
+    if (run.status === 'completed' || run.status === 'failed' || run.status === 'canceled') {
+      return {
+        runId,
+        status: run.status as any,
+        message: 'Run already finished',
+      };
+    }
+
+    // Best-effort abort streaming if currently running in this process
+    // (If you later have multiple workers, you’ll want a shared cancel signal.)
+    this.engine.cancel(runId);
+
+    await this.runs.markCanceled(runId);
+
+    return {
+      runId,
+      status: 'canceled',
+      message: null,
     };
   }
 }

@@ -1,0 +1,165 @@
+import { Controller, MessageEvent, Param, Query, Req, Sse } from '@nestjs/common';
+import {
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiProduces,
+  ApiQuery,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
+import { Observable, merge, interval, from } from 'rxjs';
+import { filter, map } from 'rxjs/operators';
+import { SseBusService } from './sse-bus.service';
+import type { Request } from 'express';
+import { SseEnvelopeDto } from './dto/sse-events.dto';
+
+@ApiTags('SSE')
+@Controller('sse')
+export class SseController {
+  constructor(private readonly bus: SseBusService) {}
+
+  @Sse('chats/:chatId')
+  @ApiProduces('text/event-stream')
+  @ApiOperation({
+    summary: 'Chat-scoped SSE stream (run updates + active variant snapshots)',
+    description:
+      'Emits events for a single chat:\n' +
+      '- run.status\n' +
+      '- variant.snapshot (contentSoFar for the currently generating assistant message)\n' +
+      '- heartbeat\n\n' +
+      'Replay: Uses Last-Event-ID to replay buffered events. Clients should resync via REST on reconnect.',
+  })
+  @Sse('chats/:chatId')
+  @ApiProduces('text/event-stream')
+  @ApiOkResponse({
+    description: 'SSE stream (text/event-stream). Use EventSource.',
+    content: {
+      'text/event-stream': {
+        schema: { $ref: getSchemaPath(SseEnvelopeDto) },
+      },
+    },
+  })
+  @ApiParam({ name: 'chatId', description: 'Chat id' })
+  @ApiQuery({
+    name: 'includeVariants',
+    required: false,
+    description: 'If false, suppresses variant.snapshot events.',
+    schema: { type: 'boolean', default: true },
+  })
+  @ApiQuery({
+    name: 'includeRuns',
+    required: false,
+    description: 'If false, suppresses run.status events.',
+    schema: { type: 'boolean', default: true },
+  })
+  streamChat(
+    @Req() req: Request,
+    @Param('chatId') chatId: string,
+    @Query('includeVariants') includeVariants?: string,
+    @Query('includeRuns') includeRuns?: string,
+  ): Observable<MessageEvent> {
+    const wantVariants = includeVariants !== 'false';
+    const wantRuns = includeRuns !== 'false';
+
+    const lastId = this.parseLastEventId(req);
+
+    const replay = this.bus.getChatReplay(chatId, lastId).filter((e) => {
+      if (e.type === 'variant.snapshot') return wantVariants;
+      if (e.type === 'run.status') return wantRuns;
+      return true;
+    });
+    const replay$ = from(replay).pipe(map((e) => this.toMessageEvent(e)));
+
+    const live$ = this.bus.observeChat(chatId).pipe(
+      filter((e) => {
+        if (e.type === 'variant.snapshot') return wantVariants;
+        if (e.type === 'run.status') return wantRuns;
+        return true;
+      }),
+      map((e) => this.toMessageEvent(e)),
+    );
+
+    const heartbeat$ = interval(15_000).pipe(
+      map(() =>
+        this.toMessageEvent(
+          this.bus.publish({
+            type: 'heartbeat',
+            chatId,
+            payload: { ok: true },
+          }),
+        ),
+      ),
+    );
+
+    return merge(replay$, live$, heartbeat$);
+  }
+
+  @Sse('global')
+  @ApiProduces('text/event-stream')
+  @ApiOperation({
+    summary: 'Global SSE stream (runs + sidebar + models)',
+    description:
+      'Emits global UI events:\n' +
+      '- run.status (all chats)\n' +
+      '- sidebar.changed\n' +
+      '- models.changed\n' +
+      '- heartbeat\n\n' +
+      'Replay: uses Last-Event-ID with an in-memory ring buffer.',
+  })
+  @Sse('global')
+  @ApiProduces('text/event-stream')
+  @ApiOkResponse({
+    description: 'SSE stream (text/event-stream). Use EventSource.',
+    content: {
+      'text/event-stream': {
+        schema: { $ref: getSchemaPath(SseEnvelopeDto) },
+      },
+    },
+  })
+  streamGlobal(@Req() req: Request): Observable<MessageEvent> {
+    const lastId = this.parseLastEventId(req);
+
+    const replay = this.bus.getRunReplay(lastId);
+    const replay$ = from(replay).pipe(map((e) => this.toMessageEvent(e)));
+
+    const live$ = this.bus.observeAll().pipe(
+      filter((e) => !e.chatId), // global events only
+      filter(
+        (e) =>
+          e.type === 'run.status' || e.type === 'sidebar.changed' || e.type === 'models.changed',
+      ),
+      map((e) => this.toMessageEvent(e)),
+    );
+
+    const heartbeat$ = interval(15_000).pipe(
+      map(() =>
+        this.toMessageEvent(
+          this.bus.publish({
+            type: 'heartbeat',
+            payload: { ok: true },
+          }),
+        ),
+      ),
+    );
+
+    return merge(replay$, live$, heartbeat$);
+  }
+
+  private toMessageEvent(e: SseEnvelopeDto): MessageEvent {
+    return {
+      id: String(e.id),
+      type: e.type,
+      data: e,
+    };
+  }
+
+  private parseLastEventId(req: Request): number | undefined {
+    // Browser sets Last-Event-ID header on reconnect if server sends `id:`.
+    const raw = req.header('last-event-id') ?? req.header('Last-Event-ID');
+    if (!raw) return undefined;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : undefined;
+  }
+}
