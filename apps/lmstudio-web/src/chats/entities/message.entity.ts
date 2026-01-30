@@ -6,9 +6,11 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  OneToMany,
 } from 'typeorm';
 import { ChatEntity } from './chat.entity';
 import type { MessageRole } from './message.types';
+import { MessageVariantEntity } from './message-variant.entity';
 
 @Entity('message')
 @Index(['chatId', 'createdAt']) // Fast chat timeline queries (UI)
@@ -68,6 +70,9 @@ export class MessageEntity {
   @Index()
   @Column({ type: 'datetime', nullable: true })
   editedAt!: Date | null;
+
+  @OneToMany(() => MessageVariantEntity, (v) => v.message, { cascade: false })
+  variants!: MessageVariantEntity[];
 
   /**
    * Creation timestamp.

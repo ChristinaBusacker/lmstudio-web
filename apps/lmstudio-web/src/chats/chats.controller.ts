@@ -39,6 +39,7 @@ import { ChatListItemDto } from './dto/chat-list-item.dto';
 import { RenameChatDto } from './dto/rename-chat.dto';
 import { MoveChatDto } from './dto/move-chat.dto';
 import { ChatFoldersService } from './chat-folders.service';
+import { ReorderChatDto } from './dto/reorder-chat.dto';
 
 @ApiTags('Chats')
 @Controller('chats')
@@ -155,6 +156,15 @@ export class ChatsController {
 
     await this.chats.softDeleteChat(chatId);
     return { chatId, deletedAt: new Date().toISOString() };
+  }
+
+  @Patch(':id/reorder')
+  @ApiOperation({ summary: 'Reorder chat in its folder scope' })
+  async reorder(@Param('id') chatId: string, @Body() dto: ReorderChatDto) {
+    const chat = await this.chats.getChat(chatId);
+    if (!chat) throw new NotFoundException('Chat not found');
+
+    return this.chats.reorderChat(chatId, dto);
   }
 
   @Patch(':id/move')

@@ -1,0 +1,208 @@
+<h2>Editor</h2>
+
+@if (!profile) {
+  <div class="empty big">Select a profile on the left.</div>
+} @else {
+  <div class="editor-header card">
+    <div class="titleblock">
+      <div class="big">
+        {{ profile.name }}
+        @if (profile.isDefault) {
+          <span class="badge">default</span>
+        }
+      </div>
+      <div class="muted">ID: {{ profile.id }}</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" (click)="onSetDefault()" [disabled]="profile.isDefault">
+        Set default
+      </button>
+      <button class="btn btn-primary" (click)="onSave()" [disabled]="!isDirty || !editName.trim()">
+        Save
+      </button>
+    </div>
+  </div>
+
+  <!-- Profile card -->
+  <div class="card">
+    <div class="card-title">Profile</div>
+
+    <label class="field">
+      <span class="label">Profile name</span>
+      <input class="input" type="text" [(ngModel)]="editName" />
+    </label>
+  </div>
+
+  <!-- Prompt card -->
+  <div class="card">
+    <div class="card-title">Prompt</div>
+
+    <label class="field">
+      <span class="label">System prompt</span>
+      <textarea
+        class="textarea textarea-small"
+        [(ngModel)]="editParams.systemPrompt"
+        spellcheck="false"
+      ></textarea>
+    </label>
+  </div>
+
+  <!-- Model card -->
+  <div class="card">
+    <div class="card-title">Model</div>
+
+    @if (models) {
+      <label class="field">
+        <span class="label">Model</span>
+        <select class="select" [(ngModel)]="editParams.modelKey">
+          <option value="">— Select a model —</option>
+
+          @for (m of models; track m.id) {
+            <option [value]="m.id">
+              @if (m.state === 'loaded') {
+                ✅
+              } @else if (m.state === 'not-loaded') {
+                ⬜
+              } @else {
+                ❔
+              }
+              {{ m.id }}
+            </option>
+          }
+        </select>
+      </label>
+
+      <div class="model-row">
+        <div class="model-meta">
+          @if (editParams.modelKey) {
+            <span class="muted">Selected:</span>
+            <span class="mono">{{ editParams.modelKey }}</span>
+            @if (isModelBusyFn(editParams.modelKey) | async) {
+              <span class="pill">busy…</span>
+            }
+          } @else {
+            <span class="muted">No model selected</span>
+          }
+        </div>
+
+        <div class="model-actions">
+          <button
+            class="btn btn-ghost"
+            type="button"
+            (click)="onLoadModel()"
+            [disabled]="!editParams.modelKey"
+          >
+            Load
+          </button>
+          <button
+            class="btn btn-ghost"
+            type="button"
+            (click)="onUnloadModel()"
+            [disabled]="!editParams.modelKey"
+          >
+            Unload
+          </button>
+        </div>
+      </div>
+
+      @if (modelsLoading) {
+        <div class="hint">Loading models…</div>
+      }
+    } @else {
+      <div class="hint">Models not available.</div>
+    }
+  </div>
+
+  <!-- Sampling card -->
+  <div class="card">
+    <div class="card-title">Sampling</div>
+
+    <div class="two-col">
+      <label class="field">
+        <span class="label">Temperature (0–2)</span>
+        <div class="inline">
+          <input
+            class="range"
+            type="range"
+            min="0"
+            max="2"
+            step="0.01"
+            [(ngModel)]="editParams.temperature"
+          />
+          <input
+            class="input input-small"
+            type="number"
+            min="0"
+            max="2"
+            step="0.01"
+            [(ngModel)]="editParams.temperature"
+          />
+        </div>
+      </label>
+
+      <label class="field">
+        <span class="label">Top-P (0–1)</span>
+        <div class="inline">
+          <input
+            class="range"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            [(ngModel)]="editParams.topP"
+          />
+          <input
+            class="input input-small"
+            type="number"
+            min="0"
+            max="1"
+            step="0.01"
+            [(ngModel)]="editParams.topP"
+          />
+        </div>
+      </label>
+    </div>
+
+    <label class="field">
+      <span class="label">Max tokens</span>
+      <input class="input" type="number" min="1" step="1" [(ngModel)]="editParams.maxTokens" />
+    </label>
+  </div>
+
+  <!-- Advanced card -->
+  <div class="card advanced">
+    <div class="row row-top">
+      <div class="card-title">Advanced</div>
+      <button class="btn btn-ghost" type="button" (click)="onToggleAdvanced()">
+        @if (showAdvanced) {
+          Hide
+        } @else {
+          Show
+        }
+      </button>
+    </div>
+
+    @if (showAdvanced) {
+      <div class="hint">Extra keys as JSON object. Core fields won’t be overwritten.</div>
+      <textarea class="textarea" [(ngModel)]="advancedJson" spellcheck="false"></textarea>
+      @if (advancedJsonError) {
+        <div class="json-error">{{ advancedJsonError }}</div>
+      }
+    }
+  </div>
+
+  <!-- Meta card -->
+  <div class="card meta">
+    <div class="card-title">Meta</div>
+    <div class="meta-row">
+      <span class="muted">ownerKey</span><span>{{ profile.ownerKey }}</span>
+    </div>
+    <div class="meta-row">
+      <span class="muted">created</span><span>{{ profile.createdAt }}</span>
+    </div>
+    <div class="meta-row">
+      <span class="muted">updated</span><span>{{ profile.updatedAt }}</span>
+    </div>
+  </div>
+}

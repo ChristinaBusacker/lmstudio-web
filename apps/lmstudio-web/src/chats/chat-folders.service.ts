@@ -77,7 +77,6 @@ export class ChatFoldersService {
   }
 
   async moveChat(chatId: string, folderId: string | null) {
-    // folderId null => remove assignment
     if (folderId === null) {
       await this.chats.update({ id: chatId }, { folderId: null });
       return true;
@@ -87,6 +86,22 @@ export class ChatFoldersService {
     if (!folder || folder.deletedAt) return false;
 
     await this.chats.update({ id: chatId }, { folderId });
+
+    const res = await this.chats
+      .createQueryBuilder('c')
+      .select('MAX(c.sortKey)', 'max')
+      .where('c.deletedAt IS NULL')
+      .andWhere(folderId ? 'c.folderId = :fid' : 'c.folderId IS NULL', { folderId })
+      .getRawOne<{ max: number | null }>();
+
+    if (res) {
+      const { max } = res;
+
+      await this.chats.update(
+        { id: chatId },
+        { folderId: folderId ?? null, sortKey: (max ?? 0) + 1 },
+      );
+    }
 
     this.sse.publish({
       type: 'sidebar.changed',

@@ -1,0 +1,34 @@
+:host {
+  .items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-start;
+    flex: 1;
+
+    & chat-card {
+      max-height: 80px;
+      flex-grow: 1;
+    }
+
+    .folder {
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      border-radius: 8px;
+      background-color: var(--color-container);
+      flex-grow: 1;
+      transition: all 0.3s ease;
+      cursor: pointer;
+
+      &:hover {
+        background-color: var(--color-bg-dark);
+      }
+
+      & .name {
+        display: flex;
+        gap: 5px;
+      }
+    }
+  }
+}

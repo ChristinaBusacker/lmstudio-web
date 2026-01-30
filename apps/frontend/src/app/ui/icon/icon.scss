@@ -1,0 +1,9 @@
+.svg-wrapper {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+}
+
+.svg-wrapper svg {
+  fill: var(--color-text) !important;
+}

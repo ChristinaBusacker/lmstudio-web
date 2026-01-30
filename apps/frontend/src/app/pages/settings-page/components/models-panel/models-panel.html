@@ -1,0 +1,87 @@
+<div class="header-row">
+  <div>
+    <h2>Models</h2>
+    <div class="muted">Manage loaded and available models.</div>
+  </div>
+
+  <div class="actions">
+    <input class="input input-small" type="text" [(ngModel)]="filter" placeholder="Filter…" />
+    <button class="btn btn-ghost" (click)="reloadModels.emit()">Reload</button>
+  </div>
+</div>
+
+@if (loading) {
+  <div class="pill">Loading…</div>
+}
+
+@if (models === null) {
+  <div class="empty">Models not available.</div>
+} @else {
+  <div class="grid">
+    <!-- Loaded -->
+    <div class="card">
+      <div class="card-title">Loaded ({{ loadedModels.length }})</div>
+
+      @if (loadedModels.length === 0) {
+        <div class="empty">No models loaded.</div>
+      } @else {
+        <div class="list">
+          @for (m of loadedModels; track m.id) {
+            <div class="model-item" [title]="m.id">
+              <div class="left">
+                <div class="name mono">{{ m.id }}</div>
+
+                @if (isBusyFn(m.id) | async) {
+                  <span class="pill">busy…</span>
+                }
+              </div>
+
+              <div class="right">
+                <button
+                  class="btn btn-ghost"
+                  (click)="onUnload(m.id)"
+                  [disabled]="isBusyFn(m.id) | async"
+                >
+                  Unload
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Not loaded -->
+    <div class="card">
+      <div class="card-title">Available ({{ notLoadedModels.length }})</div>
+
+      @if (notLoadedModels.length === 0) {
+        <div class="empty">No unloaded models found.</div>
+      } @else {
+        <div class="list">
+          @for (m of notLoadedModels; track m.id) {
+            <div class="model-item" [title]="m.id">
+              <div class="left">
+                <div class="name mono">{{ m.id }}</div>
+
+                @if (isBusyFn(m.id) | async) {
+                  <span class="pill">busy…</span>
+                }
+              </div>
+
+              <div class="right">
+                <button
+                  class="btn btn-primary"
+                  (click)="onLoad(m.id)"
+                  [disabled]="isBusyFn(m.id) | async"
+                >
+                  Load
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}

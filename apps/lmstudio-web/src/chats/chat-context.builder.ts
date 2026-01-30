@@ -16,6 +16,7 @@ export class ChatContextBuilder {
 
   async buildActiveContext(chatId: string, systemPrompt?: string): Promise<LmMessage[]> {
     const chat = await this.chats.findOne({ where: { id: chatId, deletedAt: IsNull() } });
+
     if (!chat?.activeHeadMessageId) {
       return systemPrompt?.trim() ? [{ role: 'system', content: systemPrompt }] : [];
     }

@@ -1,6 +1,5 @@
 import { Controller, MessageEvent, Param, Query, Req, Sse } from '@nestjs/common';
 import {
-  ApiExtraModels,
   ApiOkResponse,
   ApiOperation,
   ApiParam,

@@ -1,6 +1,6 @@
 // src/app/core/state/runs/runs.state.ts
 import { Injectable, inject } from '@angular/core';
-import { Action, Selector, State } from '@ngxs/store';
+import { Action, createSelector, Selector, State } from '@ngxs/store';
 import { catchError, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
 
@@ -91,11 +91,11 @@ export class RunsState {
    * Selector factory: active runs for a chat (queue view per chat)
    */
   static activeByChat(chatId: string) {
-    return (s: RunsStateModel): RunStatusDto[] =>
-      s.activeIds
-        .map((id) => s.entities[id])
-        .filter((r): r is RunStatusDto => !!r && r.chatId === chatId)
-        .sort(sortRunsForUi);
+    return createSelector(
+      [RunsState.entities, RunsState.active],
+      (entities: RunsStateModel['entities'], active: RunStatusDto[]): RunStatusDto[] =>
+        active.filter((r) => r.chatId === chatId).sort(sortRunsForUi),
+    );
   }
 
   // ---------- Actions ----------

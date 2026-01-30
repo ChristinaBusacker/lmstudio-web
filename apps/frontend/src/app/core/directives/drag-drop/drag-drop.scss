@@ -1,0 +1,77 @@
+.dd-container {
+  position: relative;
+}
+
+.dd-over {
+  outline: 2px dashed rgba(0, 0, 0, 0.25);
+  outline-offset: 4px;
+}
+
+.dd-item.dd-dragging,
+.dd-drag-source {
+  opacity: 0.6;
+}
+
+.dd-placeholder {
+  box-sizing: border-box;
+  border: 2px dashed rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+}
+
+.dd-target-over {
+  outline: 2px solid rgba(0, 0, 0, 0.35);
+  outline-offset: 2px;
+}
+.dd-target-disabled {
+  opacity: 0.6;
+}
+
+/* Base folder target */
+.folder.dd-target {
+  position: relative;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease;
+}
+
+/* Hover while dragging over it */
+.folder.dd-target.dd-target-over {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.06);
+  outline: 2px solid rgba(0, 0, 0, 0.25);
+  outline-offset: 2px;
+}
+
+/* Optional: show an "insert" vibe */
+.folder.dd-target.dd-target-over::after {
+  content: '📁 Drop to move';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+/* Disabled target state */
+.folder.dd-target.dd-target-disabled {
+  opacity: 0.6;
+}
+
+.dd-drag-preview {
+  opacity: 0.95;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+}
+
+.dd-drag-source-hidden {
+  opacity: 0.15;
+}
+
+.dd-drag-preview {
+  opacity: 0.95;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+}

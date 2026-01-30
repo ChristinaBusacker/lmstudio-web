@@ -1,0 +1,40 @@
+<section class="wrap">
+  <button
+    type="button"
+    class="header"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="contentId()"
+    (click)="toggle()"
+  >
+    <span class="title">{{ title() }}</span>
+
+    <span class="chevron" [class.open]="open()" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+        <path
+          d="M6 9l6 6 6-6"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </span>
+  </button>
+
+  <div class="dividerWrap" [class.open]="open()">
+    <div class="divider" aria-hidden="true"></div>
+  </div>
+
+  <div
+    class="contentWrap"
+    [class.open]="open()"
+    [style.maxHeight.px]="maxHeightPx()"
+    [id]="contentId()"
+    role="region"
+    [attr.aria-label]="title()"
+  >
+    <div #inner class="contentInner">
+      <ng-content />
+    </div>
+  </div>
+</section>

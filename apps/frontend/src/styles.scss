@@ -1,1 +1,165 @@
-/* You can add global styles to this file, and also import other style files */
+@use './app/core/directives/drag-drop/drag-drop.scss';
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body * {
+  box-sizing: border-box;
+}
+
+.app-shell {
+  height: 100dvh; /* viewport hoch */
+  display: flex; /* sidebar links, content rechts */
+  overflow: hidden; /* wichtig: verhindert body-scroll */
+}
+
+.sidebar {
+  width: 280px; /* fixe Breite oder clamp(...) */
+  flex: 0 0 auto;
+  overflow: auto; /* optional: falls sidebar selbst scrollen darf */
+  border-right: 1px solid #e5e5e5;
+}
+
+.content {
+  flex: 1 1 auto;
+  overflow: auto; /* DER Scrollbereich */
+  min-width: 0; /* wichtig bei flex, sonst kann content "überlaufen" */
+  padding: 16px;
+}
+
+:root {
+  --color-bg: #212121;
+  --color-container: #303030;
+  --color-bg-dark: #161616;
+  --color-text: #fefefe;
+  --color-primary: #3b82f6;
+
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+}
+
+html {
+  font-size: 62.5%;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+span,
+div {
+  font-size: 1.4rem;
+  line-height: 2rem;
+}
+
+.svg-wrapper svg {
+  fill: var(--color-text) !important;
+}
+
+.icon {
+  &.icon-black .svg-wrapper svg {
+    fill: black !important;
+  }
+}
+
+button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text);
+  padding: 5px 20px;
+  margin: 5px;
+  border-radius: 5px;
+  transition: all 0.5s ease;
+
+  &:hover {
+    background-color: var(--color-container);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  &.btn.btn-primary {
+    background: var(--color-primary);
+  }
+
+  &.btn.btn-warn {
+    background: #ae2222;
+  }
+
+  &.btn.btn-ghost {
+    background: transparent;
+    border: 1px solid var(--color-container);
+
+    &:hover {
+      background: var(--color-container);
+    }
+  }
+}
+
+hr {
+  border-color: darkgrey;
+  width: 100%;
+}
+
+.page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  max-height: 95dvh;
+}
+
+.header {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  .title {
+    font-weight: 600;
+    font-size: 14px;
+    opacity: 0.9;
+  }
+}
+
+/* Common dark form look */
+.input,
+.textarea,
+.select,
+input[type='range' i] {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.92);
+  padding: 10px 12px;
+  font-size: 13px;
+
+  & option {
+    background-color: var(--color-container);
+  }
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-container);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.85;
+  margin-bottom: 10px;
+}

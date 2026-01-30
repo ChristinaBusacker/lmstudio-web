@@ -1,0 +1,17 @@
+<div class="cm-overlay" tabindex="0" (click)="onOverlayClick()" (keydown)="onKeydown($event)"
+    (contextmenu)="$event.preventDefault()">
+    <div #menuEl class="cm-menu" [style.left]="leftPx + 'px'" [style.top]="topPx+ 'px'" [style.display]="'none'"
+        (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault()">
+        @for (item of items; track trackById($index, item)) {
+        @if (!isHidden(item)) {
+        <button type="button" class="cm-item" [class.danger]="item.danger" [disabled]="isDisabled(item)"
+            (click)="onItemClick(item, $event)">
+            @if (item.icon) {
+            <app-icon class="cm-icon" [name]="item.icon" [size]="18"></app-icon>
+            }
+            <span class="cm-label">{{ item.label }}</span>
+        </button>
+        }
+        }
+    </div>
+</div>

@@ -21,11 +21,25 @@ export class ChatsService {
   }
 
   async createChat(title?: string) {
+    const res = await this.chats
+      .createQueryBuilder('c')
+      .select('MAX(c.sortKey)', 'max')
+      .where('c.deletedAt IS NULL')
+      .andWhere('c.folderId IS NULL')
+      .getRawOne<{ max: number | null }>();
+
+    if (!res) return;
+
+    const { max } = res;
+
+    const nextSortKey = (max ?? 0) + 1;
+
     const chat = this.chats.create({
       title: title?.trim() ? title.trim() : null,
       activeHeadMessageId: null,
       folderId: null,
       deletedAt: null,
+      sortKey: nextSortKey,
     });
 
     const saved = await this.chats.save(chat);
@@ -33,12 +47,12 @@ export class ChatsService {
     this.sse.publish({
       type: 'chat.meta.changed',
       chatId: saved.id,
-      payload: { fields: ['deletedAt'] },
+      payload: { fields: ['deletedAt', 'sortKey'] },
     });
 
     this.sse.publish({
       type: 'sidebar.changed',
-      payload: { reason: 'chat-deleted' },
+      payload: { reason: 'chat-created' },
     });
 
     return saved;
@@ -89,7 +103,7 @@ export class ChatsService {
     const limit = params?.limit ?? 50;
 
     const where: FindOptionsWhere<ChatEntity> = {};
-
+    console.log(params?.includeDeleted);
     if (!params?.includeDeleted) {
       (where as any).deletedAt = IsNull();
     }
@@ -117,6 +131,7 @@ export class ChatsService {
         'deletedAt',
         'createdAt',
         'updatedAt',
+        'sortKey',
       ],
     });
   }
@@ -175,7 +190,7 @@ export class ChatsService {
   async ensureAutoTitle(chatId: string, firstUserText: string) {
     const chat = await this.chats.findOne({ where: { id: chatId } });
     if (!chat) return;
-    if (chat.title && chat.title.trim().length > 0) return;
+    if (chat.title && chat.title !== 'Untitled' && chat.title.trim().length > 0) return;
 
     const cleaned = firstUserText.replace(/\s+/g, ' ').trim();
     const title = cleaned.length > 60 ? cleaned.slice(0, 60) + '…' : cleaned;
@@ -196,5 +211,69 @@ export class ChatsService {
 
   async softDeleteChat(chatId: string) {
     await this.chats.update({ id: chatId }, { deletedAt: new Date() });
+  }
+
+  async reorderChat(chatId: string, dto: { beforeId?: string | null; afterId?: string | null }) {
+    const chat = await this.chats.findOne({ where: { id: chatId } });
+    if (!chat) return null;
+
+    let max: number | null = 0;
+
+    // same scope only
+    const scopeFolderId = chat.folderId;
+
+    const before = dto.beforeId ? await this.chats.findOne({ where: { id: dto.beforeId } }) : null;
+
+    const after = dto.afterId ? await this.chats.findOne({ where: { id: dto.afterId } }) : null;
+
+    // validate scope
+    if (before && before.folderId !== scopeFolderId)
+      throw new Error('beforeId not in same folder scope');
+    if (after && after.folderId !== scopeFolderId)
+      throw new Error('afterId not in same folder scope');
+
+    let nextKey: number | undefined = undefined;
+
+    if (before && after) {
+      // insert between: (a + b) / 2
+      nextKey = (before.sortKey + after.sortKey) / 2;
+    } else if (before && !after) {
+      // move to very top: before is currently above target position? depends on your UI semantics.
+      // Common pattern: if you drop "after before", you want just below before.
+      // I’ll interpret: beforeId = item above → place just below it (slightly smaller).
+      nextKey = before.sortKey - 1;
+    } else if (!before && after) {
+      // move to very bottom: afterId = item below → place just above it (slightly larger)
+      nextKey = after.sortKey + 1;
+    } else {
+      const res = await this.chats
+        .createQueryBuilder('c')
+        .select('MAX(c.sortKey)', 'max')
+        .where('c.deletedAt IS NULL')
+        .andWhere(scopeFolderId ? 'c.folderId = :fid' : 'c.folderId IS NULL', {
+          fid: scopeFolderId,
+        })
+        .getRawOne<{ max: number | null }>();
+
+      if (res) {
+        max = res.max;
+        nextKey = (max ?? 0) + 1;
+      }
+    }
+
+    await this.chats.update({ id: chatId }, { sortKey: nextKey || undefined });
+
+    this.sse.publish({
+      type: 'chat.meta.changed',
+      chatId,
+      payload: { fields: ['sortKey'], patch: { sortKey: nextKey || undefined } },
+    });
+
+    this.sse.publish({
+      type: 'sidebar.changed',
+      payload: { reason: 'chat-reordered' },
+    });
+
+    return { chatId, sortKey: nextKey || undefined };
   }
 }

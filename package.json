@@ -8,9 +8,9 @@
   "scripts": {
     "build": "ng build frontend && nest build lmstudio-web",
     "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
-    "start": "nest start",
+    "start": "nest start && ng serve --host 0.0.0.0 --port 4200 --ssl",
     "start:dev": "nest start --watch",
-    "watch:frontend": "ng build --watch --configuration development",
+    "start:frontend": "ng serve --host 0.0.0.0 --port 4200 --ssl",
     "start:debug": "nest start lmstudio-web --debug --watch",
     "start:prod": "node dist/apps/lmstudio-web/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -23,7 +23,8 @@
     "migration:generate": "npm run typeorm -- migration:generate apps/lmstudio-web/src/migrations/AutoMigration",
     "migration:create": "npm run typeorm -- migration:create apps/lmstudio-web/src/migrations/ManualMigration",
     "migration:run": "npm run typeorm -- migration:run",
-    "migration:revert": "npm run typeorm -- migration:revert"
+    "migration:revert": "npm run typeorm -- migration:revert",
+    "migrate": "npm run migration:generate && npm run migration:run"
   },
   "dependencies": {
     "@angular/common": "^21.0.0",
@@ -43,7 +44,11 @@
     "@ngxs/devtools-plugin": "^21.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "clipboard": "^2.0.11",
+    "marked": "^17.0.1",
+    "ngx-markdown": "^21.0.1",
     "pg": "^8.17.1",
+    "prismjs": "^1.30.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sqlite3": "^5.1.7",
@@ -52,6 +57,7 @@
     "typeorm": "^0.3.28"
   },
   "devDependencies": {
+    "@angular/animations": "^21.1.0",
     "@angular/build": "^21.0.3",
     "@angular/cli": "^21.0.3",
     "@angular/compiler-cli": "^21.0.0",

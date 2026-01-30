@@ -1,0 +1,87 @@
+:host {
+  display: block;
+}
+
+.wrap {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 14px;
+  overflow: clip;
+  background: transparent;
+  backdrop-filter: blur(8px);
+}
+
+.header {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  margin-bottom: 0px;
+  margin-top: 10px;
+}
+
+.header:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.6);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+.title {
+  font-weight: 650;
+  letter-spacing: 0.1px;
+}
+
+.chevron {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  transform: rotate(0deg);
+  transition: transform 160ms ease;
+  opacity: 0.75;
+}
+.chevron.open {
+  transform: rotate(180deg);
+}
+
+.dividerWrap {
+  max-height: 0px;
+  overflow: hidden;
+  transition: max-height 220ms ease;
+}
+.dividerWrap.open {
+  max-height: 20px;
+}
+
+.contentWrap {
+  overflow: hidden;
+  max-height: 0px;
+  opacity: 0;
+  transition:
+    max-height 220ms ease,
+    opacity 160ms ease;
+  will-change: max-height, opacity;
+}
+.contentWrap.open {
+  opacity: 1;
+}
+
+.contentInner {
+  padding: 0 4px 0 4px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron,
+  .contentWrap,
+  .dividerWrap {
+    transition: none;
+  }
+}

@@ -1,1 +1,26 @@
-<p>chat-page works!</p>
+<div class="page">
+  <header class="header">
+    <div class="title">
+      @if (folder) {
+        {{ folder.name }} /
+      }
+      {{ (meta | async)?.title || 'Chat' }}
+    </div>
+  </header>
+
+  <section #scrollContainer class="messages" (scroll)="onScroll()">
+    @if (loading()) {
+      <div class="hint">Lade…</div>
+    } @else if (messages().length === 0) {
+      <div class="empty">Noch keine Nachrichten.</div>
+    }
+
+    @for (m of messages(); track m.id) {
+      <app-message [message]="m" />
+    }
+  </section>
+
+  <footer class="composer">
+    <app-composer [chatId]="chatId" [folderId]="null" />
+  </footer>
+</div>

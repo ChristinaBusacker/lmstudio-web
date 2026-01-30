@@ -23,30 +23,6 @@ export class RunsController {
     private readonly engine: ChatEngineService,
   ) {}
 
-  @Get('runs/:runId')
-  @ApiOperation({ summary: 'Get run status by id' })
-  @ApiParam({ name: 'runId', description: 'Run id' })
-  @ApiOkResponse({ type: RunStatusDto })
-  @ApiNotFoundResponse({ description: 'Run not found' })
-  async getById(@Param('runId') runId: string): Promise<RunStatusDto> {
-    const run = await this.runs.getById(runId);
-    if (!run) throw new NotFoundException('Run not found');
-    return this.toDto(run);
-  }
-
-  @Get('chats/:chatId/runs')
-  @ApiOperation({ summary: 'List recent runs for a chat' })
-  @ApiParam({ name: 'chatId', description: 'Chat id' })
-  @ApiOkResponse({ type: [RunStatusDto] })
-  async listByChat(
-    @Param('chatId') chatId: string,
-    @Query() query: ListRunsQueryDto,
-  ): Promise<RunStatusDto[]> {
-    const limit = query.limit ?? 20;
-    const list = await this.runs.listByChat(chatId, limit);
-    return list.map((r) => this.toDto(r));
-  }
-
   @Get('runs/active')
   @ApiOperation({
     summary: 'List active runs (queued + running)',
@@ -78,6 +54,30 @@ export class RunsController {
       return ca - cb;
     });
 
+    return list.map((r) => this.toDto(r));
+  }
+
+  @Get('runs/:runId')
+  @ApiOperation({ summary: 'Get run status by id' })
+  @ApiParam({ name: 'runId', description: 'Run id' })
+  @ApiOkResponse({ type: RunStatusDto })
+  @ApiNotFoundResponse({ description: 'Run not found' })
+  async getById(@Param('runId') runId: string): Promise<RunStatusDto> {
+    const run = await this.runs.getById(runId);
+    if (!run) throw new NotFoundException('Run not found');
+    return this.toDto(run);
+  }
+
+  @Get('chats/:chatId/runs')
+  @ApiOperation({ summary: 'List recent runs for a chat' })
+  @ApiParam({ name: 'chatId', description: 'Chat id' })
+  @ApiOkResponse({ type: [RunStatusDto] })
+  async listByChat(
+    @Param('chatId') chatId: string,
+    @Query() query: ListRunsQueryDto,
+  ): Promise<RunStatusDto[]> {
+    const limit = query.limit ?? 20;
+    const list = await this.runs.listByChat(chatId, limit);
     return list.map((r) => this.toDto(r));
   }
 

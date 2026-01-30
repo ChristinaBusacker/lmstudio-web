@@ -1,30 +1,140 @@
-import { Component, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import {
+  AfterViewInit,
+  Component,
+  DestroyRef,
+  ElementRef,
+  ViewChild,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngxs/store';
+
 import { SseService } from '../../core/sse/sse.service';
-import { OpenChat, CloseChat } from '../../core/state/chat-detail/chat-detail.actions';
+import { CloseChat, OpenChat } from '../../core/state/chat-detail/chat-detail.actions';
+import { ChatDetailState } from '../../core/state/chat-detail/chat-detail.state';
+
+import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs';
+import { ChatFolderDto } from '../../core/api/folders.api';
+import { FoldersState } from '../../core/state/folders/folders.state';
+import { Composer } from '../../ui/composer/composer';
+import { Message } from '../../ui/message/message';
 
 @Component({
   selector: 'app-chat-page',
-  imports: [],
+  standalone: true,
+  imports: [CommonModule, Composer, Message],
   templateUrl: './chat-page.html',
   styleUrl: './chat-page.scss',
 })
-export class ChatPage {
+export class ChatPage implements AfterViewInit {
   private readonly route = inject(ActivatedRoute);
   private readonly store = inject(Store);
   private readonly sse = inject(SseService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  public chatId = '';
+
+  @ViewChild('scrollContainer', { static: true })
+  private readonly scrollContainer!: ElementRef<HTMLElement>;
+
+  /** autoscroll nur wenn user “unten” ist */
+  private readonly shouldAutoScroll = signal(true);
+
+  /** Store signals */
+  readonly loading = this.store.selectSignal(ChatDetailState.loading);
+  readonly meta = this.store.select(ChatDetailState.meta).pipe(
+    map((meta) => {
+      const folderId = meta?.folderId ?? null;
+      if (folderId) {
+        this.folder = this.store.selectSnapshot(FoldersState.byId(folderId));
+      } else {
+        this.folder = null;
+      }
+      return meta;
+    }),
+  );
+  readonly messages = this.store.selectSignal(ChatDetailState.messages);
+  readonly runsMap = this.store.selectSignal(ChatDetailState.runs);
+  folder: ChatFolderDto | null = null;
+
+  constructor() {
+    effect(() => {
+      const _len = this.messages().length;
+      const _last = this.lastMessageKey();
+      queueMicrotask(() => this.scrollToBottom(false));
+    });
+  }
+
+  /** Cancel Mode: irgendein Run ist queued/running */
+  readonly isCancelMode = computed(() => {
+    const runs = this.runsMap();
+    if (!runs) return false;
+
+    for (const k of Object.keys(runs)) {
+      const s = runs[k]?.status;
+      if (s === 'queued' || s === 'running') return true;
+    }
+    return false;
+  });
+
+  /** Für autoscroll: beobachte “letzte message content”, weil streaming snapshots das ändern */
+  private readonly lastMessageKey = computed(() => {
+    const msgs = this.messages();
+    const last = msgs[msgs.length - 1];
+    if (!last) return '';
+    const content = last.activeVariant?.content ?? '';
+    // key = id + content length (reicht als trigger)
+    return `${last.id}:${content.length}`;
+  });
 
   ngOnInit() {
-    const chatId = this.route.snapshot.paramMap.get('chatId');
-    if (!chatId) return;
+    this.route.paramMap
+      .pipe(
+        map((pm) => pm.get('chatId')),
+        filter((id): id is string => !!id),
+        distinctUntilChanged(),
+        tap((chatId) => {
+          this.sse.disconnectChat();
+          this.store.dispatch(new CloseChat());
 
-    this.sse.connectChat(chatId);
-    this.store.dispatch(new OpenChat(chatId));
+          this.chatId = chatId;
+          this.sse.connectChat(chatId);
+        }),
+        switchMap((chatId) => this.store.dispatch(new OpenChat(chatId))),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: () => queueMicrotask(() => this.scrollToBottom(true)),
+      });
   }
+
+  ngAfterViewInit(): void {}
 
   ngOnDestroy() {
     this.sse.disconnectChat();
     this.store.dispatch(new CloseChat());
+  }
+
+  onScroll() {
+    const el = this.scrollContainer.nativeElement;
+    const thresholdPx = 160;
+    const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
+    this.shouldAutoScroll.set(distanceFromBottom < thresholdPx);
+  }
+
+  private scrollToBottom(force: boolean) {
+    const el = this.scrollContainer?.nativeElement;
+    if (!el) return;
+    if (!force && !this.shouldAutoScroll()) return;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  trackById(_: number, m: { id: string }) {
+    return m.id;
   }
 }

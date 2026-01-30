@@ -1,0 +1,6 @@
+<div class="message" [ngClass]="message.role">
+  <span class="role">{{ message.role }}</span>
+  <div class="content">
+    <markdown lineNumbers [start]="5" [data]="message.activeVariant.content" clipboard> </markdown>
+  </div>
+</div>

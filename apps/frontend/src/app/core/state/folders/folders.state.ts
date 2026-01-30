@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
-import { Action, Selector, State } from '@ngxs/store';
+import { Action, createSelector, Selector, State } from '@ngxs/store';
 import { catchError, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
-import { FoldersApi } from '../../api/folders.api';
+import { ChatFolderDto, FoldersApi } from '../../api/folders.api';
 import {
   CreateFolder,
   DeleteFolder,
@@ -12,6 +12,7 @@ import {
 } from './folders.actions';
 import type { FoldersStateModel } from './folders.model';
 import type { StateContext } from '@ngxs/store';
+import { ReloadChats } from '../chats/chats.actions';
 
 @State<FoldersStateModel>({
   name: 'folders',
@@ -34,6 +35,13 @@ export class FoldersState {
   @Selector()
   static isLoading(s: FoldersStateModel) {
     return s.isLoading;
+  }
+
+  static byId(folderId: string) {
+    return createSelector(
+      [FoldersState.items],
+      (items: ChatFolderDto[]) => items.find((f) => f.id === folderId) ?? null,
+    );
   }
 
   @Action(LoadFolders)
@@ -88,6 +96,7 @@ export class FoldersState {
       tap(() => {
         const s = ctx.getState();
         ctx.patchState({ items: s.items.filter((x) => x.id !== a.id) });
+        ctx.dispatch(new ReloadChats());
       }),
       catchError((err) => {
         ctx.patchState({ error: this.toErrorMessage(err) });

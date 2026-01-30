@@ -1,1 +1,9 @@
-<router-outlet />
+<div class="app-shell">
+  <app-sidebar [closed]="isSidebarClosed"></app-sidebar>
+  <button (click)="toggleSidebar()" class="sidebar-toggle" [class.closed]="isSidebarClosed" #toggle>
+    <div class="sidebar-toggle__icon"><app-icon name="arrow-left-s-line"></app-icon></div>
+  </button>
+  <main class="content" [class.sidebar-open]="!isSidebarClosed">
+    <router-outlet></router-outlet>
+  </main>
+</div>

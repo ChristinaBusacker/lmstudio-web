@@ -1,0 +1,46 @@
+<div class="wrapper">
+  <select
+    class="config"
+    (change)="selectProfile()"
+    #configSelect
+    title="Visit settings to define presets"
+  >
+    <option value="">Default</option>
+    @for (profile of profiles$ | async; track $index) {
+      <option [value]="profile.id">{{ profile.name }}</option>
+    }
+  </select>
+  <div class="composer">
+    @if (useContentEditable) {
+      <div
+        #editable
+        class="composer__editable"
+        [attr.contenteditable]="disabled ? 'false' : 'true'"
+        [attr.aria-disabled]="disabled"
+        [attr.data-placeholder]="placeholder || null"
+        (input)="onEditableInput()"
+        (keydown)="onComposerKeydown($event)"
+        (blur)="markTouched()"
+      ></div>
+    } @else {
+      <textarea
+        class="composer__textarea"
+        [disabled]="disabled"
+        [attr.placeholder]="placeholder || null"
+        (input)="onTextareaInput($event)"
+        (keydown)="onComposerKeydown($event)"
+        (blur)="markTouched()"
+        >{{ value }}</textarea
+      >
+    }
+    @if (isStreaming$ | async) {
+      <button class="composer__send" (click)="abort()">
+        <app-icon class="icon icon-black" name="stop-fill" [size]="18"></app-icon>
+      </button>
+    } @else {
+      <button class="composer__send" (click)="send()" [disabled]="value.trim().length < 1">
+        <app-icon class="icon icon-black" name="send-plane-2-fill" [size]="18"></app-icon>
+      </button>
+    }
+  </div>
+</div>

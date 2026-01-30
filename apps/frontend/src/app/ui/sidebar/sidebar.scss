@@ -1,0 +1,51 @@
+:host {
+  display: block;
+  background-color: var(--color-bg-dark);
+  color: var(--color-text);
+  padding: 20px 10px;
+  transition: all 0.3s ease;
+  max-width: 500px;
+  width: 20%;
+  min-width: 160px;
+
+  &.closed {
+    max-width: 0px;
+    min-width: 0;
+    overflow: hidden;
+    padding: 20px 0px;
+  }
+
+  & app-accordion,
+  & .group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  button {
+    padding: 5px;
+    text-align: left;
+
+    margin: 5px 0;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    & span {
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      font-size: 1.2rem;
+    }
+  }
+
+  .chat-list,
+  .folder-list {
+    display: flex;
+    flex-direction: column;
+
+    & button {
+      margin: 0;
+    }
+  }
+}

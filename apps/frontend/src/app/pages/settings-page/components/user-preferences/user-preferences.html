@@ -1,0 +1,21 @@
+<h2>User</h2>
+
+<div class="card">
+  <div class="card-title">Preferences</div>
+
+  <label class="field">
+    <span class="label">Language</span>
+    <select class="select" [(ngModel)]="language">
+      <option value="de">Deutsch</option>
+      <option value="en">English</option>
+    </select>
+  </label>
+
+  <div class="hint">
+    This will control the UI language (runtime switch). We’ll wire it to state + backend next.
+  </div>
+
+  <div class="row">
+    <button class="btn btn-primary" (click)="onSave()">Save</button>
+  </div>
+</div>

@@ -1,0 +1,21 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+
+  & .badge {
+    font-weight: bold;
+    opacity: 0.8;
+    font-size: 1rem;
+  }
+
+  & .editor-header {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    position: sticky;
+    top: -27px;
+    z-index: 99;
+  }
+}

@@ -1,1 +1,31 @@
-<p>overview-page works!</p>
+<div class="page">
+  <header class="header">
+    <div class="title">Übersicht</div>
+  </header>
+
+  <section #scrollContainer class="content">
+    <div class="items">
+      @for (folder of folders$ | async; track folder.id) {
+        <div class="folder">
+          <span class="name"><app-icon name="folder-line" />{{ folder.name }}</span>
+          <span class="updatedAt" [appLocalizedTime]="folder.updatedAt"></span>
+        </div>
+      }
+      @for (chat of chats$ | async; track chat.id) {
+        <app-chat-card [chat]="chat" (contextmenu)="openChatMenu($event, chat.id)"></app-chat-card>
+      }
+    </div>
+  </section>
+
+  <footer class="composer">
+    <app-composer [chatId]="null" [folderId]="null" />
+  </footer>
+</div>
+@if (menu().open) {
+  <app-context-menu
+    [position]="menu().pos"
+    [context]="menu().chatId"
+    [items]="isChatMenu ? chatMenuItems : folderMenuItems"
+    (close)="closeMenu()"
+  />
+}

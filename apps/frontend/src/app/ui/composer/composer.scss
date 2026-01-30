@@ -1,0 +1,81 @@
+:host {
+  display: block;
+
+  .wrapper {
+    max-width: 48rem;
+    min-width: 50vw;
+    padding: 0.5rem;
+    margin: 0 auto;
+    width: 95%;
+    border-radius: 8px;
+    background-color: var(--color-container);
+    box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
+  }
+
+  .composer {
+    corner-shape: superellipse(1.1);
+
+    display: flex;
+    align-items: flex-end;
+  }
+
+  .composer__editable,
+  .composer__textarea {
+    width: 100%;
+    min-height: 1rem;
+    box-sizing: border-box;
+    background-color: transparent;
+    border: none;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    font: inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
+    outline: none;
+    color: var(--color-text);
+    max-height: 60dvh;
+    overflow-y: auto;
+  }
+
+  .composer__editable[contenteditable='true']:empty::before {
+    content: attr(data-placeholder);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .composer__editable[contenteditable='false'] {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .composer__textarea {
+    resize: vertical;
+  }
+
+  .composer__send {
+    border: none;
+    cursor: pointer;
+    background: #fff;
+    border-radius: 50%;
+    aspect-ratio: 1 / 1;
+    margin: 0.35rem;
+    padding: 5px;
+
+    &[disabled] {
+      background: grey !important;
+      cursor: not-allowed;
+    }
+  }
+
+  .config {
+    background-color: transparent;
+    color: whitesmoke;
+    border: none;
+    padding: 0.5rem;
+    cursor: pointer;
+
+    & option {
+      background-color: var(--color-container);
+    }
+  }
+}

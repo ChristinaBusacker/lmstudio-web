@@ -1,0 +1,4 @@
+<div class="card" [routerLink]="['/', 'chat', chat.id]">
+  <span class="title"><app-icon name="chat-4-line" />{{ chat.title }}</span>
+  <span class="date" [appLocalizedTime]="chat.updatedAt"></span>
+</div>

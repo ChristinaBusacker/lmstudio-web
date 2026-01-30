@@ -1,0 +1,65 @@
+.cm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+
+  /* du "siehst" das Overlay nicht, weil es transparent ist.
+     Zum Debuggen kannst du kurz background setzen. */
+  background: transparent;
+
+  /* wichtig, sonst frisst der Browser Fokus/Scroll weird */
+  outline: none;
+}
+
+.cm-menu {
+  position: fixed;
+  min-width: 220px;
+  max-width: min(360px, calc(100vw - 16px));
+
+  border-radius: 14px;
+  overflow: hidden;
+
+  background: var(--color-bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+}
+
+.cm-item {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  &.danger {
+    color: #ffb4b4;
+
+    &:hover {
+      background: rgba(255, 80, 80, 0.14);
+    }
+  }
+}
+
+.cm-icon {
+  opacity: 0.9;
+}
+
+.cm-label {
+  flex: 1;
+}

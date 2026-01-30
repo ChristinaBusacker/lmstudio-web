@@ -14,19 +14,26 @@ import { FoldersState } from './core/state/folders/folders.state';
 import { ModelsState } from './core/state/models/models.state';
 import { RunsState } from './core/state/runs/runs.state';
 import { ChatDetailState } from './core/state/chat-detail/chat-detail.state';
+import { IconRegistryService } from './core/services/icons/icon-registry-service';
+import { provideMarkdown } from 'ngx-markdown';
+import { SettingsApiService } from './core/api/settings.api';
+import { SettingsState } from './core/state/settings/settings.state';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideStore(
-      [ChatsState, FoldersState, ModelsState, RunsState, ChatDetailState],
+      [ChatsState, FoldersState, ModelsState, RunsState, ChatDetailState, SettingsState],
       withNgxsReduxDevtoolsPlugin(),
     ),
     provideHttpClient(),
+    provideMarkdown(),
     ChatsApi,
     FoldersApi,
     ModelsApi,
     RunsApiService,
+    IconRegistryService,
+    SettingsApiService,
   ],
 };

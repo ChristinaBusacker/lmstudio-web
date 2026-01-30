@@ -51,6 +51,17 @@ export class ChatEntity {
   deletedAt!: Date | null;
 
   /**
+   * Custom order inside a folder (or null-folder scope).
+   * Higher value = earlier in list.
+   *
+   * We use fractional indexing: when inserting between two chats,
+   * set sortKey = (a + b) / 2.
+   */
+  @Index()
+  @Column({ type: 'double', default: 0 })
+  sortKey!: number;
+
+  /**
    * Relations
    */
 

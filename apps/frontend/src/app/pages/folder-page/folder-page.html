@@ -1,0 +1,28 @@
+@if (folder$ | async; as folder) {
+  <div class="page">
+    <header class="header">
+      <div class="title">{{ folder.name }}</div>
+    </header>
+
+    <section #scrollContainer class="chats">
+      <div class="grid">
+        @for (chat of chats$ | async; track chat.id) {
+          <app-chat-card [chat]="chat" (contextmenu)="openMenu($event, chat.id)"></app-chat-card>
+        }
+      </div>
+    </section>
+
+    <footer class="composer">
+      <app-composer [chatId]="null" [folderId]="folder.id" />
+    </footer>
+  </div>
+}
+
+@if (menu().open) {
+  <app-context-menu
+    [position]="menu().pos"
+    [context]="menu().chatId"
+    [items]="menuItems"
+    (close)="closeMenu()"
+  />
+}

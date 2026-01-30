@@ -1,0 +1,31 @@
+:host {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+
+  & .message {
+    display: block;
+
+    padding: 10px;
+    border-radius: 8px;
+    width: 90%;
+
+    & .role {
+      text-transform: uppercase;
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+
+    &.user {
+      align-self: self-end;
+      background-color: var(--color-container);
+
+      @media (max-width: 768px) {
+        width: 80%;
+      }
+    }
+
+    &.assistant {
+    }
+  }
+}

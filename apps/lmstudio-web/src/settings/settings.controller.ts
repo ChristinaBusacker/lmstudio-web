@@ -1,5 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Body, Controller, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiCreatedResponse,
@@ -47,6 +56,19 @@ export class SettingsController {
   async create(@Body() dto: CreateSettingsProfileDto) {
     const p = await this.settings.create(dto);
     return this.toDto(p);
+  }
+
+  @Delete('profiles/:id')
+  @ApiOperation({ summary: 'Get a settings profile by id' })
+  @ApiParam({ name: 'id', description: 'Profile id' })
+  @ApiOkResponse({ type: SettingsProfileDto })
+  @ApiNotFoundResponse({ description: 'Profile not found' })
+  async delete(@Param('id') id: string) {
+    const p = await this.settings.getById(id);
+    if (!p) throw new NotFoundException('Profile not found');
+
+    const remainingProfiles = await this.settings.deleteProfile(p.id);
+    return remainingProfiles.map((p) => this.toDto(p));
   }
 
   @Patch('profiles/:id')

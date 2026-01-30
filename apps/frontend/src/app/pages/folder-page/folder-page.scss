@@ -1,0 +1,12 @@
+:host {
+  .chats {
+    padding: 16px;
+    flex: 1;
+
+    & .grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+  }
+}

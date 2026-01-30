@@ -14,6 +14,7 @@ import { RunEntity } from './runs/entities/run.entity';
 import { RunsModule } from './runs/runs.module';
 import { GenerationSettingsProfileEntity } from './settings/entities/generation-settings-profile.entity';
 import { SettingsModule } from './settings/settings.module';
+import { SearchModule } from './search/search.module';
 
 const dbPath = process.env.DB_PATH
   ? process.env.DB_PATH
@@ -48,6 +49,7 @@ const uiOptions: ServeStaticModuleOptions = {
     ChatRunsModule,
     SettingsModule,
     ModelsModule,
+    SearchModule,
   ],
 })
 export class AppModule {}

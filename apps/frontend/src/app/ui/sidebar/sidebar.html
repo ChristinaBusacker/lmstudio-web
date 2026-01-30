@@ -1,0 +1,63 @@
+<div class="group">
+  <button [routerLink]="['/']">Overview</button>
+  <button disabled>Chat suchen</button>
+  <button [routerLink]="['settings']">Settings</button>
+</div>
+
+<app-accordion title="Folder">
+  <div class="folder-list">
+    @for (folder of fodlers$ | async; track folder.id) {
+      <button
+        class="folder"
+        [title]="folder.name || 'Untitled'"
+        [routerLink]="['folder', folder.id]"
+        (contextmenu)="openFolderMenu($event, folder.id)"
+        dropTarget
+        [dropTargetEnabled]="true"
+        [dropTargetData]="folder"
+        [dropTargetData]="folder"
+        [dropTargetGroup]="'chats'"
+      >
+        <app-icon name="folder-line"></app-icon>
+        {{ folder.name || 'Untitled' }}
+      </button>
+    }
+  </div>
+
+  <hr />
+  <button (click)="createNewFolder()">Neuer Folder</button>
+</app-accordion>
+
+<app-accordion title="Chats">
+  <div
+    class="chat-list"
+    dropContainer
+    [dropGroup]="'chats'"
+    [containerId]="'chat-list'"
+    (itemDropped)="onChatReorder($event)"
+    (itemDroppedOnTarget)="onChatDroppedIntoFolder($event)"
+  >
+    @for (chat of chats$ | async; track chat.id) {
+      <button
+        class="chats"
+        [title]="chat.title || 'Untitled'"
+        [routerLink]="['chat', chat.id]"
+        (contextmenu)="openChatMenu($event, chat.id)"
+        dragItem
+        [dragData]="chat"
+      >
+        <app-icon name="chat-4-line"></app-icon>
+        <span>{{ chat.title || 'Untitled' }}</span>
+      </button>
+    }
+  </div>
+</app-accordion>
+
+@if (menu().open) {
+  <app-context-menu
+    [position]="menu().pos"
+    [context]="menu().chatId"
+    [items]="isChatMenu ? chatMenuItems : folderMenuItems"
+    (close)="closeMenu()"
+  />
+}

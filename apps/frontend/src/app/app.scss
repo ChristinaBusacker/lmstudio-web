@@ -1,0 +1,55 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+.app-shell {
+  height: 100dvh; /* viewport hoch */
+  display: flex; /* sidebar links, content rechts */
+  overflow: hidden; /* wichtig: verhindert body-scroll */
+}
+
+.sidebar {
+  width: 280px; /* fixe Breite oder clamp(...) */
+  flex: 0 0 auto;
+  overflow: auto; /* optional: falls sidebar selbst scrollen darf */
+  border-right: 1px solid #e5e5e5;
+}
+
+.content {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-width: 0;
+  padding: 16px;
+  transition: all 0.5s ease;
+  max-width: 2000px;
+
+  &.sidebar-open {
+    @media (max-width: 768px) {
+    }
+
+    padding: 16px 0;
+  }
+}
+
+.sidebar-toggle {
+  padding: 5px;
+  margin: 0;
+
+  & .sidebar-toggle__icon {
+    transform: rotate(0deg);
+    transition: transform 0.3s ease;
+  }
+
+  &.closed {
+    @media (max-width: 768px) {
+      position: fixed;
+      height: 100%;
+    }
+
+    & .sidebar-toggle__icon {
+      transform: rotate(180deg);
+    }
+  }
+}

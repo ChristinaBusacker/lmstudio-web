@@ -160,8 +160,12 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
    * Main streaming loop: consumes LM Studio stream and flushes snapshots periodically.
    */
   private async consumeStream(ctx: RunExecContext) {
-    const systemPrompt = ''; // later: prompt profiles
-    const messages = await this.contextBuilder.buildActiveContext(ctx.chatId, systemPrompt);
+    const systemPrompt = ctx.params.systemPrompt || ''; // later: prompt profiles
+
+    const messages = await this.contextBuilder.buildActiveContext(
+      ctx.chatId,
+      systemPrompt as string,
+    );
 
     const gen = this.engine.streamChat(ctx.runId, messages, ctx.params);
 

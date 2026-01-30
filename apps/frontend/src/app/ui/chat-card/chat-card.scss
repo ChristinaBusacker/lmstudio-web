@@ -1,0 +1,21 @@
+:host {
+  flex-grow: 1;
+  .card {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    border-radius: 8px;
+    background-color: var(--color-bg-dark);
+    transition: all 0.3s ease;
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--color-container);
+    }
+
+    & .title {
+      display: flex;
+      gap: 5px;
+    }
+  }
+}

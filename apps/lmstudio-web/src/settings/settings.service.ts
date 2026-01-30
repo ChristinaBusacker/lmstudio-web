@@ -230,4 +230,19 @@ export class SettingsService {
       isDefault: true,
     });
   }
+
+  /**
+   * Deletes a Settings Profile
+   *
+   */
+  async deleteProfile(id: string): Promise<GenerationSettingsProfileEntity[]> {
+    const profile = await this.profiles.findOne({ where: { id } });
+    if (!profile) {
+      throw new NotFoundException();
+    }
+
+    await this.profiles.delete(profile.id);
+
+    return this.list();
+  }
 }

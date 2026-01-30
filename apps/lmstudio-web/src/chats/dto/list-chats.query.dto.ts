@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class ListChatsQueryDto {
@@ -30,7 +30,7 @@ export class ListChatsQueryDto {
 
   @ApiPropertyOptional({ description: 'Include soft-deleted chats', default: false })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   includeDeleted?: boolean;
 }

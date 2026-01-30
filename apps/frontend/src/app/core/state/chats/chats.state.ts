@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Action, Selector, State } from '@ngxs/store';
-import { catchError, of, tap } from 'rxjs';
+import { Action, createSelector, Selector, State } from '@ngxs/store';
+import { catchError, of, switchMap, tap } from 'rxjs';
 import { ChatsApi, type ChatListItemDto } from '../../api/chats.api';
 import {
   CreateChat,
@@ -11,8 +11,10 @@ import {
   RenameChat,
   SidebarChanged,
 } from './chats.actions';
-import type { ChatsStateModel } from './chats.model';
+
 import type { StateContext } from '@ngxs/store';
+import { Router } from '@angular/router';
+import { ChatsStateModel } from './chats.model';
 
 @State<ChatsStateModel>({
   name: 'chats',
@@ -30,7 +32,10 @@ import type { StateContext } from '@ngxs/store';
 })
 @Injectable()
 export class ChatsState {
-  constructor(private readonly api: ChatsApi) {}
+  constructor(
+    private readonly api: ChatsApi,
+    private readonly router: Router,
+  ) {}
 
   // ---------- Selectors ----------
 
@@ -45,11 +50,16 @@ export class ChatsState {
   }
 
   static byFolder(folderId: string | null | undefined) {
-    return (s: ChatsStateModel) => s.items.filter((c) => c.folderId === (folderId ?? null));
+    return createSelector([ChatsState.items], (items: ChatListItemDto[]) =>
+      items.filter((c) => c.folderId === folderId),
+    );
   }
 
   static byId(chatId: string) {
-    return (s: ChatsStateModel) => s.items.find((c) => c.id === chatId) ?? null;
+    return createSelector(
+      [ChatsState.items],
+      (items: ChatListItemDto[]) => items.find((c) => c.id === chatId) ?? null,
+    );
   }
 
   // ---------- Actions ----------
@@ -96,12 +106,14 @@ export class ChatsState {
   }
 
   @Action(CreateChat)
-  create(ctx: StateContext<ChatsStateModel>, action: CreateChat) {
+  create(ctx: StateContext<any>, action: CreateChat) {
     return this.api.create(action.dto).pipe(
-      tap(() => {
-        // simplest V1: reload sidebar list
-        ctx.dispatch(new ReloadChats());
+      tap((created) => {
+        // Beispiel-Route: /chats/:id — passe an dein Routing an
+        void this.router.navigate(['/chat', created.id]);
       }),
+      // Sidebar/Overview updaten (oder du verlässt dich auf SSE sidebar.changed)
+      switchMap((created) => ctx.dispatch(new ReloadChats()).pipe(tap(() => created))),
       catchError((err) => {
         console.error('[Chats] create failed', err);
         return of(null);
