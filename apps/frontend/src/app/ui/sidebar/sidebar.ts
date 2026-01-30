@@ -15,21 +15,26 @@ import { Accordion } from '../accordion/accordion';
 import { ContextMenu } from '../context-menu/context-menu';
 import { ContextMenuItem, MenuState } from '../context-menu/context-menu.types';
 import { Icon } from '../icon/icon';
+import { CubeInput } from '../cube-input/cube-input';
+import { DialogService } from '../dialog/dialog.service';
 
 @Component({
   selector: 'app-sidebar',
-  imports: [CommonModule, Accordion, Icon, RouterLink, ContextMenu, DragDropModule],
+  imports: [CommonModule, Accordion, Icon, RouterLink, ContextMenu, DragDropModule, CubeInput],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.scss',
 })
 export class Sidebar {
   store = inject(Store);
+  dialogService = inject(DialogService);
   chats$ = this.store.select(ChatsState.items).pipe(
     map((items) => {
       return items.filter((item) => item.folderId === null);
     }),
   );
   fodlers$ = this.store.select(FoldersState.items);
+
+  private readonly dialog = inject(DialogService);
 
   router = inject(Router);
 
@@ -55,10 +60,23 @@ export class Sidebar {
           const items = this.store.selectSnapshot(ChatsState.items);
           const chat = items.find((i) => i.id === id);
           if (chat) {
-            const newTitle = prompt('Renaming chat title', chat.title || '');
-            if (newTitle) {
-              this.store.dispatch(new RenameChat(id, newTitle));
-            }
+            this.dialog
+              .prompt({
+                title: 'Chat title',
+                placeholder: 'Enter chat title...',
+                initialValue: chat.title || '',
+                hint: 'Choose a descriptive title.',
+                confirmLabel: 'Save',
+                declineLabel: 'Cancel',
+              })
+              .afterClosed()
+              .subscribe((result) => {
+                if (result.action === 'confirm' && result.data) {
+                  this.store.dispatch(new RenameChat(id, result.data));
+                }
+
+                this.closeMenu();
+              });
           }
         }
       },
@@ -68,12 +86,26 @@ export class Sidebar {
       label: 'Chat löschen',
       danger: true,
       action: (id) => {
-        if (window.confirm('Do ypu want to delete the Chat?') && id) {
-          this.store.dispatch(new DeleteChat(id));
+        if (!id) {
           this.closeMenu();
-        } else {
-          this.closeMenu();
+          return;
         }
+
+        this.dialog
+          .confirm({
+            title: 'Delete chat',
+            message: 'Do you want to delete the chat?',
+            confirmLabel: 'Delete',
+            declineLabel: 'Cancel',
+            closeLabel: null,
+          })
+          .afterClosed()
+          .subscribe((result) => {
+            if (result.action === 'confirm') {
+              this.store.dispatch(new DeleteChat(id));
+            }
+            this.closeMenu();
+          });
       },
     },
   ];
@@ -94,10 +126,23 @@ export class Sidebar {
           const items = this.store.selectSnapshot(FoldersState.items);
           const folder = items.find((i) => i.id === id);
           if (folder) {
-            const name = prompt('Renaming fodler title', folder.name || '');
-            if (name) {
-              this.store.dispatch(new RenameFolder(id, { name }));
-            }
+            this.dialog
+              .prompt({
+                title: 'Rename folder',
+                placeholder: 'Enter folder name...',
+                initialValue: folder.name || '',
+                hint: 'Choose a descriptive name.',
+                confirmLabel: 'Save',
+                declineLabel: 'Cancel',
+              })
+              .afterClosed()
+              .subscribe((result) => {
+                if (result.action === 'confirm' && result.data) {
+                  this.store.dispatch(new RenameFolder(id, { name: result.data }));
+                }
+
+                this.closeMenu();
+              });
           }
         }
       },
@@ -107,12 +152,26 @@ export class Sidebar {
       label: 'Ordner löschen',
       danger: true,
       action: (id) => {
-        if (window.confirm('Do ypu want to delete the Folder?') && id) {
-          this.store.dispatch(new DeleteFolder(id));
+        if (!id) {
           this.closeMenu();
-        } else {
-          this.closeMenu();
+          return;
         }
+
+        this.dialog
+          .confirm({
+            title: 'Delete Folder',
+            message: 'Do you want to delete the folder?',
+            confirmLabel: 'Delete',
+            declineLabel: 'Cancel',
+            closeLabel: null,
+          })
+          .afterClosed()
+          .subscribe((result) => {
+            if (result.action === 'confirm') {
+              this.store.dispatch(new DeleteFolder(id));
+            }
+            this.closeMenu();
+          });
       },
     },
   ];
@@ -126,10 +185,23 @@ export class Sidebar {
   }
 
   createNewFolder() {
-    const name = prompt('Enter a Folder name', 'Folder');
-    if (name) {
-      this.store.dispatch(new CreateFolder({ name }));
-    }
+    this.dialog
+      .prompt({
+        title: 'Folder name',
+        placeholder: 'Enter folder...',
+        initialValue: 'My Folder',
+        hint: 'Choose a descriptive name.',
+        confirmLabel: 'Save',
+        declineLabel: 'Cancel',
+      })
+      .afterClosed()
+      .subscribe((result) => {
+        if (result.action === 'confirm' && result.data) {
+          this.store.dispatch(new CreateFolder({ name: result.data }));
+        }
+
+        this.closeMenu();
+      });
   }
 
   onChatDroppedIntoFolder(a: DropOnTargetResult<ChatListItemDto, ChatFolderDto>) {
@@ -174,6 +246,12 @@ export class Sidebar {
       open: false,
       pos: { x: 0, y: 0 },
       chatId: null,
+    });
+  }
+
+  openSearch(event: any) {
+    this.dialogService.confirm({
+      message: 'test',
     });
   }
 }

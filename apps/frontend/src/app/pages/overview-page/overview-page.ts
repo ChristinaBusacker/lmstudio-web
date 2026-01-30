@@ -9,11 +9,12 @@ import { Composer } from '../../ui/composer/composer';
 import { ChatCard } from '../../ui/chat-card/chat-card';
 import { CommonModule } from '@angular/common';
 import { RenameChat, DeleteChat } from '../../core/state/chats/chats.actions';
-import { RenameFolder, DeleteFolder } from '../../core/state/folders/folders.actions';
+import { DeleteFolder, RenameFolder } from '../../core/state/folders/folders.actions';
 import { MenuState, ContextMenuItem } from '../../ui/context-menu/context-menu.types';
 import { ContextMenu } from '../../ui/context-menu/context-menu';
 import { LocalizedTimeDirective } from '../../core/directives/localized-time/localized-time.directive';
 import { Icon } from '../../ui/icon/icon';
+import { DialogService } from '../../ui/dialog/dialog.service';
 
 @Component({
   selector: 'app-overview-page',
@@ -27,7 +28,7 @@ export class OverviewPage {
   private readonly store = inject(Store);
   private readonly sse = inject(SseService);
   private readonly destroyRef = inject(DestroyRef);
-
+  private readonly dialog = inject(DialogService);
   chats$ = this.store.select(ChatsState.items).pipe(
     map((items) => {
       return items.filter((item) => item.folderId === null);
@@ -60,10 +61,23 @@ export class OverviewPage {
           const items = this.store.selectSnapshot(ChatsState.items);
           const chat = items.find((i) => i.id === id);
           if (chat) {
-            const newTitle = prompt('Renaming chat title', chat.title || '');
-            if (newTitle) {
-              this.store.dispatch(new RenameChat(id, newTitle));
-            }
+            this.dialog
+              .prompt({
+                title: 'Chat title',
+                placeholder: 'Enter chat title...',
+                initialValue: chat.title || '',
+                hint: 'Choose a descriptive title.',
+                confirmLabel: 'Save',
+                declineLabel: 'Cancel',
+              })
+              .afterClosed()
+              .subscribe((result) => {
+                if (result.action === 'confirm' && result.data) {
+                  this.store.dispatch(new RenameChat(id, result.data));
+                }
+
+                this.closeMenu();
+              });
           }
         }
       },
@@ -73,12 +87,26 @@ export class OverviewPage {
       label: 'Chat löschen',
       danger: true,
       action: (id) => {
-        if (window.confirm('Do ypu want to delete the Chat?') && id) {
-          this.store.dispatch(new DeleteChat(id));
+        if (!id) {
           this.closeMenu();
-        } else {
-          this.closeMenu();
+          return;
         }
+
+        this.dialog
+          .confirm({
+            title: 'Delete chat',
+            message: 'Do you want to delete the chat?',
+            confirmLabel: 'Delete',
+            declineLabel: 'Cancel',
+            closeLabel: null, // optional: keinen extra Close-Button
+          })
+          .afterClosed()
+          .subscribe((result) => {
+            if (result.action === 'confirm') {
+              this.store.dispatch(new DeleteChat(id));
+            }
+            this.closeMenu();
+          });
       },
     },
   ];
@@ -112,12 +140,26 @@ export class OverviewPage {
       label: 'Ordner löschen',
       danger: true,
       action: (id) => {
-        if (window.confirm('Do ypu want to delete the Folder?') && id) {
-          this.store.dispatch(new DeleteFolder(id));
+        if (!id) {
           this.closeMenu();
-        } else {
-          this.closeMenu();
+          return;
         }
+
+        this.dialog
+          .confirm({
+            title: 'Delete chat',
+            message: 'Do you want to delete the chat?',
+            confirmLabel: 'Delete',
+            declineLabel: 'Cancel',
+            closeLabel: null,
+          })
+          .afterClosed()
+          .subscribe((result) => {
+            if (result.action === 'confirm') {
+              this.store.dispatch(new DeleteFolder(id));
+            }
+            this.closeMenu();
+          });
       },
     },
   ];

@@ -1,0 +1,48 @@
+:host {
+  display: block;
+  background-color: var(--color-bg);
+  padding: 12px;
+  border-radius: 8px;
+
+  min-width: 250px;
+  max-width: 500px;
+  width: 50vw;
+
+  .dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 12px;
+  }
+
+  .dialog__title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .dialog__content {
+    padding: 20px 10px;
+  }
+
+  .dialog__actions {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .icon-btn {
+    border: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    font: inherit;
+    padding: 6px 8px;
+    border-radius: 8px;
+  }
+
+  .icon-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}

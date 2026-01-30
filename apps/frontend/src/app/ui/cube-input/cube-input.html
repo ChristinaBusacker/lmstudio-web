@@ -1,0 +1,18 @@
+<div class="cube-field" [class.is-flipped]="isFlipped">
+  <div class="cube">
+    <button type="button" class="face front" (click)="flipToInput()">Klick mich</button>
+
+    <div class="face back">
+      <input
+        #inputEl
+        class="input"
+        type="text"
+        placeholder="Tippe hier…"
+        [value]="value"
+        (input)="onInput($event)"
+        (keydown)="onKeydown($event)"
+      />
+      <button type="button" class="mini" (click)="confirm()">OK</button>
+    </div>
+  </div>
+</div>

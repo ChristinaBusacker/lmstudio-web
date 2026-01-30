@@ -1,6 +1,6 @@
 <div class="group">
   <button [routerLink]="['/']">Overview</button>
-  <button disabled>Chat suchen</button>
+  <button (click)="openSearch($event)">Chat suchen</button>
   <button [routerLink]="['settings']">Settings</button>
 </div>
 

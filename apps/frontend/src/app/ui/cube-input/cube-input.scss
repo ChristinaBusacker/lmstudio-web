@@ -1,0 +1,85 @@
+:host {
+  display: inline-block;
+}
+
+.cube-field {
+  --d: 18px;
+
+  display: inline-block;
+  perspective: 800px;
+}
+
+.cube {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 520ms cubic-bezier(0.2, 0.9, 0.2, 1);
+  transform: translateZ(calc(-1 * var(--d)));
+}
+
+.cube-field.is-flipped .cube {
+  transform: translateZ(calc(-1 * var(--d))) rotateX(90deg);
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+
+  display: inline-flex;
+  align-items: center;
+
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+
+  backface-visibility: hidden;
+}
+
+.front {
+  transform: rotateX(0deg) translateZ(var(--d));
+  cursor: pointer;
+  font: inherit;
+  color: white;
+}
+
+.back {
+  transform: rotateX(-90deg) translateZ(var(--d));
+  padding: 0 10px;
+}
+
+.front,
+.back {
+  padding: 6px 12px; /* entspricht normalen Buttons */
+  white-space: nowrap;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: calc(var(--h) - 16px);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: white;
+  padding: 0 10px;
+  font: inherit;
+  outline: none;
+}
+
+.mini {
+  height: calc(var(--h) - 16px);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  padding: 0 12px;
+  cursor: pointer;
+  font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cube {
+    transition: none;
+  }
+}

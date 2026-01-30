@@ -1,6 +1,6 @@
 // Comments in English as requested.
 
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Store } from '@ngxs/store';
 import { Observable, Subject, takeUntil } from 'rxjs';
@@ -34,6 +34,7 @@ import { ProfilesSidebar } from './components/profiles-sidebar/profiles-sidebar'
 import { UserPreferences } from './components/user-preferences/user-preferences';
 import { ProfileEditor } from './components/profile-editor/profile-editor';
 import { ModelsPanel } from './components/models-panel/models-panel';
+import { DialogService } from '../../ui/dialog/dialog.service';
 
 type SettingsTab = 'profiles' | 'models' | 'user';
 
@@ -46,7 +47,7 @@ type SettingsTab = 'profiles' | 'models' | 'user';
 })
 export class SettingsPage implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
-
+  private readonly dialog = inject(DialogService);
   tab: SettingsTab = 'profiles';
 
   // Store streams (settings)
@@ -126,9 +127,24 @@ export class SettingsPage implements OnInit, OnDestroy {
   }
 
   deleteProfile(profileId: string): void {
-    if (window.confirm('Are you sure to delete this profile?')) {
-      this.store.dispatch(new DeleteProfile(profileId));
+    if (!profileId) {
+      return;
     }
+
+    this.dialog
+      .confirm({
+        title: 'Delete Profile',
+        message: 'Do you want to delete this profile?',
+        confirmLabel: 'Delete',
+        declineLabel: 'Cancel',
+        closeLabel: null,
+      })
+      .afterClosed()
+      .subscribe((result) => {
+        if (result.action === 'confirm') {
+          this.store.dispatch(new DeleteProfile(profileId));
+        }
+      });
   }
 
   // -----------------------

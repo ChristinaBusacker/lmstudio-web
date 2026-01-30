@@ -1,0 +1,29 @@
+<div class="dialog">
+  @if (title) {
+    <div class="dialog__header">
+      <div class="dialog__title">{{ title }}</div>
+
+      @if (closeLabel) {
+        <button type="button" class="icon-btn" (click)="close()" aria-label="Close">✕</button>
+      }
+    </div>
+  }
+
+  <div class="dialog__content">
+    <ng-content></ng-content>
+  </div>
+
+  <div class="dialog__actions">
+    @if (declineLabel) {
+      <button type="button" class="btn btn-secondary" (click)="decline()">
+        {{ declineLabel }}
+      </button>
+    }
+
+    @if (confirmLabel) {
+      <button type="button" class="btn btn-primary" (click)="confirm()">
+        {{ confirmLabel }}
+      </button>
+    }
+  </div>
+</div>

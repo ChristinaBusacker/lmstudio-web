@@ -18,6 +18,7 @@ import { IconRegistryService } from './core/services/icons/icon-registry-service
 import { provideMarkdown } from 'ngx-markdown';
 import { SettingsApiService } from './core/api/settings.api';
 import { SettingsState } from './core/state/settings/settings.state';
+import { DialogService } from './ui/dialog/dialog.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -35,5 +36,6 @@ export const appConfig: ApplicationConfig = {
     RunsApiService,
     IconRegistryService,
     SettingsApiService,
+    DialogService,
   ],
 };

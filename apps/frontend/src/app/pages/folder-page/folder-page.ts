@@ -14,6 +14,7 @@ import { Composer } from '../../ui/composer/composer';
 import { ContextMenuItem, MenuState } from '../../ui/context-menu/context-menu.types';
 import { RenameChat, DeleteChat, MoveChat } from '../../core/state/chats/chats.actions';
 import { ContextMenu } from '../../ui/context-menu/context-menu';
+import { DialogService } from '../../ui/dialog/dialog.service';
 
 @Component({
   selector: 'app-folder-page',
@@ -27,7 +28,7 @@ export class FolderPage implements OnInit {
   private readonly store = inject(Store);
   private readonly sse = inject(SseService);
   private readonly destroyRef = inject(DestroyRef);
-
+  private readonly dialog = inject(DialogService);
   folderId = '';
   chats$: Observable<ChatListItemDto[]>;
   folder$: Observable<ChatFolderDto | null> = of(null);
@@ -63,10 +64,26 @@ export class FolderPage implements OnInit {
           const items = this.store.selectSnapshot(ChatsState.items);
           const chat = items.find((i) => i.id === id);
           if (chat) {
-            const newTitle = prompt('Renaming chat title', chat.title || '');
-            if (newTitle) {
-              this.store.dispatch(new RenameChat(id, newTitle));
-            }
+            this.dialog
+              .prompt({
+                title: 'Chat title',
+                placeholder: 'Enter chat title...',
+                initialValue: chat.title || '',
+                hint: 'Choose a descriptive title.',
+                confirmLabel: 'Save',
+                declineLabel: 'Cancel',
+              })
+              .afterClosed()
+              .subscribe((result) => {
+                if (result.action === 'confirm' && result.data) {
+                  console.log('New title:', result.data);
+                  // z.B. Store dispatch
+                  // this.store.dispatch(new RenameChat(result.data));
+                  this.store.dispatch(new RenameChat(id, result.data));
+                }
+
+                this.closeMenu();
+              });
           }
         }
       },
@@ -76,12 +93,26 @@ export class FolderPage implements OnInit {
       label: 'Chat löschen',
       danger: true,
       action: (id) => {
-        if (window.confirm('Do ypu want to delete the Chat?') && id) {
-          this.store.dispatch(new DeleteChat(id));
+        if (!id) {
           this.closeMenu();
-        } else {
-          this.closeMenu();
+          return;
         }
+
+        this.dialog
+          .confirm({
+            title: 'Delete chat',
+            message: 'Do you want to delete the chat?',
+            confirmLabel: 'Delete',
+            declineLabel: 'Cancel',
+            closeLabel: null,
+          })
+          .afterClosed()
+          .subscribe((result) => {
+            if (result.action === 'confirm') {
+              this.store.dispatch(new DeleteChat(id));
+            }
+            this.closeMenu();
+          });
       },
     },
   ];
