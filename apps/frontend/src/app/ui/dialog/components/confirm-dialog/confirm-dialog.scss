@@ -1,0 +1,22 @@
+:host {
+  min-width: 250px;
+  max-width: 500px;
+  width: 50vw;
+
+  .confirm__title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .confirm__message {
+    opacity: 0.9;
+    line-height: 1.35;
+  }
+
+  .confirm__hint {
+    margin-top: 12px;
+    font-size: 12px;
+    opacity: 0.65;
+  }
+}

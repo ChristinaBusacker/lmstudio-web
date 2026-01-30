@@ -1,0 +1,14 @@
+<app-dialog>
+  <div class="string-input">
+    @if (data?.hint; as hint) {
+      <div class="string-input__hint">{{ hint }}</div>
+    }
+
+    <input
+      type="text"
+      class="string-input__field"
+      [placeholder]="data?.placeholder ?? ''"
+      [formControl]="input"
+    />
+  </div>
+</app-dialog>

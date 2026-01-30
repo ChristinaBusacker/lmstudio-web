@@ -1,0 +1,9 @@
+<app-dialog>
+  <div class="confirm">
+    @if (data?.message; as msg) {
+      <div class="confirm__message">{{ msg }}</div>
+    } @else {
+      <div class="confirm__message">Are you sure?</div>
+    }
+  </div>
+</app-dialog>

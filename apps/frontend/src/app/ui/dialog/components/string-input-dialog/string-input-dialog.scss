@@ -1,0 +1,30 @@
+:host {
+  min-width: 250px;
+  max-width: 500px;
+  width: 50vw;
+
+  .string-input {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .string-input__hint {
+    font-size: 13px;
+    opacity: 0.75;
+  }
+
+  .string-input__field {
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: #0f0f0f;
+    color: #fff;
+    font: inherit;
+    outline: none;
+  }
+
+  .string-input__field:focus {
+    border-color: #2e7dff;
+  }
+}
