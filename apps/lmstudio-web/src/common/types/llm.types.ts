@@ -12,8 +12,14 @@ export interface RunParams {
   topP?: number;
 }
 
+/**
+ * Stream chunk from the model server.
+ * - delta: visible output text
+ * - reasoningDelta: optional "thinking"/reasoning channel (if server provides it)
+ */
 export interface StreamDelta {
   delta: string;
+  reasoningDelta?: string;
 }
 
 export interface RunStats {

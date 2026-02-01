@@ -22,7 +22,7 @@ import type { StateContext } from '@ngxs/store';
   defaults: {
     chatId: null,
     loading: false,
-    includeReasoning: false,
+    includeReasoning: true,
     meta: null,
     messages: [],
     messageById: {},
@@ -73,10 +73,10 @@ export class ChatDetailState {
 
   @Action(OpenChat)
   openChat(ctx: StateContext<ChatDetailStateModel>, action: OpenChat) {
-    // reset state for new chat
     ctx.patchState({
       chatId: action.chatId,
       loading: false,
+      includeReasoning: true,
       meta: null,
       messages: [],
       messageById: {},
@@ -84,7 +84,7 @@ export class ChatDetailState {
       error: null,
     });
 
-    return ctx.dispatch(new LoadThread(action.chatId));
+    return ctx.dispatch(new LoadThread(action.chatId, { includeReasoning: true }));
   }
 
   @Action(CloseChat)
@@ -104,9 +104,12 @@ export class ChatDetailState {
 
   @Action(LoadThread)
   loadThread(ctx: StateContext<ChatDetailStateModel>, action: LoadThread) {
-    ctx.patchState({ loading: true, error: null });
+    const s = ctx.getState();
+    const includeReasoning = action.opts?.includeReasoning ?? s.includeReasoning;
 
-    return this.threadApi.getThread(action.chatId, action.opts).pipe(
+    ctx.patchState({ loading: true, error: null, includeReasoning });
+
+    return this.threadApi.getThread(action.chatId, { includeReasoning }).pipe(
       tap((res) => {
         const { messages, messageById } = this.indexMessages(res.messages);
 

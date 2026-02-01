@@ -28,4 +28,15 @@
     &.assistant {
     }
   }
+
+  .reasoning {
+    margin-top: 10px;
+    opacity: 0.9;
+
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+      user-select: none;
+    }
+  }
 }

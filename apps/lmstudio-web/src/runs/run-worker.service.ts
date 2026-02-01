@@ -1,14 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ChatContextBuilder } from '../chats/chat-context.builder';
 import { ChatEngineService } from '../chats/chat-engine.service';
 import { MessageVariantsService } from '../chats/message-variants.service';
 import { normalizeError } from '../common/utils/error.util';
-import { parseThinkDelta } from '../common/utils/think-parser';
+import {
+  createThinkParseState,
+  parseThinkDelta,
+  ThinkParseState,
+} from '../common/utils/think-parser';
 import { RunsService } from './runs.service';
 import { SseBusService } from '../sse/sse-bus.service';
-
-type ThinkState = { inThink: boolean };
 
 interface RunExecContext {
   runId: string;
@@ -23,11 +27,14 @@ interface RunExecContext {
   /** Throttling */
   lastFlushMs: number;
 
-  /** Parsing state for <think> */
-  think: ThinkState;
+  /** Parsing state for think/analysis markers */
+  think: ThinkParseState;
 
   /** Frozen settings snapshot */
   params: Record<string, any>;
+
+  /** One-time debug flag to avoid spamming logs */
+  didLogEngineShape: boolean;
 }
 
 @Injectable()
@@ -83,23 +90,12 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /**
-   * Executes a single run end-to-end:
-   * - loads run + target message active variant
-   * - builds active chat context
-   * - streams from LM Studio
-   * - periodically flushes content to DB + emits SSE snapshots
-   * - marks run status (completed/failed/canceled) + emits SSE status
-   */
   private async executeRun(runId: string) {
-    // ctx is local to this call -> no "reset" needed.
-    // If executeRun returns, the ctx is garbage collected.
     let ctx: RunExecContext | null = null;
 
     try {
       ctx = await this.loadContext(runId);
 
-      // If user canceled before we even start, stop cleanly.
       const run = await this.runs.getById(runId);
       if (!run) throw new Error(`Run not found: ${runId}`);
       if (run.status === 'canceled') {
@@ -108,9 +104,7 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
       }
 
       await this.consumeStream(ctx);
-      // consumeStream will finalize completed/canceled itself.
     } catch (err: unknown) {
-      // If we failed before ctx exists, we can only markFailed by runId.
       if (!ctx) {
         const e = normalizeError(err);
         await this.runs.markFailed(runId, e.message);
@@ -128,9 +122,6 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /**
-   * Loads run + target message active variant state and prepares the execution context.
-   */
   private async loadContext(runId: string): Promise<RunExecContext> {
     const run = await this.runs.getById(runId);
     if (!run) throw new Error(`Run not found: ${runId}`);
@@ -150,17 +141,60 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
       reasoning: active.reasoning ?? '',
 
       lastFlushMs: Date.now(),
-      think: { inThink: false },
+      think: createThinkParseState(),
 
       params: (run.settingsSnapshot ?? {}) as Record<string, any>,
+      didLogEngineShape: false,
     };
   }
 
   /**
-   * Main streaming loop: consumes LM Studio stream and flushes snapshots periodically.
+   * Extract "content delta" and any "reasoning delta" that might come in a separate channel.
+   * This is intentionally defensive because different model servers encode this differently.
    */
+  private extractDeltas(value: any): { contentDelta: string; reasoningDelta: string } {
+    let contentDelta = '';
+    let reasoningDelta = '';
+
+    // Most common: value.delta is a string
+    if (typeof value?.delta === 'string') {
+      contentDelta = value.delta;
+    }
+
+    // Sometimes: value.delta is an object (OpenAI-ish / custom)
+    // e.g. delta: { content: "...", reasoning: "..." }
+    if (value?.delta && typeof value.delta === 'object') {
+      if (typeof value.delta.content === 'string') contentDelta = value.delta.content;
+      if (typeof value.delta.reasoning === 'string') reasoningDelta = value.delta.reasoning;
+      if (typeof value.delta.thinking === 'string') reasoningDelta = value.delta.thinking;
+      if (typeof value.delta.analysis === 'string') reasoningDelta = value.delta.analysis;
+    }
+
+    // Alternative separate keys we might see
+    if (typeof value?.reasoningDelta === 'string') reasoningDelta = value.reasoningDelta;
+    if (typeof value?.thinkingDelta === 'string') reasoningDelta = value.thinkingDelta;
+
+    if (typeof value?.reasoning === 'string') reasoningDelta = value.reasoning;
+    if (typeof value?.thinking === 'string') reasoningDelta = value.thinking;
+    if (typeof value?.analysis === 'string') reasoningDelta = value.analysis;
+
+    // Some servers: message: { content: "...", reasoning: "..." } per tick
+    if (value?.message && typeof value.message === 'object') {
+      if (!contentDelta && typeof value.message.content === 'string')
+        contentDelta = value.message.content;
+      if (!reasoningDelta && typeof value.message.reasoning === 'string')
+        reasoningDelta = value.message.reasoning;
+      if (!reasoningDelta && typeof value.message.thinking === 'string')
+        reasoningDelta = value.message.thinking;
+      if (!reasoningDelta && typeof value.message.analysis === 'string')
+        reasoningDelta = value.message.analysis;
+    }
+
+    return { contentDelta, reasoningDelta };
+  }
+
   private async consumeStream(ctx: RunExecContext) {
-    const systemPrompt = ctx.params.systemPrompt || ''; // later: prompt profiles
+    const systemPrompt = ctx.params.systemPrompt || '';
 
     const messages = await this.contextBuilder.buildActiveContext(
       ctx.chatId,
@@ -174,26 +208,58 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
 
       if (done) {
         await this.flush(ctx);
-        await this.runs.markCompleted(ctx.runId, { stats: value.stats });
+        await this.runs.markCompleted(ctx.runId, { stats: value?.stats });
 
         const finalActive = await this.variants.getActive(ctx.targetMessageId);
         if (finalActive) await this.runs.setCreatedVariant(ctx.runId, finalActive.id);
 
         this.publishRunStatus(ctx.chatId, ctx.runId, {
           status: 'completed',
-          stats: (value.stats ?? null) as any,
+          stats: value?.stats ?? null,
         });
 
         this.logger.log(`Completed run ${ctx.runId}`);
         return;
       }
 
-      // Update buffers (split <think> deltas)
-      const parsed = parseThinkDelta(value.delta, ctx.think);
-      ctx.think = parsed.state;
+      // One-time “shape” log so you can SEE what the engine is producing.
+      // This answers: "reasoning in-band (delta text) vs out-of-band (other keys)".
+      if (!ctx.didLogEngineShape) {
+        const keys = value && typeof value === 'object' ? Object.keys(value) : [];
+        const deltaType = typeof value?.delta;
+        this.logger.log(
+          `Engine event shape: keys=[${keys.join(', ')}], typeof(delta)=${deltaType}`,
+        );
+        ctx.didLogEngineShape = true;
+      }
 
-      if (parsed.contentDelta) ctx.content += parsed.contentDelta;
-      if (parsed.reasoningDelta) ctx.reasoning += parsed.reasoningDelta;
+      const { contentDelta, reasoningDelta } = this.extractDeltas(value);
+
+      // 1) Out-of-band reasoning channel: forward it as-is (ChatGPT-like "reasoning" field)
+      if (reasoningDelta) {
+        ctx.reasoning += reasoningDelta;
+      }
+
+      // 2) In-band reasoning markers inside content: parse them out
+      if (contentDelta) {
+        // Debug only if it contains likely markers
+        if (
+          contentDelta.includes('<') ||
+          contentDelta.includes('```') ||
+          contentDelta.includes('Reasoning:') ||
+          contentDelta.includes('Analysis:')
+        ) {
+          this.logger.debug(
+            `RAW CONTENT DELTA (markers?): ${JSON.stringify(contentDelta).slice(0, 800)}`,
+          );
+        }
+
+        const parsed = parseThinkDelta(contentDelta, ctx.think);
+        ctx.think = parsed.state;
+
+        if (parsed.contentDelta) ctx.content += parsed.contentDelta;
+        if (parsed.reasoningDelta) ctx.reasoning += parsed.reasoningDelta;
+      }
 
       // Throttled flush and cancel check
       if (Date.now() - ctx.lastFlushMs >= this.FLUSH_MS) {
@@ -210,10 +276,6 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /**
-   * Flush current buffers to DB and emit SSE snapshot.
-   * Snapshot is "content so far" for the single target message.
-   */
   private async flush(ctx: RunExecContext) {
     await this.variants.appendToActive(ctx.targetMessageId, {
       content: ctx.content,
@@ -233,7 +295,6 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async finalizeCanceled(ctx: RunExecContext) {
-    // preserve partial output
     await this.flush(ctx);
     await this.markCanceledIfNotTerminal(ctx.runId);
 
@@ -242,7 +303,6 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async finalizeFailed(ctx: RunExecContext, message: string) {
-    // preserve partial output
     await this.flush(ctx);
     await this.runs.markFailed(ctx.runId, message);
 
@@ -267,18 +327,11 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /**
-   * Checks cancellation flag in DB.
-   * V1 approach (simple): poll DB at flush cadence.
-   */
   private async isCanceledInDb(runId: string): Promise<boolean> {
     const latest = await this.runs.getById(runId);
     return latest?.status === 'canceled';
   }
 
-  /**
-   * Avoid races: do not overwrite terminal statuses.
-   */
   private async markCanceledIfNotTerminal(runId: string) {
     const r = await this.runs.getById(runId);
     if (!r) return;

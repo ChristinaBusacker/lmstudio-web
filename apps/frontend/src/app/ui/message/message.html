@@ -1,6 +1,15 @@
 <div class="message" [ngClass]="message.role">
   <span class="role">{{ message.role }}</span>
+
+  @if (message.activeVariant.reasoning && message.activeVariant.reasoning.trim().length > 0) {
+    <details class="reasoning">
+      <summary>Reasoning</summary>
+      <markdown [data]="message.activeVariant.reasoning" clipboard></markdown>
+      <hr />
+    </details>
+  }
+
   <div class="content">
-    <markdown lineNumbers [start]="5" [data]="message.activeVariant.content" clipboard> </markdown>
+    <markdown lineNumbers [start]="5" [data]="message.activeVariant.content" clipboard></markdown>
   </div>
 </div>
