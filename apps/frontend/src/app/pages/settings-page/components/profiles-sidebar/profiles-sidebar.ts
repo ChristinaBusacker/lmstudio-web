@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -7,15 +7,19 @@ import {
   SettingsProfile,
   CreateSettingsProfilePayload,
 } from '@frontend/src/app/core/api/settings.api';
+import { DialogService } from '@frontend/src/app/ui/dialog/dialog.service';
+import { Icon } from '@frontend/src/app/ui/icon/icon';
 
 @Component({
   selector: 'app-profiles-sidebar',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, Icon],
   templateUrl: './profiles-sidebar.html',
   styleUrl: './profiles-sidebar.scss',
 })
 export class ProfilesSidebar {
+  dialog = inject(DialogService);
+
   @Input() profiles: SettingsProfile[] | null = null;
   @Input() selectedId: string | null = null;
 
@@ -27,8 +31,6 @@ export class ProfilesSidebar {
 
   // Local UI state
   filter = '';
-  createName = '';
-  createAsDefault = false;
 
   get filteredProfiles(): SettingsProfile[] {
     const list = this.profiles ?? [];
@@ -40,17 +42,26 @@ export class ProfilesSidebar {
   }
 
   onCreate(): void {
-    const name = (this.createName ?? '').trim();
-    if (!name) return;
+    this.dialog
+      .prompt({
+        title: 'Profile name',
+        placeholder: 'Enter a profile name...',
+        initialValue: '',
+        hint: 'Choose a descriptive profile title. For example purpose or specific model you want to appned to this profile.',
+        confirmLabel: 'Save',
+        declineLabel: 'Cancel',
+      })
+      .afterClosed()
+      .subscribe((result) => {
+        if (result.action === 'confirm' && result.data) {
+          const payload: CreateSettingsProfilePayload = {
+            name: result.data,
+            params: createDefaultParams(),
+            isDefault: false,
+          };
 
-    const payload: CreateSettingsProfilePayload = {
-      name,
-      params: createDefaultParams(),
-      isDefault: this.createAsDefault,
-    };
-
-    this.create.emit(payload);
-    this.createName = '';
-    this.createAsDefault = false;
+          this.create.emit(payload);
+        }
+      });
   }
 }

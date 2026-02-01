@@ -1,30 +1,12 @@
 <h2>Profiles</h2>
 
-<div class="create card">
-  <div class="card-title">Create</div>
-
-  <label class="field">
-    <span class="label">Name</span>
-    <input class="input" type="text" [(ngModel)]="createName" placeholder="e.g. Fast Draft" />
-  </label>
-
-  <label class="checkbox">
-    <input type="checkbox" [(ngModel)]="createAsDefault" />
-    <span>Set as default</span>
-  </label>
-
-  <div class="row">
-    <button class="btn btn-primary" (click)="onCreate()" [disabled]="!createName.trim()">
-      Create profile
-    </button>
-    <button class="btn btn-ghost" (click)="reload.emit()">Reload</button>
-  </div>
-</div>
-
 <div class="card">
   <div class="row row-top">
     <div class="card-title">List</div>
-    <input class="input input-small" type="text" [(ngModel)]="filter" placeholder="Filter…" />
+    <div class="list-controls">
+      <input class="input input-small" type="text" [(ngModel)]="filter" placeholder="Filter…" />
+      <button class="btn btn-icon" (click)="reload.emit()"><app-icon name="refresh-line" /></button>
+    </div>
   </div>
 
   @if (profiles === null) {
@@ -71,6 +53,8 @@
           </div>
         </button>
       }
+
+      <button class="btn btn-primary" (click)="onCreate()">Create new profile</button>
     </div>
   }
 </div>
