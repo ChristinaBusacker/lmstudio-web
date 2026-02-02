@@ -19,13 +19,23 @@ import { provideMarkdown } from 'ngx-markdown';
 import { SettingsApiService } from './core/api/settings.api';
 import { SettingsState } from './core/state/settings/settings.state';
 import { DialogService } from './ui/dialog/dialog.service';
+import { ChatSearchApiService } from './core/api/search.api';
+import { ChatSearchState } from './core/state/chat-search/chat-search.state';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideStore(
-      [ChatsState, FoldersState, ModelsState, RunsState, ChatDetailState, SettingsState],
+      [
+        ChatsState,
+        FoldersState,
+        ModelsState,
+        RunsState,
+        ChatDetailState,
+        SettingsState,
+        ChatSearchState,
+      ],
       withNgxsReduxDevtoolsPlugin(),
     ),
     provideHttpClient(),
@@ -37,5 +47,6 @@ export const appConfig: ApplicationConfig = {
     IconRegistryService,
     SettingsApiService,
     DialogService,
+    ChatSearchApiService,
   ],
 };

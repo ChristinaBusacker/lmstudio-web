@@ -41,6 +41,7 @@
     <label class="field">
       <span class="label">System prompt</span>
       <textarea
+        autoResize
         class="textarea textarea-small"
         [(ngModel)]="editParams.systemPrompt"
         spellcheck="false"
@@ -185,7 +186,12 @@
 
     @if (showAdvanced) {
       <div class="hint">Extra keys as JSON object. Core fields won’t be overwritten.</div>
-      <textarea class="textarea" [(ngModel)]="advancedJson" spellcheck="false"></textarea>
+      <textarea
+        class="textarea"
+        [(ngModel)]="advancedJson"
+        spellcheck="false"
+        autoResize
+      ></textarea>
       @if (advancedJsonError) {
         <div class="json-error">{{ advancedJsonError }}</div>
       }

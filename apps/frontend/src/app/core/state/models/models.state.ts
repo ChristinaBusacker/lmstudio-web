@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Action, Selector, State } from '@ngxs/store';
+import { Action, createSelector, Selector, State } from '@ngxs/store';
 import { catchError, forkJoin, of, tap } from 'rxjs';
 import {
   ModelsApi,
@@ -60,17 +60,19 @@ export class ModelsState {
   }
 
   static isBusy(id: string) {
-    return (s: ModelsStateModel) => Boolean(s.busy[id]);
+    return createSelector([ModelsState], (state: ModelsStateModel) => Boolean(state.busy[id]));
   }
 
   static byId(id: string) {
-    return (s: ModelsStateModel) => s.models[id] ?? null;
+    return createSelector([ModelsState], (state: ModelsStateModel) => state.models[id] ?? null);
   }
 
   static isLoaded(id: string) {
-    return (s: ModelsStateModel) => s.models[id]?.state === 'loaded';
+    return createSelector(
+      [ModelsState],
+      (state: ModelsStateModel) => state.models[id]?.state === 'loaded',
+    );
   }
-
   // ---------- Actions ----------
 
   @Action(LoadModels)

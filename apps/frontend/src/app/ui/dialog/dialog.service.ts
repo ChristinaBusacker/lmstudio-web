@@ -12,6 +12,8 @@ import { ConfirmDialogData } from './components/confirm-dialog/confirm-dialog.ty
 import { DialogContext } from './dialog.context';
 import { StringInputDialog } from './components/string-input-dialog/string-input-dialog';
 import { StringInputDialogData } from './components/string-input-dialog/string-input-dialog.types';
+import { SearchDialog } from './components/search-dialog/search-dialog';
+import { SearchDialogData } from './components/search-dialog/search-dialog.types';
 
 @Injectable({ providedIn: 'root' })
 export class DialogService {
@@ -97,6 +99,20 @@ export class DialogService {
         title: 'Enter value',
         confirmLabel: 'Save',
         declineLabel: 'Cancel',
+        closeLabel: null,
+        ...(data ?? {}),
+      },
+    });
+  }
+
+  search(data?: SearchDialogData): DialogRef<string> {
+    return this.open(SearchDialog as ComponentType<SearchDialog>, {
+      hasBackdrop: true,
+      closeOnBackdropClick: true,
+      closeOnEsc: true,
+      data: {
+        title: 'Search',
+        confirmLabel: 'Close',
         closeLabel: null,
         ...(data ?? {}),
       },

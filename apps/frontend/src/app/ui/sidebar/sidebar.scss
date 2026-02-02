@@ -6,7 +6,7 @@
   transition: all 0.3s ease;
   max-width: 500px;
   width: 20%;
-  min-width: 160px;
+  min-width: 250px;
 
   &.closed {
     max-width: 0px;
@@ -19,6 +19,8 @@
   & .group {
     display: flex;
     flex-direction: column;
+    max-width: 240px;
+    width: 100%;
   }
 
   button {
@@ -132,5 +134,15 @@
     .cube {
       transition: none;
     }
+  }
+
+  & .sidebar-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  & .addBtn {
+    margin-top: 13px;
   }
 }

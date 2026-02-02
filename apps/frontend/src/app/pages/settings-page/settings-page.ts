@@ -35,13 +35,21 @@ import { UserPreferences } from './components/user-preferences/user-preferences'
 import { ProfileEditor } from './components/profile-editor/profile-editor';
 import { ModelsPanel } from './components/models-panel/models-panel';
 import { DialogService } from '../../ui/dialog/dialog.service';
+import { AutoResizeDirective } from '../../core/directives/textarea/auto-size.directive';
 
 type SettingsTab = 'profiles' | 'models' | 'user';
 
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [CommonModule, ProfilesSidebar, ProfileEditor, UserPreferences, ModelsPanel],
+  imports: [
+    CommonModule,
+    ProfilesSidebar,
+    ProfileEditor,
+    UserPreferences,
+    ModelsPanel,
+    AutoResizeDirective,
+  ],
   templateUrl: './settings-page.html',
   styleUrl: './settings-page.scss',
 })

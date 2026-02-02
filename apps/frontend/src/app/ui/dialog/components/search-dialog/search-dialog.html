@@ -1,0 +1,36 @@
+<app-dialog #dialog>
+  <div class="string-input">
+    @if (data?.hint; as hint) {
+      <div class="string-input__hint">{{ hint }}</div>
+    }
+
+    <div class="input-wrapper">
+      <input
+        type="text"
+        class="string-input__field"
+        [placeholder]="data?.placeholder ?? ''"
+        [formControl]="input"
+      />
+      @if (isLoading$ | async) {
+        <div class="loader"></div>
+      }
+    </div>
+  </div>
+
+  @if (results$ | async; as results) {
+    @if (results.length > 0) {
+      <div class="results">
+        @for (r of results$ | async; track r.chatId) {
+          <button class="result-item" (click)="navigateToResult(r)">
+            <span class="title">{{ r.title ?? '(no title)' }}</span>
+            @if (getMatch(r); as match) {
+              <div class="match">
+                <i>{{ match.snippet }}</i>
+              </div>
+            }
+          </button>
+        }
+      </div>
+    }
+  }
+</app-dialog>

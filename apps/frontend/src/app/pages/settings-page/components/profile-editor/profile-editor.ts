@@ -17,11 +17,12 @@ import {
   prettyJson,
   mergeForSave,
 } from '@frontend/src/app/core/utils/settings-params.util';
+import { AutoResizeDirective } from '@frontend/src/app/core/directives/textarea/auto-size.directive';
 
 @Component({
   selector: 'app-profile-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AutoResizeDirective],
   templateUrl: './profile-editor.html',
   styleUrl: './profile-editor.scss',
 })

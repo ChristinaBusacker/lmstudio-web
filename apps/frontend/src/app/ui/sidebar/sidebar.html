@@ -1,57 +1,64 @@
 <div class="group">
   <button [routerLink]="['/']">Overview</button>
-  <button (click)="openSearch($event)">Chat suchen</button>
+  <button (click)="openSearch()">Chat suchen</button>
   <button [routerLink]="['settings']">Settings</button>
 </div>
 
-<app-accordion title="Folder">
-  <div class="folder-list">
-    @for (folder of fodlers$ | async; track folder.id) {
-      <button
-        class="folder"
-        [title]="folder.name || 'Untitled'"
-        [routerLink]="['folder', folder.id]"
-        (contextmenu)="openFolderMenu($event, folder.id)"
-        dropTarget
-        [dropTargetEnabled]="true"
-        [dropTargetData]="folder"
-        [dropTargetData]="folder"
-        [dropTargetGroup]="'chats'"
-      >
-        <app-icon name="folder-line"></app-icon>
-        {{ folder.name || 'Untitled' }}
-      </button>
-    }
-  </div>
+<section class="sidebar-section">
+  <app-accordion title="Folder">
+    <div class="folder-list">
+      @for (folder of fodlers$ | async; track folder.id) {
+        <button
+          class="folder"
+          [title]="folder.name || 'Untitled'"
+          [routerLink]="['folder', folder.id]"
+          (contextmenu)="openFolderMenu($event, folder.id)"
+          dropTarget
+          [dropTargetEnabled]="true"
+          [dropTargetData]="folder"
+          [dropTargetData]="folder"
+          [dropTargetGroup]="'chats'"
+        >
+          <app-icon name="folder-line"></app-icon>
+          {{ folder.name || 'Untitled' }}
+        </button>
+      }
+    </div>
+  </app-accordion>
+  <button class="addBtn" title="Create new Folder" (click)="createNewFolder()">
+    <app-icon name="add-line" />
+  </button>
+</section>
 
-  <hr />
-  <button (click)="createNewFolder()">Neuer Folder</button>
-</app-accordion>
-
-<app-accordion title="Chats">
-  <div
-    class="chat-list"
-    dropContainer
-    [dropGroup]="'chats'"
-    [containerId]="'chat-list'"
-    (itemDropped)="onChatReorder($event)"
-    (itemDroppedOnTarget)="onChatDroppedIntoFolder($event)"
-  >
-    @for (chat of chats$ | async; track chat.id) {
-      <button
-        class="chats"
-        [title]="chat.title || 'Untitled'"
-        [routerLink]="['chat', chat.id]"
-        (contextmenu)="openChatMenu($event, chat.id)"
-        dragItem
-        [dragData]="chat"
-      >
-        <app-icon name="chat-4-line"></app-icon>
-        <span>{{ chat.title || 'Untitled' }}</span>
-      </button>
-    }
-  </div>
-</app-accordion>
+<section class="sidebar-section">
+  <app-accordion title="Chats">
+    <div
+      class="chat-list"
+      dropContainer
+      [dropGroup]="'chats'"
+      [containerId]="'chat-list'"
+      (itemDropped)="onChatReorder($event)"
+      (itemDroppedOnTarget)="onChatDroppedIntoFolder($event)"
+    >
+      @for (chat of chats$ | async; track chat.id) {
+        <button
+          class="chats"
+          [title]="chat.title || 'Untitled'"
+          [routerLink]="['chat', chat.id]"
+          (contextmenu)="openChatMenu($event, chat.id)"
+          dragItem
+          [dragData]="chat"
+        >
+          <app-icon name="chat-4-line"></app-icon>
+          <span>{{ chat.title || 'Untitled' }}</span>
+        </button>
+      }
+    </div>
+  </app-accordion>
+  <button class="addBtn" title="Add new chat" (click)="createNewChat()">
+    <app-icon name="add-line" />
+  </button>
+</section>
 
 @if (menu().open) {
   <app-context-menu

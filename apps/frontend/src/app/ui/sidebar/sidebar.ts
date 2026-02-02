@@ -249,9 +249,9 @@ export class Sidebar {
     });
   }
 
-  openSearch(event: any) {
-    this.dialogService.confirm({
-      message: 'test',
+  openSearch() {
+    this.dialogService.search({
+      placeholder: 'Search for chats',
     });
   }
 }

@@ -1,31 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable } from '@nestjs/common';
-
-type LmRole = 'system' | 'user' | 'assistant';
-export interface LmMessage {
-  role: LmRole;
-  content: string;
-}
-
-export interface RunParams {
-  modelKey?: string;
-  temperature?: number;
-  maxTokens?: number;
-  topP?: number;
-
-  // Optional: expose this later via settings profile if you want
-  reasoningEffort?: 'low' | 'medium' | 'high';
-}
-
-export interface StreamDelta {
-  delta: string;
-  reasoningDelta?: string;
-}
+import type { LmMessage, RunParams, StreamDelta } from '../common/types/llm.types';
 
 interface StreamResult {
   content: string;
   stats?: any;
 }
+
+type AnyJson = Record<string, any>;
 
 @Injectable()
 export class ChatEngineService {
@@ -40,6 +22,17 @@ export class ChatEngineService {
     return messages.map((m) => `${m.role.toUpperCase()}:\n${m.content}`).join('\n\n');
   }
 
+  private getStructuredConfig(params: RunParams): AnyJson | null {
+    const so: any = (params as any)?.structuredOutput;
+    if (!so || typeof so !== 'object') return null;
+    if (so.enabled !== true) return null;
+
+    // For strict, schema-enforced output, a JSON Schema object is required.
+    if (!so.schema || typeof so.schema !== 'object') return null;
+
+    return so as AnyJson;
+  }
+
   async *streamChat(
     runId: string,
     messages: LmMessage[],
@@ -48,107 +41,215 @@ export class ChatEngineService {
     const controller = new AbortController();
     this.controllers.set(runId, controller);
 
+    try {
+      // If structured output is enabled, switch to /v1/chat/completions (LM Studio documents schema enforcement there).
+      const structured = this.getStructuredConfig(params);
+      if (structured) {
+        return yield* this.streamChatCompletions(messages, params, structured, controller);
+      }
+
+      // Otherwise keep the existing /v1/responses streaming behavior.
+      return yield* this.streamResponses(messages, params, controller);
+    } finally {
+      this.controllers.delete(runId);
+    }
+  }
+
+  /**
+   * Default mode (text chat) using LM Studio's OpenAI-compatible /v1/responses endpoint.
+   * (This is what the project used before Structured Output.)
+   */
+  private async *streamResponses(
+    messages: LmMessage[],
+    params: RunParams,
+    controller: AbortController,
+  ): AsyncGenerator<StreamDelta, StreamResult, void> {
     let full = '';
     let stats: any;
 
     // IMPORTANT: local line buffer (not shared across runs)
     let lineBuffer = '';
 
-    try {
-      const model = params.modelKey;
+    const model = params.modelKey;
 
-      // LM Studio: reasoning separation is controlled by `reasoning: { effort: ... }` for gpt-oss. :contentReference[oaicite:2]{index=2}
-      const isGptOss = typeof model === 'string' && model.startsWith('openai/gpt-oss');
+    // LM Studio: reasoning separation is controlled by `reasoning: { effort: ... }` for gpt-oss.
+    const isGptOss = typeof model === 'string' && model.startsWith('openai/gpt-oss');
 
-      const body: any = {
-        model,
-        input: this.flattenMessages(messages),
-        temperature: params.temperature,
-        max_output_tokens: params.maxTokens,
-        top_p: params.topP,
-        stream: true,
-      };
+    const body: AnyJson = {
+      model,
+      input: this.flattenMessages(messages),
+      temperature: params.temperature,
+      max_output_tokens: params.maxTokens,
+      top_p: params.topP,
+      stream: true,
+    };
 
-      if (isGptOss) {
-        body.reasoning = { effort: params.reasoningEffort ?? 'medium' };
-      }
+    if (isGptOss) {
+      body.reasoning = { effort: (params as any).reasoningEffort ?? 'medium' };
+    }
 
-      const res = await fetch(`${this.baseUrl}/v1/responses`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify(body),
-      });
+    const res = await fetch(`${this.baseUrl}/v1/responses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify(body),
+    });
 
-      if (!res.ok || !res.body) {
-        throw new Error(`LM Studio error ${res.status}: ${await res.text()}`);
-      }
+    if (!res.ok || !res.body) {
+      throw new Error(`LM Studio error ${res.status}: ${await res.text()}`);
+    }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        lineBuffer += chunk;
+      const chunk = decoder.decode(value, { stream: true });
+      lineBuffer += chunk;
 
-        const lines = lineBuffer.split('\n');
-        lineBuffer = lines.pop() ?? '';
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop() ?? '';
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          if (line === 'data: [DONE]') {
-            return { content: full, stats };
-          }
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        if (line === 'data: [DONE]') {
+          return { content: full, stats };
+        }
 
-          let payload: any;
-          try {
-            payload = JSON.parse(line.slice(6));
-          } catch {
-            continue;
-          }
+        let payload: any;
+        try {
+          payload = JSON.parse(line.slice(6));
+        } catch {
+          continue;
+        }
 
-          // Visible output text
-          if (payload?.type === 'response.output_text.delta') {
-            const d = payload.delta;
-            if (typeof d !== 'string' || d.length === 0) continue;
+        // Visible output text
+        if (payload?.type === 'response.output_text.delta') {
+          const d = payload.delta;
+          if (typeof d !== 'string' || d.length === 0) continue;
 
-            full += d;
-            yield { delta: d };
-            continue;
-          }
+          full += d;
+          yield { delta: d };
+          continue;
+        }
 
-          // Reasoning channel (raw CoT) for gpt-oss (and compatible servers). :contentReference[oaicite:3]{index=3}
-          if (payload?.type === 'response.reasoning_text.delta') {
-            const rd = payload.delta;
-            if (typeof rd !== 'string' || rd.length === 0) continue;
+        // Reasoning channel (raw CoT) for gpt-oss (and compatible servers).
+        if (payload?.type === 'response.reasoning_text.delta') {
+          const rd = payload.delta;
+          if (typeof rd !== 'string' || rd.length === 0) continue;
 
-            yield { delta: '', reasoningDelta: rd };
-            continue;
-          }
+          yield { delta: '', reasoningDelta: rd };
+          continue;
+        }
 
-          // Reasoning summary channel (some servers emit this instead/as well). :contentReference[oaicite:4]{index=4}
-          if (payload?.type === 'response.reasoning_summary_text.delta') {
-            const rd = payload.delta;
-            if (typeof rd !== 'string' || rd.length === 0) continue;
+        // Reasoning summary channel (some servers emit this instead/as well).
+        if (payload?.type === 'response.reasoning_summary_text.delta') {
+          const rd = payload.delta;
+          if (typeof rd !== 'string' || rd.length === 0) continue;
 
-            yield { delta: '', reasoningDelta: rd };
-            continue;
-          }
+          yield { delta: '', reasoningDelta: rd };
+          continue;
+        }
 
-          // Completed
-          if (payload?.type === 'response.completed') {
-            stats = payload?.response?.usage ?? payload?.response ?? null;
-            continue;
-          }
+        // Completed
+        if (payload?.type === 'response.completed') {
+          stats = payload?.response?.usage ?? payload?.response ?? null;
+          continue;
         }
       }
-
-      return { content: full, stats };
-    } finally {
-      this.controllers.delete(runId);
     }
+
+    return { content: full, stats };
+  }
+
+  /**
+   * Structured Output mode using LM Studio's OpenAI-compatible /v1/chat/completions endpoint.
+   * LM Studio documents json_schema enforcement on this endpoint.
+   */
+  private async *streamChatCompletions(
+    messages: LmMessage[],
+    params: RunParams,
+    structured: AnyJson,
+    controller: AbortController,
+  ): AsyncGenerator<StreamDelta, StreamResult, void> {
+    let full = '';
+    let stats: any;
+
+    // IMPORTANT: local line buffer (not shared across runs)
+    let lineBuffer = '';
+
+    const body: AnyJson = {
+      model: params.modelKey,
+      messages,
+      temperature: params.temperature,
+      max_tokens: params.maxTokens,
+      top_p: params.topP,
+      stream: true,
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: typeof structured.name === 'string' ? structured.name : 'structured_response',
+          strict: structured.strict !== false,
+          schema: structured.schema,
+        },
+      },
+    };
+
+    const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok || !res.body) {
+      throw new Error(`LM Studio error ${res.status}: ${await res.text()}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      lineBuffer += chunk;
+
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        if (line === 'data: [DONE]') {
+          return { content: full, stats };
+        }
+
+        let payload: any;
+        try {
+          payload = JSON.parse(line.slice(6));
+        } catch {
+          continue;
+        }
+
+        // Typical OpenAI-compatible delta for chat.completions streaming
+        const d = payload?.choices?.[0]?.delta?.content;
+        if (typeof d === 'string' && d.length > 0) {
+          full += d;
+          yield { delta: d };
+          continue;
+        }
+
+        // Usage can appear on the last chunk in some implementations
+        const usage = payload?.usage;
+        if (usage && typeof usage === 'object') {
+          stats = usage;
+        }
+      }
+    }
+
+    return { content: full, stats };
   }
 }
