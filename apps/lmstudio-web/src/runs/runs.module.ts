@@ -12,7 +12,7 @@ import { SseModule } from '../sse/sse.module';
 @Module({
   imports: [TypeOrmModule.forFeature([RunEntity]), ChatsModule, ModelsModule, SseModule],
   providers: [RunsService, RunWorkerService, ChatEngineService],
-  exports: [RunsService],
+  exports: [RunsService, ChatEngineService],
   controllers: [RunsController],
 })
 export class RunsModule {}

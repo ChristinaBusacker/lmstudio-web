@@ -1,0 +1,338 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import { Injectable } from '@angular/core';
+import { Action, Selector, State, StateContext } from '@ngxs/store';
+import { tap, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
+
+import { WorkflowApiService } from '../../api/workflow-api.service';
+import type { Workflow, WorkflowRun, WorkflowRunDetails } from './workflow.models';
+import {
+  LoadWorkflows,
+  LoadWorkflowById,
+  CreateWorkflow,
+  UpdateWorkflow,
+  LoadWorkflowRuns,
+  StartWorkflowRun,
+  LoadWorkflowRunDetails,
+  RerunWorkflowFromNode,
+  SetSelectedWorkflow,
+  SetSelectedRun,
+  ClearWorkflowErrors,
+} from './workflow.actions';
+
+export interface WorkflowsStateModel {
+  workflows: Workflow[];
+  workflowsById: Record<string, Workflow>;
+
+  runs: WorkflowRun[];
+  runsById: Record<string, WorkflowRun>;
+
+  // Details are heavier, keep separate
+  runDetailsById: Record<string, WorkflowRunDetails>;
+
+  selectedWorkflowId: string | null;
+  selectedRunId: string | null;
+
+  isLoadingWorkflows: boolean;
+  isLoadingRuns: boolean;
+  isLoadingRunDetails: boolean;
+
+  error: string | null;
+}
+
+@State<WorkflowsStateModel>({
+  name: 'workflows',
+  defaults: {
+    workflows: [],
+    workflowsById: {},
+
+    runs: [],
+    runsById: {},
+
+    runDetailsById: {},
+
+    selectedWorkflowId: null,
+    selectedRunId: null,
+
+    isLoadingWorkflows: false,
+    isLoadingRuns: false,
+    isLoadingRunDetails: false,
+
+    error: null,
+  },
+})
+@Injectable()
+export class WorkflowsState {
+  constructor(private readonly api: WorkflowApiService) {}
+
+  // --------------------
+  // Selectors
+  // --------------------
+
+  @Selector()
+  static workflows(state: WorkflowsStateModel) {
+    return state.workflows;
+  }
+
+  @Selector()
+  static selectedWorkflow(state: WorkflowsStateModel) {
+    const id = state.selectedWorkflowId;
+    return id ? (state.workflowsById[id] ?? null) : null;
+  }
+
+  @Selector()
+  static runs(state: WorkflowsStateModel) {
+    return state.runs;
+  }
+
+  @Selector()
+  static selectedRun(state: WorkflowsStateModel) {
+    const id = state.selectedRunId;
+    return id ? (state.runsById[id] ?? null) : null;
+  }
+
+  @Selector()
+  static selectedRunDetails(state: WorkflowsStateModel) {
+    const id = state.selectedRunId;
+    return id ? (state.runDetailsById[id] ?? null) : null;
+  }
+
+  @Selector()
+  static loading(state: WorkflowsStateModel) {
+    return {
+      workflows: state.isLoadingWorkflows,
+      runs: state.isLoadingRuns,
+      runDetails: state.isLoadingRunDetails,
+    };
+  }
+
+  @Selector()
+  static error(state: WorkflowsStateModel) {
+    return state.error;
+  }
+
+  // --------------------
+  // Actions: Workflows
+  // --------------------
+
+  @Action(LoadWorkflows)
+  loadWorkflows(ctx: StateContext<WorkflowsStateModel>) {
+    ctx.patchState({ isLoadingWorkflows: true, error: null });
+
+    return this.api.listWorkflows().pipe(
+      tap((workflows) => {
+        const byId: Record<string, Workflow> = {};
+        for (const w of workflows) byId[w.id] = w;
+
+        ctx.patchState({
+          workflows,
+          workflowsById: byId,
+          isLoadingWorkflows: false,
+        });
+      }),
+      catchError((err) => {
+        ctx.patchState({
+          isLoadingWorkflows: false,
+          error: this.toErrorMessage(err),
+        });
+        return of(null);
+      }),
+    );
+  }
+
+  @Action(LoadWorkflowById)
+  loadWorkflowById(ctx: StateContext<WorkflowsStateModel>, action: LoadWorkflowById) {
+    ctx.patchState({ error: null });
+
+    return this.api.getWorkflow(action.workflowId).pipe(
+      tap((wf) => {
+        const s = ctx.getState();
+        ctx.patchState({
+          workflowsById: { ...s.workflowsById, [wf.id]: wf },
+          workflows: this.upsertListById(s.workflows, wf),
+        });
+      }),
+      catchError((err) => {
+        ctx.patchState({ error: this.toErrorMessage(err) });
+        return of(null);
+      }),
+    );
+  }
+
+  @Action(CreateWorkflow)
+  createWorkflow(ctx: StateContext<WorkflowsStateModel>, action: CreateWorkflow) {
+    ctx.patchState({ error: null });
+
+    return this.api.createWorkflow(action.payload).pipe(
+      tap((wf) => {
+        const s = ctx.getState();
+        ctx.patchState({
+          workflowsById: { ...s.workflowsById, [wf.id]: wf },
+          workflows: [wf, ...s.workflows.filter((x) => x.id !== wf.id)],
+          selectedWorkflowId: wf.id,
+        });
+      }),
+      catchError((err) => {
+        ctx.patchState({ error: this.toErrorMessage(err) });
+        return of(null);
+      }),
+    );
+  }
+
+  @Action(UpdateWorkflow)
+  updateWorkflow(ctx: StateContext<WorkflowsStateModel>, action: UpdateWorkflow) {
+    ctx.patchState({ error: null });
+
+    return this.api.updateWorkflow(action.workflowId, action.payload).pipe(
+      tap((wf) => {
+        const s = ctx.getState();
+        ctx.patchState({
+          workflowsById: { ...s.workflowsById, [wf.id]: wf },
+          workflows: this.upsertListById(s.workflows, wf),
+        });
+      }),
+      catchError((err) => {
+        ctx.patchState({ error: this.toErrorMessage(err) });
+        return of(null);
+      }),
+    );
+  }
+
+  @Action(SetSelectedWorkflow)
+  setSelectedWorkflow(ctx: StateContext<WorkflowsStateModel>, action: SetSelectedWorkflow) {
+    ctx.patchState({ selectedWorkflowId: action.workflowId });
+  }
+
+  // --------------------
+  // Actions: Runs
+  // --------------------
+
+  @Action(LoadWorkflowRuns)
+  loadWorkflowRuns(ctx: StateContext<WorkflowsStateModel>, action: LoadWorkflowRuns) {
+    ctx.patchState({ isLoadingRuns: true, error: null });
+
+    return this.api.listRuns(action.query).pipe(
+      tap((runs) => {
+        const byId: Record<string, WorkflowRun> = {};
+        for (const r of runs) byId[r.id] = r;
+
+        ctx.patchState({
+          runs,
+          runsById: byId,
+          isLoadingRuns: false,
+        });
+      }),
+      catchError((err) => {
+        ctx.patchState({
+          isLoadingRuns: false,
+          error: this.toErrorMessage(err),
+        });
+        return of(null);
+      }),
+    );
+  }
+
+  @Action(StartWorkflowRun)
+  startWorkflowRun(ctx: StateContext<WorkflowsStateModel>, action: StartWorkflowRun) {
+    ctx.patchState({ error: null });
+
+    return this.api.startRun(action.workflowId, action.payload).pipe(
+      tap((run) => {
+        const s = ctx.getState();
+        ctx.patchState({
+          runsById: { ...s.runsById, [run.id]: run },
+          runs: [run, ...s.runs.filter((x) => x.id !== run.id)],
+          selectedRunId: run.id,
+        });
+      }),
+      catchError((err) => {
+        ctx.patchState({ error: this.toErrorMessage(err) });
+        return of(null);
+      }),
+    );
+  }
+
+  @Action(LoadWorkflowRunDetails)
+  loadWorkflowRunDetails(ctx: StateContext<WorkflowsStateModel>, action: LoadWorkflowRunDetails) {
+    ctx.patchState({ isLoadingRunDetails: true, error: null });
+
+    return this.api.getRun(action.runId).pipe(
+      tap((details) => {
+        const s = ctx.getState();
+        const run = details.run;
+
+        ctx.patchState({
+          isLoadingRunDetails: false,
+          runDetailsById: { ...s.runDetailsById, [action.runId]: details },
+          runsById: { ...s.runsById, [run.id]: run },
+          runs: this.upsertListById(s.runs, run),
+        });
+      }),
+      catchError((err) => {
+        ctx.patchState({
+          isLoadingRunDetails: false,
+          error: this.toErrorMessage(err),
+        });
+        return of(null);
+      }),
+    );
+  }
+
+  @Action(RerunWorkflowFromNode)
+  rerunFromNode(ctx: StateContext<WorkflowsStateModel>, action: RerunWorkflowFromNode) {
+    ctx.patchState({ error: null });
+
+    return this.api.rerunFrom(action.runId, action.nodeId).pipe(
+      tap((updatedRun) => {
+        const s = ctx.getState();
+
+        // Drop cached details because they're now stale
+        const newDetails = { ...s.runDetailsById };
+        delete newDetails[action.runId];
+
+        ctx.patchState({
+          runsById: { ...s.runsById, [updatedRun.id]: updatedRun },
+          runs: this.upsertListById(s.runs, updatedRun),
+          runDetailsById: newDetails,
+          selectedRunId: updatedRun.id,
+        });
+      }),
+      catchError((err) => {
+        ctx.patchState({ error: this.toErrorMessage(err) });
+        return of(null);
+      }),
+    );
+  }
+
+  @Action(SetSelectedRun)
+  setSelectedRun(ctx: StateContext<WorkflowsStateModel>, action: SetSelectedRun) {
+    ctx.patchState({ selectedRunId: action.runId });
+  }
+
+  @Action(ClearWorkflowErrors)
+  clearErrors(ctx: StateContext<WorkflowsStateModel>) {
+    ctx.patchState({ error: null });
+  }
+
+  // --------------------
+  // Helpers
+  // --------------------
+
+  private upsertListById<T extends { id: string }>(list: T[], item: T): T[] {
+    const idx = list.findIndex((x) => x.id === item.id);
+    if (idx === -1) return [item, ...list];
+    const copy = list.slice();
+    copy[idx] = item;
+    return copy;
+  }
+
+  private toErrorMessage(err: any): string {
+    // tries to respect typical backend error shapes
+    const msg =
+      err?.error?.message ??
+      err?.message ??
+      (typeof err === 'string' ? err : null) ??
+      'Unknown error';
+    return String(msg);
+  }
+}

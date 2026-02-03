@@ -1,0 +1,47 @@
+<div class="node">
+  <!-- Ports (match default ids from docs: port-left / port-right) -->
+  <ng-diagram-port id="port-left" side="left" type="both"></ng-diagram-port>
+  <ng-diagram-port id="port-right" side="right" type="both"></ng-diagram-port>
+
+  <div class="header">
+    <div class="title">{{ title() }}</div>
+    <div class="sub">{{ node().data.nodeType }}</div>
+  </div>
+
+  <div class="body">
+    <label class="field">
+      <div class="label">Profile</div>
+      <input
+        class="input"
+        [value]="node().data.profileName"
+        (change)="updateProfileName($event.target.value)"
+        placeholder="z.B. 'Personen Generator'"
+      />
+    </label>
+
+    <label class="field">
+      <div class="label">Node Type</div>
+      <input
+        class="input"
+        [value]="node().data.nodeType"
+        (change)="updateNodeType($event.target.value)"
+        placeholder="z.B. 'lmstudio.llm'"
+      />
+    </label>
+
+    <label class="field">
+      <div class="label">Prompt</div>
+      <textarea
+        class="textarea"
+        rows="5"
+        [value]="node().data.prompt"
+        (change)="updatePrompt($event.target.value)"
+        placeholder="Prompt für diesen Schritt..."
+      ></textarea>
+    </label>
+
+    <!-- Resize + rotate adornments (optional, but nice) -->
+    <ng-diagram-node-resize-adornment />
+    <ng-diagram-node-rotate-adornment />
+  </div>
+</div>

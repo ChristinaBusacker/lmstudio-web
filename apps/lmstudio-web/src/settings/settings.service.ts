@@ -86,6 +86,15 @@ export class SettingsService {
     });
   }
 
+  async getByName(ownerKey: string, name: string) {
+    const n = name.trim();
+    if (!n) return null;
+
+    return this.profiles.findOne({
+      where: { ownerKey, name: n },
+    });
+  }
+
   /**
    * Creates a new generation settings profile.
    *

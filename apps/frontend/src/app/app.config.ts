@@ -21,6 +21,8 @@ import { SettingsState } from './core/state/settings/settings.state';
 import { DialogService } from './ui/dialog/dialog.service';
 import { ChatSearchApiService } from './core/api/search.api';
 import { ChatSearchState } from './core/state/chat-search/chat-search.state';
+import { WorkflowsState } from './core/state/workflows/workflow.state';
+import { WorkflowApiService } from './core/api/workflow-api.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -35,6 +37,7 @@ export const appConfig: ApplicationConfig = {
         ChatDetailState,
         SettingsState,
         ChatSearchState,
+        WorkflowsState,
       ],
       withNgxsReduxDevtoolsPlugin(),
     ),
@@ -48,5 +51,6 @@ export const appConfig: ApplicationConfig = {
     SettingsApiService,
     DialogService,
     ChatSearchApiService,
+    WorkflowApiService,
   ],
 };

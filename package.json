@@ -47,6 +47,7 @@
     "class-validator": "^0.14.3",
     "clipboard": "^2.0.11",
     "marked": "^17.0.1",
+    "ng-diagram": "^0.9.1",
     "ngx-markdown": "^21.0.1",
     "pg": "^8.17.1",
     "prismjs": "^1.30.0",

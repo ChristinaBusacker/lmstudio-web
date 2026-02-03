@@ -15,6 +15,11 @@ import { RunsModule } from './runs/runs.module';
 import { GenerationSettingsProfileEntity } from './settings/entities/generation-settings-profile.entity';
 import { SettingsModule } from './settings/settings.module';
 import { SearchModule } from './search/search.module';
+import { WorkflowsModule } from './workflows/workflows.module';
+import { WorkflowEntity } from './workflows/entities/workflow.entity';
+import { WorkflowRunEntity } from './workflows/entities/workflow-run.entity';
+import { ArtifactEntity } from './workflows/entities/artifact.entity';
+import { WorkflowNodeRunEntity } from './workflows/entities/workflow-node-run.entity';
 
 const dbPath = process.env.DB_PATH
   ? process.env.DB_PATH
@@ -37,7 +42,16 @@ const uiOptions: ServeStaticModuleOptions = {
         synchronize: false,
         migrationsRun: false,
         autoLoadEntities: true,
-        entities: [ChatEntity, MessageEntity, RunEntity, GenerationSettingsProfileEntity],
+        entities: [
+          ChatEntity,
+          MessageEntity,
+          RunEntity,
+          GenerationSettingsProfileEntity,
+          WorkflowEntity,
+          WorkflowRunEntity,
+          ArtifactEntity,
+          WorkflowNodeRunEntity,
+        ],
         migrations: [__dirname + '/migrations/*.{ts,js}'],
         logging: ['error', 'warn'],
       }),
@@ -50,6 +64,7 @@ const uiOptions: ServeStaticModuleOptions = {
     SettingsModule,
     ModelsModule,
     SearchModule,
+    WorkflowsModule,
   ],
 })
 export class AppModule {}
