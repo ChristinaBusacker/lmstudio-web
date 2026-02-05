@@ -13,6 +13,7 @@
     <div class="empty">Loading…</div>
   } @else if (filteredProfiles.length === 0) {
     <div class="empty">No profiles found.</div>
+    <button class="btn btn-primary" (click)="onCreate()">Create new profile</button>
   } @else {
     <div class="list">
       @for (p of filteredProfiles; track p.id) {

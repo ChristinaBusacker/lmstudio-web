@@ -3,9 +3,9 @@ import { CommonModule } from '@angular/common';
 import {
   Component,
   DestroyRef,
+  effect,
   EnvironmentInjector,
   HostListener,
-  effect,
   inject,
   OnInit,
   runInInjectionContext,
@@ -28,11 +28,16 @@ import { distinctUntilChanged, filter, map, of, switchMap, tap } from 'rxjs';
 
 import { SseService } from '../../core/sse/sse.service';
 import { SettingsState } from '../../core/state/settings/settings.state';
-import { SetSelectedWorkflow, UpdateWorkflow } from '../../core/state/workflows/workflow.actions';
+import {
+  SetSelectedWorkflow,
+  StartWorkflowRun,
+  UpdateWorkflow,
+} from '../../core/state/workflows/workflow.actions';
 import { WorkflowsState } from '../../core/state/workflows/workflow.state';
 import { shortId } from '../../core/utils/shortId.util';
 import { Icon } from '../../ui/icon/icon';
 import { WorkflowNodeComponent } from './components/workflow-node/workflow-node';
+import { WorkflowRunListContainer } from './components/workflow-run-list-container/workflow-run-list-container';
 import { WorkflowDiagramCommandsService } from './workflow-diagram-commands.service';
 import {
   diagramJsonToWorkflowGraph,
@@ -41,7 +46,6 @@ import {
   workflowToDiagramModel,
 } from './workflow-diagram.adapter';
 import { WorkflowEditorStateService } from './workflow-editor-state.service';
-import { WorkflowRunListContainer } from './components/workflow-run-list-container/workflow-run-list-container';
 
 function isEditableTarget(t: EventTarget | null): boolean {
   const el = t as HTMLElement | null;
@@ -262,6 +266,10 @@ export class WorkflowPage implements OnInit {
       this.applySnapshot(structuredClone(this.lastSavedSnapshot));
       this.editorDirty.set(false);
     });
+  }
+
+  startRun(workflowId: string) {
+    this.store.dispatch(new StartWorkflowRun(workflowId, {}));
   }
 
   undo() {

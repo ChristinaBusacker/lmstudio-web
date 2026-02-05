@@ -49,7 +49,9 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
   private readonly destroyRef = inject(DestroyRef);
 
   node = input.required<Node<DiagramNodeData>>();
+
   readonly profiles$ = this.store.select(SettingsState.profiles);
+
   title = computed(() => this.node().data.label || this.node().id);
 
   readonly promptInput$ = new Subject<string>();

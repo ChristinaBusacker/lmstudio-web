@@ -25,7 +25,9 @@
       >
         <option value="">Default</option>
         @for (profile of profiles$ | async; track $index) {
-          <option [value]="profile.id">{{ profile.name }}</option>
+          <option [value]="profile.name" [selected]="profile.name === node().data.profileName">
+            {{ profile.name }}
+          </option>
         }
       </select>
     </label>

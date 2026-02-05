@@ -3,7 +3,7 @@
   (mousemove)="onDiagramMouseMove($event)"
   (pointerdown)="onDiagramPointerDown($event)"
 >
-  @if (workflow$ | async) {
+  @if (workflow$ | async; as wf) {
     <ng-diagram
       class="diagram"
       [model]="model"
@@ -22,7 +22,12 @@
       <button class="btn btn-primary" (click)="saveGraph()" [disabled]="!editorDirty()">
         <app-icon name="save-line" /> Save
       </button>
+
+      <button class="btn btn-accent" (click)="startRun(wf.id)">
+        <app-icon name="play-line" /> Run
+      </button>
     </div>
+
+    <app-workflow-run-list-container class="runs-panel" />
   }
 </div>
-<app-workflow-run-list-container class="runs-panel" />
