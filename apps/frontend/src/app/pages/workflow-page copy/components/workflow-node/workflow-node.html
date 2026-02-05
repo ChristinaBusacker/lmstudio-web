@@ -10,24 +10,23 @@
 
   <div class="body">
     <label class="field">
-      <div class="label">Node Type</div>
-      <input class="input" value="lmstudio.llm" readonly />
+      <div class="label">Profile</div>
+      <input
+        class="input"
+        [value]="node().data.profileName"
+        (change)="updateProfileName($event.target.value)"
+        placeholder="z.B. 'Personen Generator'"
+      />
     </label>
 
     <label class="field">
-      <div class="label">Profile</div>
-      <select
-        class="config input"
-        [value]="node().data.profileName"
-        (change)="updateProfileName($event.target.value)"
-        #configSelect
-        title="Visit settings to define presets"
-      >
-        <option value="">Default</option>
-        @for (profile of profiles$ | async; track $index) {
-          <option [value]="profile.id">{{ profile.name }}</option>
-        }
-      </select>
+      <div class="label">Node Type</div>
+      <input
+        class="input"
+        [value]="node().data.nodeType"
+        (change)="updateNodeType($event.target.value)"
+        placeholder="z.B. 'lmstudio.llm'"
+      />
     </label>
 
     <label class="field">
@@ -36,21 +35,13 @@
         class="textarea"
         rows="5"
         [value]="node().data.prompt"
-        (input)="promptInput$.next($any($event.target).value)"
+        (change)="updatePrompt($event.target.value)"
         placeholder="Prompt für diesen Schritt..."
       ></textarea>
     </label>
 
+    <!-- Resize + rotate adornments (optional, but nice) -->
     <ng-diagram-node-resize-adornment />
     <ng-diagram-node-rotate-adornment />
-  </div>
-
-  <div class="controls">
-    <button (click)="duplicateNode()">
-      <app-icon name="file-copy-line" title="duplicate" />
-    </button>
-    <button (click)="deleteNode()">
-      <app-icon name="delete-bin-line" title="delete" />
-    </button>
   </div>
 </div>

@@ -8,8 +8,9 @@
     "module": "es2022",
     "target": "es2022",
     "moduleResolution": "Bundler",
-    "types": []
+    "types": [],
+    "rootDir": "../../"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "../../shared"],
   "exclude": ["src/**/*.spec.ts"]
 }

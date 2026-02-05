@@ -1,0 +1,148 @@
+<div class="root">
+  <header class="topbar">
+    <div class="title">
+      <div class="h1">Workflows Playground</div>
+      <div class="hint">Blueprint-Editor mit ngDiagram (Nodes draggen, verbinden, speichern)</div>
+    </div>
+
+    @if (error(); as err) {
+      <div class="error">{{ err }}</div>
+    }
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: workflows list -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Workflows</div>
+      </div>
+
+      <div class="panel-body">
+        <div class="form">
+          <input class="input" [formControl]="newWorkflowName" placeholder="Workflow name" />
+          <input
+            class="input"
+            [formControl]="newWorkflowDescription"
+            placeholder="Description (optional)"
+          />
+          <button class="btn" (click)="createWorkflow()" [disabled]="loading().workflows">
+            Create
+          </button>
+        </div>
+
+        <div class="list">
+          @for (wf of workflows(); track wf.id) {
+            <button class="list-item" (click)="selectWorkflow(wf)">
+              <div class="list-title">{{ wf.name }}</div>
+              <div class="list-sub">{{ wf.id }}</div>
+            </button>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- MIDDLE: diagram -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Diagram</div>
+
+        <div class="panel-actions">
+          <button class="btn" (click)="addNode('author')" [disabled]="!selectedWorkflow()">
+            + Author
+          </button>
+          <button class="btn" (click)="addNode('book')" [disabled]="!selectedWorkflow()">
+            + Book
+          </button>
+          <button class="btn" (click)="addNode('llm')" [disabled]="!selectedWorkflow()">
+            + Node
+          </button>
+
+          <button class="btn primary" (click)="saveGraph()" [disabled]="!canSave()">Save</button>
+        </div>
+      </div>
+
+      <div class="panel-body diagram-host">
+        @if (selectedWorkflow()) {
+          <ng-diagram
+            class="diagram"
+            [model]="model"
+            [config]="config"
+            [nodeTemplateMap]="nodeTemplateMap"
+            (edgeDrawn)="onEdgeDrawn()"
+            (selectionMoved)="onSelectionMoved()"
+          >
+            <ng-diagram-background />
+          </ng-diagram>
+
+          <div class="muted hint2">
+            Verbinden: vom Port rechts nach links ziehen. Ports: <code>port-right</code> →
+            <code>port-left</code>.
+          </div>
+        } @else {
+          <div class="muted">Wähle links einen Workflow aus.</div>
+        }
+      </div>
+    </section>
+
+    <!-- RIGHT: runs -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Runs</div>
+      </div>
+
+      <div class="panel-body">
+        @if (selectedWorkflow()) {
+          <div class="run-actions">
+            <input class="input" [formControl]="newRunLabel" placeholder="Run label" />
+            <button class="btn" (click)="startRun()">Start Run</button>
+          </div>
+        } @else {
+          <div class="muted">Workflow auswählen, um Runs zu starten.</div>
+        }
+
+        <div class="list">
+          @for (r of runs(); track r.id) {
+            <button class="list-item" (click)="selectRun(r.id)">
+              <div class="list-title">{{ r.label || 'Run' }} — {{ r.status }}</div>
+              <div class="list-sub">
+                {{ r.id }}
+                @if (r.currentNodeId) {
+                  <span>• node: {{ r.currentNodeId }}</span>
+                }
+              </div>
+            </button>
+          }
+        </div>
+
+        @if (runDetails(); as details) {
+          <div class="details">
+            <h3>Run Details</h3>
+            <div class="muted">Status: {{ details.run.status }}</div>
+
+            <h4>Node Runs</h4>
+            @for (nr of details.nodeRuns; track nr.id) {
+              <div class="node-run">
+                <div class="node-run-head">
+                  <div>
+                    <b>{{ nr.nodeId }}</b> — {{ nr.status }}
+                  </div>
+                  <button class="btn small" (click)="rerunFrom(details, nr.nodeId)">
+                    Rerun ab hier
+                  </button>
+                </div>
+
+                @if (nr.outputJson) {
+                  <pre class="pre">{{ nr.outputJson | json }}</pre>
+                } @else if (nr.outputText) {
+                  <pre class="pre">{{ nr.outputText }}</pre>
+                } @else {
+                  <div class="muted">Kein Output.</div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </section>
+  </div>
+</div>

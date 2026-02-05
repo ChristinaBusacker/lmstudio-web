@@ -1,26 +1,20 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import { CommonModule } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  computed,
-  effect,
+  EnvironmentInjector,
+  HostListener,
   inject,
-  signal,
+  OnInit,
+  runInInjectionContext,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngxs/store';
-import { interval } from 'rxjs';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-
 import {
-  WORKFLOW_NODE_TEMPLATE,
-  createNewNodeId,
-  diagramJsonToWorkflowGraph,
-  workflowToDiagramModel,
-} from './workflow-diagram.adapter';
-
-import {
+  configureShortcuts,
   initializeModel,
   NgDiagramBackgroundComponent,
   NgDiagramComponent,
@@ -29,210 +23,391 @@ import {
   NgDiagramNodeTemplateMap,
   provideNgDiagram,
 } from 'ng-diagram';
-import {
-  LoadWorkflows,
-  LoadWorkflowRuns,
-  LoadWorkflowRunDetails,
-  SetSelectedWorkflow,
-  ClearWorkflowErrors,
-  CreateWorkflow,
-  UpdateWorkflow,
-  StartWorkflowRun,
-  SetSelectedRun,
-  RerunWorkflowFromNode,
-} from '../../core/state/workflows/workflow.actions';
-import { Workflow, WorkflowRunDetails } from '../../core/state/workflows/workflow.models';
+import { distinctUntilChanged, filter, map, of, switchMap, tap } from 'rxjs';
+
+import { SseService } from '../../core/sse/sse.service';
+import { SettingsState } from '../../core/state/settings/settings.state';
+import { SetSelectedWorkflow, UpdateWorkflow } from '../../core/state/workflows/workflow.actions';
 import { WorkflowsState } from '../../core/state/workflows/workflow.state';
+import { shortId } from '../../core/utils/shortId.util';
+import { Icon } from '../../ui/icon/icon';
 import { WorkflowNodeComponent } from './components/workflow-node/workflow-node';
+import { WorkflowDiagramCommandsService } from './workflow-diagram-commands.service';
+import {
+  diagramJsonToWorkflowGraph,
+  WORKFLOW_NODE_TEMPLATE,
+  workflowToDiagramModel,
+} from './workflow-diagram.adapter';
+import { WorkflowEditorStateService } from './workflow-editor-state.service';
+
+function isEditableTarget(t: EventTarget | null): boolean {
+  const el = t as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName?.toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+  return el.isContentEditable === true;
+}
+
+type GraphSnapshot = { nodes: any[]; edges: any[] };
 
 @Component({
-  selector: 'app-workflows-playground-page',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, NgDiagramComponent, NgDiagramBackgroundComponent],
-  providers: [provideNgDiagram()],
+  selector: 'app-workflow-page',
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    NgDiagramComponent,
+    NgDiagramBackgroundComponent,
+    Icon,
+  ],
+  providers: [provideNgDiagram(), WorkflowDiagramCommandsService, WorkflowEditorStateService],
   templateUrl: './workflow-page.html',
-  styleUrls: ['./workflow-page.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './workflow-page.scss',
 })
-export class WorkflowsPlaygroundPage {
+export class WorkflowPage implements OnInit {
+  private readonly route = inject(ActivatedRoute);
   private readonly store = inject(Store);
+  private readonly sse = inject(SseService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly commands = inject(WorkflowDiagramCommandsService);
+  private readonly envInjector = inject(EnvironmentInjector);
 
   // ngDiagram model service (scoped by provideNgDiagram())
   private readonly diagramModel = inject(NgDiagramModelService);
 
-  // custom node template map
+  workflowId!: string;
+
+  private dataEditSnapshotTaken = false;
+
+  readonly workflow$ = this.store.select(WorkflowsState.selectedWorkflow);
+  readonly selectedRun = this.store.select(WorkflowsState.selectedRun);
+  readonly runDetails = this.store.select(WorkflowsState.selectedRunDetails);
+  readonly loading = this.store.select(WorkflowsState.loading);
+  readonly error = this.store.select(WorkflowsState.error);
+  readonly profiles$ = this.store.select(SettingsState.profiles);
+
+  private readonly editorState = inject(WorkflowEditorStateService);
+  readonly editorDirty = this.editorState.dirty;
+
+  private undoStack: GraphSnapshot[] = [];
+  private redoStack: GraphSnapshot[] = [];
+  private lastSavedSnapshot: GraphSnapshot | null = null;
+
+  // Pattern A: signature gate for store -> editor apply
+  private lastLoadedGraphSig: string | null = null;
+
+  private diagramReady = false;
+  private queuedOps: Array<() => void> = [];
+
   readonly nodeTemplateMap = new NgDiagramNodeTemplateMap([
     [WORKFLOW_NODE_TEMPLATE, WorkflowNodeComponent],
   ]);
 
-  // config (zoomToFit is handy on init)
   readonly config: NgDiagramConfig = {
     zoom: {
       max: 3,
       zoomToFit: { onInit: true, padding: 120 },
     },
+    shortcuts: configureShortcuts([
+      { actionName: 'copy', bindings: [] },
+      { actionName: 'cut', bindings: [] },
+      { actionName: 'paste', bindings: [] },
+      { actionName: 'undo', bindings: [] },
+      { actionName: 'redo', bindings: [] },
+    ]),
   };
 
-  // -------------------------
-  // Store -> signals
-  // -------------------------
-  readonly workflows = toSignal(this.store.select(WorkflowsState.workflows), { initialValue: [] });
-  readonly selectedWorkflow = toSignal(this.store.select(WorkflowsState.selectedWorkflow), {
-    initialValue: null,
-  });
-
-  readonly runs = toSignal(this.store.select(WorkflowsState.runs), { initialValue: [] });
-  readonly selectedRun = toSignal(this.store.select(WorkflowsState.selectedRun), {
-    initialValue: null,
-  });
-  readonly runDetails = toSignal(this.store.select(WorkflowsState.selectedRunDetails), {
-    initialValue: null,
-  });
-
-  readonly loading = toSignal(this.store.select(WorkflowsState.loading), {
-    initialValue: { workflows: false, runs: false, runDetails: false },
-  });
-
-  readonly error = toSignal(this.store.select(WorkflowsState.error), { initialValue: null });
-
-  // -------------------------
-  // Local UI state
-  // -------------------------
-  readonly editorDirty = signal(false);
-
-  readonly newWorkflowName = new FormControl('New Workflow', {
-    nonNullable: true,
-    validators: [Validators.required],
-  });
-  readonly newWorkflowDescription = new FormControl('', { nonNullable: true });
-
-  readonly newRunLabel = new FormControl('Draft', { nonNullable: true });
-
-  readonly canSave = computed(() => this.editorDirty() && !!this.selectedWorkflow());
-
-  // ngDiagram model adapter instance
   model: unknown = initializeModel({ nodes: [], edges: [] });
 
-  constructor() {
-    this.store.dispatch(new LoadWorkflows());
+  ngOnInit() {
+    this.route.paramMap
+      .pipe(
+        map((pm) => pm.get('workflowId')),
+        filter((id): id is string => !!id),
+        distinctUntilChanged(),
+        tap((workflowId) => {
+          this.workflowId = workflowId;
+          this.store.dispatch(new SetSelectedWorkflow(workflowId));
+        }),
+        switchMap(() => of(null)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
 
-    // Load workflow -> build diagram model
-    effect(() => {
-      const wf = this.selectedWorkflow();
-      if (!wf) {
-        this.model = initializeModel({ nodes: [], edges: [] });
-        this.editorDirty.set(false);
-        return;
-      }
-      const { nodes, edges } = workflowToDiagramModel(wf);
-      this.model = initializeModel({ nodes, edges });
-      this.editorDirty.set(false);
-    });
+    this.workflow$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((wf) => {
+      runInInjectionContext(this.envInjector, () => {
+        if (!wf) {
+          this.resetEditorForEmpty();
+          return;
+        }
 
-    // when workflow changes: load runs
-    effect(() => {
-      const wf = this.selectedWorkflow();
-      if (!wf) return;
-      this.store.dispatch(new LoadWorkflowRuns({ workflowId: wf.id, limit: 50 }));
-    });
+        const incomingSig = this.workflowGraphSig(wf);
 
-    // Poll runs + selected run details (MVP; later SSE)
-    interval(2000)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        const wf = this.selectedWorkflow();
-        if (wf?.id) this.store.dispatch(new LoadWorkflowRuns({ workflowId: wf.id, limit: 50 }));
+        // Protect local edits
+        if (this.editorDirty()) return;
 
-        const run = this.selectedRun();
-        if (run?.id) this.store.dispatch(new LoadWorkflowRunDetails(run.id));
+        // Avoid re-initializing for the same content (e.g., after save)
+        if (incomingSig === this.lastLoadedGraphSig) return;
+
+        this.resetEditorForIncomingModel();
+
+        const { nodes, edges } = workflowToDiagramModel(wf);
+        // initializeModel uses signals internally => keep in injection context
+        this.model = initializeModel({ nodes, edges });
+
+        this.lastLoadedGraphSig = incomingSig;
+        // lastSavedSnapshot will be set in onDiagramInit() when diagramModel is ready
       });
+    });
   }
 
-  // -------------------------
-  // Workflows
-  // -------------------------
-  selectWorkflow(wf: Workflow) {
-    this.editorDirty.set(false);
-    this.store.dispatch(new SetSelectedWorkflow(wf.id));
-    this.store.dispatch(new ClearWorkflowErrors());
+  // Called from template: (diagramInit)="onDiagramInit()"
+  onDiagramInit() {
+    this.diagramReady = true;
+
+    // Now it's SAFE to read diagramModel/toJSON
+    this.lastSavedSnapshot = this.snapshot();
+    this.undoStack = [];
+    this.redoStack = [];
+
+    // Run queued operations (mutations) that were requested before init finished
+    for (const fn of this.queuedOps) fn();
+    this.queuedOps = [];
   }
 
-  createWorkflow() {
-    const name = this.newWorkflowName.value.trim();
-    if (!name) return;
-
-    const description = this.newWorkflowDescription.value.trim();
-    const graph = { nodes: [], edges: [] };
-
-    this.store.dispatch(new CreateWorkflow({ name, description: description || undefined, graph }));
+  onDiagramMouseMove(e: MouseEvent) {
+    this.commands.setLastMouseClientPosition({ x: e.clientX, y: e.clientY });
   }
 
-  // Add a node directly into diagram (uses model service to keep reactivity)
-  addNode(kind: 'author' | 'book' | 'llm') {
-    const existing = this.diagramModel.nodes().map((n) => n.id);
-    const id = createNewNodeId(existing, kind);
+  onDiagramPointerDown(e: PointerEvent) {
+    if (e.button !== 0) return;
+    if (isEditableTarget(e.target)) return;
 
-    const x = 60 + existing.length * 40;
-    const y = 60 + existing.length * 30;
-
-    this.diagramModel.addNodes([
-      {
-        id,
-        type: WORKFLOW_NODE_TEMPLATE,
-        position: { x, y },
-        data: {
-          label: id,
-          nodeType: 'lmstudio.llm',
-          profileName:
-            kind === 'author' ? 'Personen Generator' : kind === 'book' ? 'Buch-Generator' : '',
-          prompt: '',
-        },
-      },
-    ]);
-
-    this.editorDirty.set(true);
-  }
-
-  // ngDiagram events -> mark dirty
-  onEdgeDrawn() {
-    this.editorDirty.set(true);
+    // Snapshot BEFORE user starts modifying (drag / connect)
+    this.runWhenReady(() => this.pushHistorySnapshot());
   }
 
   onSelectionMoved() {
     this.editorDirty.set(true);
   }
 
+  onEdgeDrawn() {
+    this.editorDirty.set(true);
+  }
+
+  addNode(kind: 'author' | 'book' | 'llm') {
+    this.runWhenReady(() => {
+      this.pushHistorySnapshot();
+      this.editorDirty.set(true);
+
+      const existing = this.diagramModel.nodes().map((n) => n.id);
+      const id = shortId();
+
+      const x = 60 + existing.length * 40;
+      const y = 60 + existing.length * 30;
+
+      this.diagramModel.addNodes([
+        {
+          id,
+          type: WORKFLOW_NODE_TEMPLATE,
+          position: { x, y },
+          data: {
+            label: id,
+            nodeType: 'lmstudio.llm',
+            profileName:
+              kind === 'author' ? 'Personen Generator' : kind === 'book' ? 'Buch-Generator' : '',
+            prompt: '',
+          },
+        },
+      ]);
+    });
+  }
+
   saveGraph() {
-    const wf = this.selectedWorkflow();
-    if (!wf) return;
+    this.runWhenReady(() => {
+      const wf = this.store.selectSnapshot(WorkflowsState.selectedWorkflow);
+      if (!wf) return;
 
-    // Serialize diagram -> workflow graph
-    const diagramJson = this.diagramModel.toJSON();
-    const graph = diagramJsonToWorkflowGraph(diagramJson);
+      const diagramJsonString = this.diagramModel.toJSON();
+      const graph = diagramJsonToWorkflowGraph(diagramJsonString);
 
+      // Pattern A: set the signature we *expect* to receive back from the store,
+      // so the store emission after save doesn't reinitialize the model.
+      this.lastLoadedGraphSig = JSON.stringify(graph);
+
+      this.store.dispatch(new UpdateWorkflow(wf.id, { graph }));
+
+      this.editorDirty.set(false);
+      this.lastSavedSnapshot = this.snapshot();
+      this.undoStack = [];
+      this.redoStack = [];
+    });
+  }
+
+  resetToLastSaved() {
+    this.runWhenReady(() => {
+      if (!this.lastSavedSnapshot) return;
+      this.pushHistorySnapshot();
+      this.applySnapshot(structuredClone(this.lastSavedSnapshot));
+      this.editorDirty.set(false);
+    });
+  }
+
+  undo() {
+    this.runWhenReady(() => {
+      if (this.undoStack.length === 0) return;
+
+      const current = this.snapshot();
+      const previous = this.undoStack.pop()!;
+
+      this.redoStack.push(current);
+      this.applySnapshot(previous);
+      this.editorDirty.set(true);
+    });
+  }
+
+  redo() {
+    this.runWhenReady(() => {
+      if (this.redoStack.length === 0) return;
+
+      const current = this.snapshot();
+      const next = this.redoStack.pop()!;
+
+      this.undoStack.push(current);
+      this.applySnapshot(next);
+      this.editorDirty.set(true);
+    });
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  onKeyDown(e: KeyboardEvent) {
+    if (isEditableTarget(e.target)) return;
+
+    const key = e.key.toLowerCase();
+    const ctrlOrCmd = e.ctrlKey || e.metaKey;
+    if (!ctrlOrCmd) return;
+
+    const stop = () => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    if (key === 's') {
+      stop();
+      this.saveGraph();
+      return;
+    }
+
+    if (key === 'z' && !e.shiftKey) {
+      stop();
+      this.undo();
+      return;
+    }
+
+    if (key === 'y' || (key === 'z' && e.shiftKey)) {
+      stop();
+      this.redo();
+      return;
+    }
+
+    if (key === 'c') {
+      stop();
+      this.runWhenReady(() => this.commands.copy());
+      return;
+    }
+
+    if (key === 'x') {
+      stop();
+      this.runWhenReady(() => {
+        this.pushHistorySnapshot();
+        this.editorDirty.set(true);
+        this.commands.cut();
+      });
+      return;
+    }
+
+    if (key === 'v') {
+      stop();
+      this.runWhenReady(() => {
+        this.pushHistorySnapshot();
+        this.editorDirty.set(true);
+        this.commands.paste();
+      });
+      return;
+    }
+
+    if (key === 'backspace') {
+      stop();
+      this.resetToLastSaved();
+    }
+  }
+
+  // ---------- internals ----------
+
+  private ensureDataEditSnapshot() {
+    if (this.dataEditSnapshotTaken) return;
+    this.pushHistorySnapshot();
+    this.dataEditSnapshotTaken = true;
+
+    // reset nach kurzer Pause, damit längere Bearbeitung wieder einen sinnvollen Undo-Step bekommt
+    window.clearTimeout((this as any)._dataEditTimer);
+    (this as any)._dataEditTimer = window.setTimeout(() => {
+      this.dataEditSnapshotTaken = false;
+    }, 800);
+  }
+
+  private runWhenReady(fn: () => void) {
+    if (this.diagramReady) {
+      fn();
+      return;
+    }
+    this.queuedOps.push(fn);
+  }
+
+  private snapshot(): GraphSnapshot {
+    const json = JSON.parse(this.diagramModel.toJSON());
+    return structuredClone({
+      nodes: Array.isArray(json?.nodes) ? json.nodes : [],
+      edges: Array.isArray(json?.edges) ? json.edges : [],
+    });
+  }
+
+  private pushHistorySnapshot() {
+    this.undoStack.push(this.snapshot());
+    this.redoStack = [];
+  }
+
+  private applySnapshot(snapshot: GraphSnapshot) {
+    const existingNodeIds = this.diagramModel.nodes().map((n) => n.id);
+    if (existingNodeIds.length) this.diagramModel.deleteNodes(existingNodeIds);
+
+    if (snapshot.nodes?.length) this.diagramModel.addNodes(snapshot.nodes);
+    if (snapshot.edges?.length) this.diagramModel.addEdges(snapshot.edges);
+  }
+
+  private workflowGraphSig(wf: any): string {
+    return JSON.stringify(wf?.graph ?? null);
+  }
+
+  private resetEditorForEmpty() {
+    runInInjectionContext(this.envInjector, () => {
+      this.diagramReady = false;
+      this.queuedOps = [];
+      this.undoStack = [];
+      this.redoStack = [];
+      this.lastSavedSnapshot = null;
+      this.editorDirty.set(false);
+
+      this.model = initializeModel({ nodes: [], edges: [] });
+      this.lastLoadedGraphSig = null;
+    });
+  }
+
+  private resetEditorForIncomingModel() {
+    this.diagramReady = false;
+    this.queuedOps = [];
+    this.undoStack = [];
+    this.redoStack = [];
+    this.lastSavedSnapshot = null;
     this.editorDirty.set(false);
-    this.store.dispatch(new UpdateWorkflow(wf.id, { graph }));
-  }
-
-  // -------------------------
-  // Runs
-  // -------------------------
-  startRun() {
-    const wf = this.selectedWorkflow();
-    if (!wf) return;
-
-    const label = this.newRunLabel.value.trim();
-    this.store.dispatch(new StartWorkflowRun(wf.id, { label: label || undefined }));
-  }
-
-  selectRun(runId: string) {
-    this.store.dispatch(new SetSelectedRun(runId));
-    this.store.dispatch(new LoadWorkflowRunDetails(runId));
-  }
-
-  rerunFrom(details: WorkflowRunDetails | null, nodeId: string) {
-    if (!details?.run?.id) return;
-    this.store.dispatch(new RerunWorkflowFromNode(details.run.id, nodeId));
   }
 }

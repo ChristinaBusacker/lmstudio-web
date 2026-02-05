@@ -13,7 +13,6 @@ import {
   SearchTermChanged,
 } from '@frontend/src/app/core/state/chat-search/chat-search.actions';
 import { ChatSearchState } from '@frontend/src/app/core/state/chat-search/chat-search.state';
-import { Icon } from '../../../icon/icon';
 import { Dialog } from '../../dialog';
 import { DialogContext } from '../../dialog.context';
 import { DIALOG_DATA } from '../../dialog.tokens';
@@ -21,7 +20,7 @@ import { DIALOG_DATA } from '../../dialog.tokens';
 @Component({
   selector: 'search-dialog',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, Dialog, Icon],
+  imports: [CommonModule, ReactiveFormsModule, Dialog],
   templateUrl: './search-dialog.html',
   styleUrls: ['./search-dialog.scss'],
 })

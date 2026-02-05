@@ -23,7 +23,7 @@
     "noFallthroughCasesInSwitch": false,
     "paths": {
       "@frontend/*": ["apps/frontend/*"],
-      "@shared/*": ["apps/shared/*"],
+      "@shared/*": ["shared/*"],
       "@backend/*": ["apps/lmstudio-web/*"]
     }
   },

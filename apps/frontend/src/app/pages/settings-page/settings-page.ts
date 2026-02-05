@@ -1,55 +1,47 @@
 // Comments in English as requested.
 
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { Store } from '@ngxs/store';
 import { Observable, Subject, takeUntil } from 'rxjs';
 
-import { SettingsState } from '../../core/state/settings/settings.state';
 import {
-  LoadProfiles,
   ClearError,
-  LoadProfileById,
   CreateProfile,
+  DeleteProfile,
+  LoadProfileById,
+  LoadProfiles,
   SetDefaultProfile,
   UpdateProfile,
-  DeleteProfile,
 } from '../../core/state/settings/settings.actions';
+import { SettingsState } from '../../core/state/settings/settings.state';
 
-import { ModelsState } from '../../core/state/models/models.state';
 import {
-  LoadModels,
   LoadLoadedModels,
   LoadModel,
+  LoadModels,
   UnloadModel,
 } from '../../core/state/models/models.actions';
+import { ModelsState } from '../../core/state/models/models.state';
 
+import type { ModelListItemDto } from '../../core/api/models.api';
 import type {
-  SettingsProfile,
   CreateSettingsProfilePayload,
+  SettingsProfile,
   UpdateSettingsProfilePayload,
 } from '../../core/api/settings.api';
-import type { ModelListItemDto } from '../../core/api/models.api';
+import { DialogService } from '../../ui/dialog/dialog.service';
+import { ModelsPanel } from './components/models-panel/models-panel';
+import { ProfileEditor } from './components/profile-editor/profile-editor';
 import { ProfilesSidebar } from './components/profiles-sidebar/profiles-sidebar';
 import { UserPreferences } from './components/user-preferences/user-preferences';
-import { ProfileEditor } from './components/profile-editor/profile-editor';
-import { ModelsPanel } from './components/models-panel/models-panel';
-import { DialogService } from '../../ui/dialog/dialog.service';
-import { AutoResizeDirective } from '../../core/directives/textarea/auto-size.directive';
 
 type SettingsTab = 'profiles' | 'models' | 'user';
 
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [
-    CommonModule,
-    ProfilesSidebar,
-    ProfileEditor,
-    UserPreferences,
-    ModelsPanel,
-    AutoResizeDirective,
-  ],
+  imports: [CommonModule, ProfilesSidebar, ProfileEditor, UserPreferences, ModelsPanel],
   templateUrl: './settings-page.html',
   styleUrl: './settings-page.scss',
 })

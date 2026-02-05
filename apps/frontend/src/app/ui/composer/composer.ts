@@ -11,18 +11,18 @@ import {
   ViewChild,
 } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Icon } from '../icon/icon';
-import { Store } from '@ngxs/store';
-import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
-import { RunsState } from '../../core/state/runs/runs.state';
-import { ChatDetailState } from '../../core/state/chat-detail/chat-detail.state';
-import { OpenChat, SendMessage } from '../../core/state/chat-detail/chat-detail.actions';
-import { CancelRun } from '../../core/state/runs/runs.actions';
-import { SettingsState } from '../../core/state/settings/settings.state';
-import { LoadProfiles } from '../../core/state/settings/settings.actions';
-import { CreateChat, MoveChat, ReloadChats } from '../../core/state/chats/chats.actions';
-import { ChatsApi } from '../../core/api/chats.api';
 import { Router } from '@angular/router';
+import { Store } from '@ngxs/store';
+import { catchError, map, Observable, of, tap } from 'rxjs';
+import { ChatsApi } from '../../core/api/chats.api';
+import { OpenChat, SendMessage } from '../../core/state/chat-detail/chat-detail.actions';
+import { ChatDetailState } from '../../core/state/chat-detail/chat-detail.state';
+import { MoveChat, ReloadChats } from '../../core/state/chats/chats.actions';
+import { CancelRun } from '../../core/state/runs/runs.actions';
+import { RunsState } from '../../core/state/runs/runs.state';
+import { LoadProfiles } from '../../core/state/settings/settings.actions';
+import { SettingsState } from '../../core/state/settings/settings.state';
+import { Icon } from '../icon/icon';
 
 @Component({
   selector: 'app-composer',

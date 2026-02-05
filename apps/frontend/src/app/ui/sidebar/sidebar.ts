@@ -11,16 +11,16 @@ import { CreateChat, DeleteChat, MoveChat, RenameChat } from '../../core/state/c
 import { ChatsState } from '../../core/state/chats/chats.state';
 import { CreateFolder, DeleteFolder, RenameFolder } from '../../core/state/folders/folders.actions';
 import { FoldersState } from '../../core/state/folders/folders.state';
+import { WorkflowsState } from '../../core/state/workflows/workflow.state';
 import { Accordion } from '../accordion/accordion';
 import { ContextMenu } from '../context-menu/context-menu';
 import { ContextMenuItem, MenuState } from '../context-menu/context-menu.types';
-import { Icon } from '../icon/icon';
-import { CubeInput } from '../cube-input/cube-input';
 import { DialogService } from '../dialog/dialog.service';
+import { Icon } from '../icon/icon';
 
 @Component({
   selector: 'app-sidebar',
-  imports: [CommonModule, Accordion, Icon, RouterLink, ContextMenu, DragDropModule, CubeInput],
+  imports: [CommonModule, Accordion, Icon, RouterLink, ContextMenu, DragDropModule],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.scss',
 })
@@ -32,7 +32,8 @@ export class Sidebar {
       return items.filter((item) => item.folderId === null);
     }),
   );
-  fodlers$ = this.store.select(FoldersState.items);
+  readonly fodlers$ = this.store.select(FoldersState.items);
+  readonly workflows$ = this.store.select(WorkflowsState.workflows);
 
   private readonly dialog = inject(DialogService);
 

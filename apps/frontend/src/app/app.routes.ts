@@ -3,7 +3,7 @@ import { OverviewPage } from './pages/overview-page/overview-page';
 import { ChatPage } from './pages/chat-page/chat-page';
 import { SettingsPage } from './pages/settings-page/settings-page';
 import { FolderPage } from './pages/folder-page/folder-page';
-import { WorkflowsPlaygroundPage } from './pages/workflow-page/workflow-page';
+import { WorkflowPage } from './pages/workflow-page/workflow-page';
 
 export const routes: Routes = [
   {
@@ -24,7 +24,7 @@ export const routes: Routes = [
     component: SettingsPage,
   },
   {
-    path: 'workflows',
-    component: WorkflowsPlaygroundPage,
+    path: 'workflow/:workflowId',
+    component: WorkflowPage,
   },
 ];

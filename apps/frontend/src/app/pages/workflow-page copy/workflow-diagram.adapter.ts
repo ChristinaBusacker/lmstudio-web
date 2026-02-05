@@ -86,10 +86,10 @@ export function workflowToDiagramModel(workflow: Workflow) {
   };
 }
 
-export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
-  const json = JSON.parse(diagramJson);
-  const nodes = Array.isArray(json?.nodes) ? json.nodes : [];
-  const edges = Array.isArray(json?.edges) ? json.edges : [];
+export function diagramJsonToWorkflowGraph(diagramJson: any): WorkflowGraph {
+  // ngDiagram modelService.toJSON() emits something like { nodes, edges, metadata }
+  const nodes = Array.isArray(diagramJson?.nodes) ? diagramJson.nodes : [];
+  const edges = Array.isArray(diagramJson?.edges) ? diagramJson.edges : [];
 
   return normalizeWorkflowGraph({
     nodes: nodes.map((n: any) => ({

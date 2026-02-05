@@ -51,16 +51,3 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   line-height: 1.35;
 }
-
-.controls {
-  display: flex;
-  justify-content: flex-end;
-
-  & button {
-    width: 30px;
-    padding: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-}

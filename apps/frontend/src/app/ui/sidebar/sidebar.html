@@ -60,6 +60,36 @@
   </button>
 </section>
 
+<section class="sidebar-section">
+  <app-accordion title="Workflows">
+    <div
+      class="workflow-list"
+      dropContainer
+      [dropGroup]="'workflows'"
+      [containerId]="'workflow-list'"
+      (itemDropped)="onChatReorder($event)"
+      (itemDroppedOnTarget)="onChatDroppedIntoFolder($event)"
+    >
+      @for (w of workflows$ | async; track w.id) {
+        <button
+          class="workflow"
+          [title]="w.title || 'Untitled'"
+          [routerLink]="['workflow', w.id]"
+          (contextmenu)="openChatMenu($event, w.id)"
+          dragItem
+          [dragData]="w"
+        >
+          <app-icon name="flow-chart"></app-icon>
+          <span>{{ w.name || 'Untitled' }}</span>
+        </button>
+      }
+    </div>
+  </app-accordion>
+  <button class="addBtn" title="Add new chat" (click)="createNewChat()">
+    <app-icon name="add-line" />
+  </button>
+</section>
+
 @if (menu().open) {
   <app-context-menu
     [position]="menu().pos"
