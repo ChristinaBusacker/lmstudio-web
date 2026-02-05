@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable } from '@angular/core';
 import { Action, Selector, State, StateContext } from '@ngxs/store';
-import { tap, catchError } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { catchError, finalize, tap } from 'rxjs/operators';
+import { EMPTY } from 'rxjs';
 
 import { WorkflowApiService } from '../../api/workflow-api.service';
 import type { Workflow, WorkflowRun, WorkflowRunDetails } from './workflow.models';
@@ -127,15 +127,14 @@ export class WorkflowsState {
         ctx.patchState({
           workflows,
           workflowsById: byId,
-          isLoadingWorkflows: false,
         });
       }),
       catchError((err) => {
-        ctx.patchState({
-          isLoadingWorkflows: false,
-          error: this.toErrorMessage(err),
-        });
-        return of(null);
+        ctx.patchState({ error: this.toErrorMessage(err) });
+        return EMPTY;
+      }),
+      finalize(() => {
+        ctx.patchState({ isLoadingWorkflows: false });
       }),
     );
   }
@@ -154,7 +153,7 @@ export class WorkflowsState {
       }),
       catchError((err) => {
         ctx.patchState({ error: this.toErrorMessage(err) });
-        return of(null);
+        return EMPTY;
       }),
     );
   }
@@ -174,7 +173,7 @@ export class WorkflowsState {
       }),
       catchError((err) => {
         ctx.patchState({ error: this.toErrorMessage(err) });
-        return of(null);
+        return EMPTY;
       }),
     );
   }
@@ -193,7 +192,7 @@ export class WorkflowsState {
       }),
       catchError((err) => {
         ctx.patchState({ error: this.toErrorMessage(err) });
-        return of(null);
+        return EMPTY;
       }),
     );
   }
@@ -219,15 +218,14 @@ export class WorkflowsState {
         ctx.patchState({
           runs,
           runsById: byId,
-          isLoadingRuns: false,
         });
       }),
       catchError((err) => {
-        ctx.patchState({
-          isLoadingRuns: false,
-          error: this.toErrorMessage(err),
-        });
-        return of(null);
+        ctx.patchState({ error: this.toErrorMessage(err) });
+        return EMPTY;
+      }),
+      finalize(() => {
+        ctx.patchState({ isLoadingRuns: false });
       }),
     );
   }
@@ -247,7 +245,7 @@ export class WorkflowsState {
       }),
       catchError((err) => {
         ctx.patchState({ error: this.toErrorMessage(err) });
-        return of(null);
+        return EMPTY;
       }),
     );
   }
@@ -262,18 +260,17 @@ export class WorkflowsState {
         const run = details.run;
 
         ctx.patchState({
-          isLoadingRunDetails: false,
           runDetailsById: { ...s.runDetailsById, [action.runId]: details },
           runsById: { ...s.runsById, [run.id]: run },
           runs: this.upsertListById(s.runs, run),
         });
       }),
       catchError((err) => {
-        ctx.patchState({
-          isLoadingRunDetails: false,
-          error: this.toErrorMessage(err),
-        });
-        return of(null);
+        ctx.patchState({ error: this.toErrorMessage(err) });
+        return EMPTY;
+      }),
+      finalize(() => {
+        ctx.patchState({ isLoadingRunDetails: false });
       }),
     );
   }
@@ -299,7 +296,7 @@ export class WorkflowsState {
       }),
       catchError((err) => {
         ctx.patchState({ error: this.toErrorMessage(err) });
-        return of(null);
+        return EMPTY;
       }),
     );
   }
@@ -327,7 +324,6 @@ export class WorkflowsState {
   }
 
   private toErrorMessage(err: any): string {
-    // tries to respect typical backend error shapes
     const msg =
       err?.error?.message ??
       err?.message ??

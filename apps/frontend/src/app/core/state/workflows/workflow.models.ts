@@ -1,12 +1,27 @@
 export type WorkflowRunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
 export type WorkflowNodeRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'stale';
 
+export type WorkflowGraph = {
+  nodes: Array<{
+    id: string;
+    type: string;
+    profileName?: string;
+    prompt?: string;
+    position?: { x: number; y: number };
+  }>;
+  edges: Array<{
+    id: string;
+    source: string;
+    target: string;
+  }>;
+};
+
 export interface Workflow {
   id: string;
   ownerKey: string;
   name: string;
   description: string | null;
-  graph: any;
+  graph: WorkflowGraph;
   createdAt: string;
   updatedAt: string;
 }
@@ -18,7 +33,7 @@ export interface WorkflowRun {
   status: WorkflowRunStatus;
   currentNodeId: string | null;
   label: string | null;
-  stats: any;
+  stats: unknown;
   error: string | null;
   startedAt: string | null;
   finishedAt: string | null;
@@ -31,9 +46,9 @@ export interface WorkflowNodeRun {
   workflowRunId: string;
   nodeId: string;
   status: WorkflowNodeRunStatus;
-  inputSnapshot: any;
+  inputSnapshot: unknown;
   outputText: string;
-  outputJson: any;
+  outputJson: unknown;
   primaryArtifactId: string | null;
   error: string | null;
   startedAt: string | null;
@@ -51,7 +66,7 @@ export interface Artifact {
   mimeType: string | null;
   filename: string | null;
   contentText: string | null;
-  contentJson: any;
+  contentJson: unknown;
   blobPath: string | null;
   createdAt: string;
 }
@@ -65,13 +80,13 @@ export interface WorkflowRunDetails {
 export interface CreateWorkflowPayload {
   name: string;
   description?: string;
-  graph: any;
+  graph: WorkflowGraph;
 }
 
 export interface UpdateWorkflowPayload {
   name?: string;
   description?: string;
-  graph?: any;
+  graph?: WorkflowGraph;
 }
 
 export interface CreateWorkflowRunPayload {

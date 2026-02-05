@@ -15,9 +15,11 @@
     >
       <ng-diagram-background />
     </ng-diagram>
+
     <div class="controls">
-      <button class="btn" (click)="addNode()"><app-icon name="add-line" /> Add</button>
-      <button class="btn btn-primary" (click)="saveGraph()" [disabled]="!this.editorState.dirty()">
+      <button class="btn" (click)="addNode('llm')"><app-icon name="add-line" /> Add</button>
+
+      <button class="btn btn-primary" (click)="saveGraph()" [disabled]="!editorDirty()">
         <app-icon name="save-line" /> Save
       </button>
     </div>

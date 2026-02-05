@@ -5,6 +5,7 @@ import {
   DestroyRef,
   EnvironmentInjector,
   HostListener,
+  effect,
   inject,
   OnInit,
   runInInjectionContext,
@@ -35,6 +36,7 @@ import { WorkflowNodeComponent } from './components/workflow-node/workflow-node'
 import { WorkflowDiagramCommandsService } from './workflow-diagram-commands.service';
 import {
   diagramJsonToWorkflowGraph,
+  normalizeWorkflowGraph,
   WORKFLOW_NODE_TEMPLATE,
   workflowToDiagramModel,
 } from './workflow-diagram.adapter';
@@ -77,6 +79,7 @@ export class WorkflowPage implements OnInit {
   workflowId!: string;
 
   private dataEditSnapshotTaken = false;
+  private dataEditTimer: number | null = null;
 
   readonly workflow$ = this.store.select(WorkflowsState.selectedWorkflow);
   readonly selectedRun = this.store.select(WorkflowsState.selectedRun);
@@ -92,7 +95,7 @@ export class WorkflowPage implements OnInit {
   private redoStack: GraphSnapshot[] = [];
   private lastSavedSnapshot: GraphSnapshot | null = null;
 
-  // Pattern A: signature gate for store -> editor apply
+  // signature gate for store -> editor apply
   private lastLoadedGraphSig: string | null = null;
 
   private diagramReady = false;
@@ -119,6 +122,15 @@ export class WorkflowPage implements OnInit {
   model: unknown = initializeModel({ nodes: [], edges: [] });
 
   ngOnInit() {
+    // Node-data edits (prompt/profile/etc.) request snapshots; we consume that here.
+    runInInjectionContext(this.envInjector, () => {
+      effect(() => {
+        if (this.editorState.consumeSnapshotRequest()) {
+          this.runWhenReady(() => this.ensureDataEditSnapshot());
+        }
+      });
+    });
+
     this.route.paramMap
       .pipe(
         map((pm) => pm.get('workflowId')),
@@ -151,16 +163,14 @@ export class WorkflowPage implements OnInit {
         this.resetEditorForIncomingModel();
 
         const { nodes, edges } = workflowToDiagramModel(wf);
-        // initializeModel uses signals internally => keep in injection context
         this.model = initializeModel({ nodes, edges });
 
         this.lastLoadedGraphSig = incomingSig;
-        // lastSavedSnapshot will be set in onDiagramInit() when diagramModel is ready
+        // lastSavedSnapshot will be set in onDiagramInit()
       });
     });
   }
 
-  // Called from template: (diagramInit)="onDiagramInit()"
   onDiagramInit() {
     this.diagramReady = true;
 
@@ -169,7 +179,6 @@ export class WorkflowPage implements OnInit {
     this.undoStack = [];
     this.redoStack = [];
 
-    // Run queued operations (mutations) that were requested before init finished
     for (const fn of this.queuedOps) fn();
     this.queuedOps = [];
   }
@@ -230,9 +239,8 @@ export class WorkflowPage implements OnInit {
       const diagramJsonString = this.diagramModel.toJSON();
       const graph = diagramJsonToWorkflowGraph(diagramJsonString);
 
-      // Pattern A: set the signature we *expect* to receive back from the store,
-      // so the store emission after save doesn't reinitialize the model.
-      this.lastLoadedGraphSig = JSON.stringify(graph);
+      // expect this signature back from store after save
+      this.lastLoadedGraphSig = this.workflowGraphSig({ graph });
 
       this.store.dispatch(new UpdateWorkflow(wf.id, { graph }));
 
@@ -348,10 +356,11 @@ export class WorkflowPage implements OnInit {
     this.pushHistorySnapshot();
     this.dataEditSnapshotTaken = true;
 
-    // reset nach kurzer Pause, damit längere Bearbeitung wieder einen sinnvollen Undo-Step bekommt
-    window.clearTimeout((this as any)._dataEditTimer);
-    (this as any)._dataEditTimer = window.setTimeout(() => {
+    // one meaningful undo step during “typing bursts”
+    if (this.dataEditTimer !== null) window.clearTimeout(this.dataEditTimer);
+    this.dataEditTimer = window.setTimeout(() => {
       this.dataEditSnapshotTaken = false;
+      this.dataEditTimer = null;
     }, 800);
   }
 
@@ -384,8 +393,8 @@ export class WorkflowPage implements OnInit {
     if (snapshot.edges?.length) this.diagramModel.addEdges(snapshot.edges);
   }
 
-  private workflowGraphSig(wf: any): string {
-    return JSON.stringify(wf?.graph ?? null);
+  private workflowGraphSig(wf: { graph?: unknown } | null): string {
+    return JSON.stringify(normalizeWorkflowGraph(wf?.graph ?? null));
   }
 
   private resetEditorForEmpty() {

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import {
   Workflow,
   CreateWorkflowPayload,
@@ -47,11 +47,11 @@ export class WorkflowApiService {
   }
 
   listRuns(query: ListWorkflowRunsQuery = {}): Observable<WorkflowRun[]> {
-    const params: Record<string, string> = {};
+    let params = new HttpParams();
 
-    if (query.workflowId) params['workflowId'] = query.workflowId;
-    if (query.status) params['status'] = query.status;
-    if (typeof query.limit === 'number') params['limit'] = String(query.limit);
+    if (query.workflowId) params = params.set('workflowId', query.workflowId);
+    if (query.status) params = params.set('status', query.status);
+    if (typeof query.limit === 'number') params = params.set('limit', String(query.limit));
 
     return this.http.get<WorkflowRun[]>('/api/workflows/workflow-runs', { params });
   }

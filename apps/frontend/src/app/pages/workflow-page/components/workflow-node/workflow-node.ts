@@ -1,7 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  input,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SettingsState } from '@frontend/src/app/core/state/settings/settings.state';
 import { shortId } from '@frontend/src/app/core/utils/shortId.util';
 import { Icon } from '@frontend/src/app/ui/icon/icon';
@@ -38,6 +46,8 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
   private readonly model = inject(NgDiagramModelService);
   private readonly store = inject(Store);
   private readonly editorState = inject(WorkflowEditorStateService);
+  private readonly destroyRef = inject(DestroyRef);
+
   node = input.required<Node<DiagramNodeData>>();
   readonly profiles$ = this.store.select(SettingsState.profiles);
   title = computed(() => this.node().data.label || this.node().id);
@@ -45,17 +55,19 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
   readonly promptInput$ = new Subject<string>();
 
   constructor() {
-    this.promptInput$.pipe(debounceTime(1000), distinctUntilChanged()).subscribe((value) => {
-      const n = this.node();
+    this.promptInput$
+      .pipe(debounceTime(1000), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => {
+        const n = this.node();
 
-      this.editorState.requestSnapshot();
-      this.editorState.markDirty();
+        this.editorState.requestSnapshot();
+        this.editorState.markDirty();
 
-      this.model.updateNodeData(n.id, {
-        ...n.data,
-        prompt: value,
+        this.model.updateNodeData(n.id, {
+          ...n.data,
+          prompt: value,
+        });
       });
-    });
   }
 
   updateProfileName(value: string) {
@@ -64,14 +76,6 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
 
     const n = this.node();
     this.model.updateNodeData(n.id, { ...n.data, profileName: value });
-  }
-
-  updatePrompt(value: string) {
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-
-    const n = this.node();
-    this.model.updateNodeData(n.id, { ...n.data, prompt: value });
   }
 
   updateNodeType(value: string) {
@@ -85,28 +89,30 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
   deleteNode() {
     const n = this.node();
 
-    // Je nach ng-diagram Version heißt es removeNodes oder removeNode.
-    // Häufig: removeNodes([id]) / removeNodes([{id}]) – hier die gängigste Variante:
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+
     this.model.deleteNodes([n.id]);
   }
 
   duplicateNode() {
     const n = this.node();
 
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+
     const newId = shortId();
 
-    // Position: leicht versetzt kopieren, damit man den Clone sieht
     const pos = n.position ?? { x: 60, y: 60 };
     const offset = 40;
 
     this.model.addNodes([
       {
         id: newId,
-        type: n.type, // WORKFLOW_NODE_TEMPLATE
+        type: n.type,
         position: { x: pos.x + offset, y: pos.y + offset },
         data: {
           ...n.data,
-          // bei dir ist label = id, also updaten:
           label: newId,
         },
       },

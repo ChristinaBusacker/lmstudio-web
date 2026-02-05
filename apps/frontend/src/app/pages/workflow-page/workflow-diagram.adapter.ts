@@ -33,7 +33,6 @@ export function normalizeWorkflowGraph(input: any): WorkflowGraph {
     edges: Array.isArray(input?.edges) ? input.edges : [],
   };
 
-  // Ensure stable IDs and positions
   const spacingX = 340;
   const spacingY = 140;
 
@@ -47,7 +46,9 @@ export function normalizeWorkflowGraph(input: any): WorkflowGraph {
       position: n.position
         ? { x: Number(n.position.x ?? 0), y: Number(n.position.y ?? 0) }
         : { x: 40 + (idx % 2) * spacingX, y: 40 + Math.floor(idx / 2) * spacingY },
-    }));
+    }))
+    // Stable ordering makes signatures/diffs deterministic.
+    .sort((a, b) => a.id.localeCompare(b.id));
 
   g.edges = g.edges
     .filter((e) => !!e?.id && !!e?.source && !!e?.target)
@@ -55,7 +56,8 @@ export function normalizeWorkflowGraph(input: any): WorkflowGraph {
       id: String(e.id),
       source: String(e.source),
       target: String(e.target),
-    }));
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
 
   return g;
 }
