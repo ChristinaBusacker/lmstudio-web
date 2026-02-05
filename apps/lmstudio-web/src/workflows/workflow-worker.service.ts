@@ -65,8 +65,8 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     for (const id of ids) indeg.set(id, 0);
 
     for (const e of edges) {
-      const from = e?.from;
-      const to = e?.to;
+      const from = e?.source;
+      const to = e?.target;
       if (!from || !to) continue;
       if (!indeg.has(from) || !indeg.has(to)) continue;
       indeg.set(to, (indeg.get(to) ?? 0) + 1);

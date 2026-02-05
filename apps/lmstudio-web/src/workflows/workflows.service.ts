@@ -5,6 +5,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { SseBusService } from '../sse/sse-bus.service';
 import { WorkflowEntity } from './entities/workflow.entity';
 import { WorkflowRunEntity, WorkflowRunStatus } from './entities/workflow-run.entity';
 import { WorkflowNodeRunEntity } from './entities/workflow-node-run.entity';
@@ -18,6 +19,7 @@ export class WorkflowsService {
     @InjectRepository(WorkflowNodeRunEntity)
     private readonly nodeRuns: Repository<WorkflowNodeRunEntity>,
     @InjectRepository(ArtifactEntity) private readonly artifacts: Repository<ArtifactEntity>,
+    private readonly sse: SseBusService,
   ) {}
 
   // --------------------------------------------------------------------------------------------
@@ -25,9 +27,8 @@ export class WorkflowsService {
   // --------------------------------------------------------------------------------------------
 
   async create(ownerKey: string, dto: { name: string; description?: string; graph: any }) {
-    if (!dto.graph || typeof dto.graph !== 'object') {
+    if (!dto.graph || typeof dto.graph !== 'object')
       throw new BadRequestException('graph must be an object');
-    }
 
     const entity = this.workflows.create({
       ownerKey,
@@ -81,7 +82,21 @@ export class WorkflowsService {
       finishedAt: null,
     });
 
-    return this.runs.save(run);
+    const saved = await this.runs.save(run);
+
+    this.sse.publish({
+      type: 'workflow.run.status',
+      workflowId,
+      runId: saved.id,
+      payload: {
+        status: saved.status,
+        currentNodeId: saved.currentNodeId,
+        error: saved.error,
+        stats: saved.stats,
+      },
+    });
+
+    return saved;
   }
 
   async listRuns(
@@ -105,7 +120,6 @@ export class WorkflowsService {
       where: { workflowRunId: run.id },
       order: { createdAt: 'ASC' },
     });
-
     const artifacts = await this.artifacts.find({
       where: { workflowRunId: run.id },
       order: { createdAt: 'ASC' },
@@ -128,10 +142,26 @@ export class WorkflowsService {
     );
     if (res.affected !== 1) return null;
 
-    return this.runs.findOne({ where: { id: next.id } });
+    const updated = await this.runs.findOne({ where: { id: next.id } });
+    if (updated) {
+      this.sse.publish({
+        type: 'workflow.run.status',
+        workflowId: updated.workflowId,
+        runId: updated.id,
+        payload: {
+          status: updated.status,
+          currentNodeId: updated.currentNodeId,
+          error: updated.error,
+          stats: updated.stats,
+        },
+      });
+    }
+    return updated;
   }
 
   async markRunCompleted(runId: string) {
+    const run = await this.runs.findOne({ where: { id: runId } });
+
     await this.runs.update(
       { id: runId },
       {
@@ -143,9 +173,25 @@ export class WorkflowsService {
         currentNodeId: null,
       },
     );
+
+    if (run) {
+      this.sse.publish({
+        type: 'workflow.run.status',
+        workflowId: run.workflowId,
+        runId: run.id,
+        payload: {
+          status: 'completed',
+          currentNodeId: null,
+          error: null,
+          stats: run.stats ?? null,
+        },
+      });
+    }
   }
 
   async markRunFailed(runId: string, message: string) {
+    const run = await this.runs.findOne({ where: { id: runId } });
+
     await this.runs.update(
       { id: runId },
       {
@@ -157,17 +203,66 @@ export class WorkflowsService {
         currentNodeId: null,
       },
     );
+
+    if (run) {
+      this.sse.publish({
+        type: 'workflow.run.status',
+        workflowId: run.workflowId,
+        runId: run.id,
+        payload: {
+          status: 'failed',
+          currentNodeId: null,
+          error: message,
+          stats: run.stats ?? null,
+        },
+      });
+    }
   }
 
   async setCurrentNode(runId: string, nodeId: string | null) {
+    const run = await this.runs.findOne({ where: { id: runId } });
     await this.runs.update({ id: runId }, { currentNodeId: nodeId });
+
+    if (run) {
+      this.sse.publish({
+        type: 'workflow.run.status',
+        workflowId: run.workflowId,
+        runId: run.id,
+        payload: {
+          status: run.status,
+          currentNodeId: nodeId,
+          error: run.error,
+          stats: run.stats ?? null,
+        },
+      });
+    }
   }
 
   async upsertNodeRun(runId: string, nodeId: string, patch: Partial<WorkflowNodeRunEntity>) {
+    const run = await this.runs.findOne({ where: { id: runId } });
+
     const existing = await this.nodeRuns.findOne({ where: { workflowRunId: runId, nodeId } });
     if (existing) {
       Object.assign(existing, patch);
-      return this.nodeRuns.save(existing);
+      const saved = await this.nodeRuns.save(existing);
+
+      if (run) {
+        this.sse.publish({
+          type: 'workflow.node-run.upsert',
+          workflowId: run.workflowId,
+          runId,
+          nodeId,
+          payload: {
+            nodeId,
+            status: saved.status,
+            error: saved.error,
+            startedAt: saved.startedAt ? saved.startedAt.toISOString() : null,
+            finishedAt: saved.finishedAt ? saved.finishedAt.toISOString() : null,
+          },
+        });
+      }
+
+      return saved;
     }
 
     const nr = this.nodeRuns.create({
@@ -184,10 +279,34 @@ export class WorkflowsService {
       ...patch,
     });
 
-    return this.nodeRuns.save(nr);
+    const saved = await this.nodeRuns.save(nr);
+
+    if (run) {
+      this.sse.publish({
+        type: 'workflow.node-run.upsert',
+        workflowId: run.workflowId,
+        runId,
+        nodeId,
+        payload: {
+          nodeId,
+          status: saved.status,
+          error: saved.error,
+          startedAt: saved.startedAt ? saved.startedAt.toISOString() : null,
+          finishedAt: saved.finishedAt ? saved.finishedAt.toISOString() : null,
+        },
+      });
+    }
+
+    return saved;
   }
 
   async createArtifact(runId: string, nodeRunId: string | null, patch: Partial<ArtifactEntity>) {
+    const run = await this.runs.findOne({ where: { id: runId } });
+
+    const nodeId = nodeRunId
+      ? ((await this.nodeRuns.findOne({ where: { id: nodeRunId } }))?.nodeId ?? null)
+      : null;
+
     const a = this.artifacts.create({
       workflowRunId: runId,
       nodeRunId,
@@ -199,12 +318,32 @@ export class WorkflowsService {
       blobPath: null,
       ...patch,
     });
-    return this.artifacts.save(a);
+
+    const saved = await this.artifacts.save(a);
+
+    if (run) {
+      this.sse.publish({
+        type: 'workflow.artifact.created',
+        workflowId: run.workflowId,
+        runId,
+        nodeId: nodeId ?? undefined,
+        artifactId: saved.id,
+        payload: {
+          artifactId: saved.id,
+          nodeId,
+          kind: saved.kind,
+          mimeType: saved.mimeType,
+          filename: saved.filename,
+        },
+      });
+    }
+
+    return saved;
   }
 
   /**
    * Rerun-from: delete downstream node runs + artifacts and set run back to queued.
-   * V1: uses edges to compute downstream closure.
+   * Uses edges source/target.
    */
   async rerunFrom(ownerKey: string, runId: string, nodeId: string) {
     const run = await this.runs.findOne({ where: { id: runId, ownerKey } });
@@ -220,11 +359,10 @@ export class WorkflowsService {
     const nodeIds = new Set(nodes.map((n) => n?.id).filter(Boolean));
     if (!nodeIds.has(nodeId)) throw new BadRequestException(`Unknown nodeId: ${nodeId}`);
 
-    // downstream closure
     const adj = new Map<string, Set<string>>();
     for (const e of edges) {
-      const from = e?.from;
-      const to = e?.to;
+      const from = e?.source;
+      const to = e?.target;
       if (!from || !to) continue;
       if (!adj.has(from)) adj.set(from, new Set());
       adj.get(from)!.add(to);
@@ -237,12 +375,9 @@ export class WorkflowsService {
       downstream.add(cur);
       const nexts = adj.get(cur);
       if (!nexts) continue;
-      for (const nx of nexts) {
-        if (!downstream.has(nx)) stack.push(nx);
-      }
+      for (const nx of nexts) if (!downstream.has(nx)) stack.push(nx);
     }
 
-    // Delete node runs for affected nodes (and their artifacts)
     const affectedNodeRuns = await this.nodeRuns.find({
       where: { workflowRunId: runId, nodeId: In([...downstream]) as any },
     });
@@ -256,7 +391,6 @@ export class WorkflowsService {
       await this.nodeRuns.delete({ workflowRunId: runId, nodeId: In([...downstream]) as any });
     }
 
-    // Set run back to queued
     await this.runs.update(
       { id: runId },
       {
@@ -270,6 +404,21 @@ export class WorkflowsService {
       },
     );
 
-    return this.runs.findOne({ where: { id: runId } });
+    const updated = await this.runs.findOne({ where: { id: runId } });
+    if (updated) {
+      this.sse.publish({
+        type: 'workflow.run.status',
+        workflowId: updated.workflowId,
+        runId: updated.id,
+        payload: {
+          status: updated.status,
+          currentNodeId: null,
+          error: null,
+          stats: updated.stats ?? null,
+        },
+      });
+    }
+
+    return updated;
   }
 }

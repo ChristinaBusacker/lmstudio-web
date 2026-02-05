@@ -5,36 +5,25 @@ import type { SseEnvelopeDto } from './dto/sse-events.dto';
 
 type AnyEnvelope = SseEnvelopeDto<Record<string, any>>;
 
-/**
- * In-process event bus + ring buffer replay.
- *
- * - DB remains the source of truth.
- * - SSE is for UX: live updates + best-effort replay after disconnect.
- * - Replay uses Last-Event-ID (SSE standard) and an in-memory ring buffer.
- *
- * Limitations:
- * - On server restart, buffer is lost -> clients resync via REST (thread + runs).
- * - For multi-instance deployments, replace this with Redis/NATS/etc (same envelope contract).
- */
 @Injectable()
 export class SseBusService {
   private readonly stream$ = new Subject<AnyEnvelope>();
 
   private nextId = 1;
 
-  // Simple ring buffer per chat and a separate global ring buffer for runs.
-  // You can adjust sizes depending on how "chatty" your events are.
   private readonly chatBuffers = new Map<string, AnyEnvelope[]>();
   private readonly chatBufferSize = 250;
+
+  // Workflows: replay buffers by workflowId and runId.
+  private readonly workflowBuffers = new Map<string, AnyEnvelope[]>();
+  private readonly workflowBufferSize = 300;
+
+  private readonly workflowRunBuffers = new Map<string, AnyEnvelope[]>();
+  private readonly workflowRunBufferSize = 500;
 
   private readonly runBuffer: AnyEnvelope[] = [];
   private readonly runBufferSize = 500;
 
-  /**
-   * Publish a new SSE event.
-   *
-   * @param event Partial envelope (id/ts will be added)
-   */
   publish(event: Omit<AnyEnvelope, 'id' | 'ts'>): AnyEnvelope {
     const envelope: AnyEnvelope = {
       ...event,
@@ -42,50 +31,55 @@ export class SseBusService {
       ts: new Date().toISOString(),
     };
 
-    // Store for replay
     this.store(envelope);
-
-    // Emit live
     this.stream$.next(envelope);
 
     return envelope;
   }
 
-  /**
-   * Observe all events.
-   */
   observeAll(): Observable<AnyEnvelope> {
     return this.stream$.asObservable();
   }
 
-  /**
-   * Observe events for a specific chat.
-   */
   observeChat(chatId: string): Observable<AnyEnvelope> {
     return this.observeAll().pipe(filter((e) => e.chatId === chatId));
   }
 
-  /**
-   * Observe only run-related events (global).
-   */
+  /** Observe events for a workflow (all its runs). */
+  observeWorkflow(workflowId: string): Observable<AnyEnvelope> {
+    return this.observeAll().pipe(filter((e) => e.workflowId === workflowId));
+  }
+
+  /** Observe events for a single workflow run. */
+  observeWorkflowRun(runId: string): Observable<AnyEnvelope> {
+    return this.observeAll().pipe(filter((e) => e.runId === runId && !!e.workflowId));
+  }
+
   observeGlobal(queueKey?: string): Observable<AnyEnvelope> {
-    // Queue scoping can be added later by including queueKey in payload/envelope
     void queueKey;
     return this.observeAll().pipe(filter((e) => e.type === 'run.status'));
   }
 
-  /**
-   * Get replay events for a chat since lastEventId (exclusive).
-   */
   getChatReplay(chatId: string, lastEventId?: number): AnyEnvelope[] {
     const buf = this.chatBuffers.get(chatId) ?? [];
     if (!lastEventId) return [];
     return buf.filter((e) => e.id > lastEventId);
   }
 
-  /**
-   * Get replay events for global run stream since lastEventId (exclusive).
-   */
+  /** Replay events for a workflow since lastEventId (exclusive). */
+  getWorkflowReplay(workflowId: string, lastEventId?: number): AnyEnvelope[] {
+    const buf = this.workflowBuffers.get(workflowId) ?? [];
+    if (!lastEventId) return [];
+    return buf.filter((e) => e.id > lastEventId);
+  }
+
+  /** Replay events for a workflow run since lastEventId (exclusive). */
+  getWorkflowRunReplay(runId: string, lastEventId?: number): AnyEnvelope[] {
+    const buf = this.workflowRunBuffers.get(runId) ?? [];
+    if (!lastEventId) return [];
+    return buf.filter((e) => e.id > lastEventId);
+  }
+
   getRunReplay(lastEventId?: number): AnyEnvelope[] {
     if (!lastEventId) return [];
     return this.runBuffer.filter((e) => e.id > lastEventId);
@@ -97,12 +91,32 @@ export class SseBusService {
       buf.push(envelope);
       if (buf.length > this.chatBufferSize) buf.splice(0, buf.length - this.chatBufferSize);
       this.chatBuffers.set(envelope.chatId, buf);
-    } else {
-      // global buffer for events without chatId (runs + sidebar + models + heartbeat-global)
-      this.runBuffer.push(envelope);
-      if (this.runBuffer.length > this.runBufferSize) {
-        this.runBuffer.splice(0, this.runBuffer.length - this.runBufferSize);
+      return;
+    }
+
+    if (envelope.workflowId) {
+      const wbuf = this.workflowBuffers.get(envelope.workflowId) ?? [];
+      wbuf.push(envelope);
+      if (wbuf.length > this.workflowBufferSize) {
+        wbuf.splice(0, wbuf.length - this.workflowBufferSize);
       }
+      this.workflowBuffers.set(envelope.workflowId, wbuf);
+
+      if (envelope.runId) {
+        const rbuf = this.workflowRunBuffers.get(envelope.runId) ?? [];
+        rbuf.push(envelope);
+        if (rbuf.length > this.workflowRunBufferSize) {
+          rbuf.splice(0, rbuf.length - this.workflowRunBufferSize);
+        }
+        this.workflowRunBuffers.set(envelope.runId, rbuf);
+      }
+
+      return;
+    }
+
+    this.runBuffer.push(envelope);
+    if (this.runBuffer.length > this.runBufferSize) {
+      this.runBuffer.splice(0, this.runBuffer.length - this.runBufferSize);
     }
   }
 }

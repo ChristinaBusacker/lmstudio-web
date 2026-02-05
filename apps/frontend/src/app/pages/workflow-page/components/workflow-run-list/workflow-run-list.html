@@ -1,0 +1,62 @@
+<div class="runlist">
+  <div class="runlist__header">
+    <div class="runlist__title">
+      <app-icon name="history-line" />
+      <span>Runs</span>
+      @if (isLoading) {
+        <span class="runlist__loading">Loading…</span>
+      }
+    </div>
+
+    <button class="runlist__refresh" type="button" (click)="refresh.emit()">
+      <app-icon name="refresh-line" />
+    </button>
+  </div>
+
+  @if (!runs?.length) {
+    <div class="runlist__empty">No runs yet.</div>
+  } @else {
+    <ul class="runlist__items">
+      @for (r of runs; track trackById($index, r)) {
+        <li>
+          <button
+            type="button"
+            class="runlist__item"
+            [class.is-selected]="r.id === selectedRunId"
+            (click)="selectRun.emit(r.id)"
+          >
+            <span class="runlist__left">
+              <span class="runlist__status" [class]="statusClass(r.status)">
+                <app-icon [name]="statusIcon(r.status)" />
+                {{ statusLabel(r.status) }}
+              </span>
+
+              <span class="runlist__meta">
+                <span class="runlist__id">{{ r.id }}</span>
+                @if (r.label) {
+                  <span class="runlist__label">— {{ r.label }}</span>
+                }
+              </span>
+            </span>
+
+            <span class="runlist__right">
+              @if (r.startedAt) {
+                <span class="runlist__time">{{ r.startedAt | date: 'short' }}</span>
+              } @else {
+                <span class="runlist__time runlist__time--muted">{{
+                  r.createdAt | date: 'short'
+                }}</span>
+              }
+
+              @if (r.error) {
+                <span class="runlist__error" title="{{ r.error }}">
+                  <app-icon name="error-warning-line" />
+                </span>
+              }
+            </span>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>

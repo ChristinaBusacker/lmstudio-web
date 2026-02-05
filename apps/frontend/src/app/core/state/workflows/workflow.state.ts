@@ -5,7 +5,13 @@ import { catchError, finalize, tap } from 'rxjs/operators';
 import { EMPTY } from 'rxjs';
 
 import { WorkflowApiService } from '../../api/workflow-api.service';
-import type { Workflow, WorkflowRun, WorkflowRunDetails } from './workflow.models';
+import type {
+  Workflow,
+  WorkflowRun,
+  WorkflowRunDetails,
+  WorkflowNodeRun,
+  Artifact,
+} from './workflow.models';
 import {
   LoadWorkflows,
   LoadWorkflowById,
@@ -18,6 +24,9 @@ import {
   SetSelectedWorkflow,
   SetSelectedRun,
   ClearWorkflowErrors,
+  ApplyWorkflowRunStatusFromSse,
+  ApplyWorkflowNodeRunUpsertFromSse,
+  ApplyWorkflowArtifactCreatedFromSse,
 } from './workflow.actions';
 
 export interface WorkflowsStateModel {
@@ -124,18 +133,13 @@ export class WorkflowsState {
         const byId: Record<string, Workflow> = {};
         for (const w of workflows) byId[w.id] = w;
 
-        ctx.patchState({
-          workflows,
-          workflowsById: byId,
-        });
+        ctx.patchState({ workflows, workflowsById: byId });
       }),
       catchError((err) => {
         ctx.patchState({ error: this.toErrorMessage(err) });
         return EMPTY;
       }),
-      finalize(() => {
-        ctx.patchState({ isLoadingWorkflows: false });
-      }),
+      finalize(() => ctx.patchState({ isLoadingWorkflows: false })),
     );
   }
 
@@ -224,9 +228,7 @@ export class WorkflowsState {
         ctx.patchState({ error: this.toErrorMessage(err) });
         return EMPTY;
       }),
-      finalize(() => {
-        ctx.patchState({ isLoadingRuns: false });
-      }),
+      finalize(() => ctx.patchState({ isLoadingRuns: false })),
     );
   }
 
@@ -236,6 +238,7 @@ export class WorkflowsState {
 
     return this.api.startRun(action.workflowId, action.payload).pipe(
       tap((run) => {
+        // immediate optimistic insert (SSE will follow anyway)
         const s = ctx.getState();
         ctx.patchState({
           runsById: { ...s.runsById, [run.id]: run },
@@ -269,9 +272,7 @@ export class WorkflowsState {
         ctx.patchState({ error: this.toErrorMessage(err) });
         return EMPTY;
       }),
-      finalize(() => {
-        ctx.patchState({ isLoadingRunDetails: false });
-      }),
+      finalize(() => ctx.patchState({ isLoadingRunDetails: false })),
     );
   }
 
@@ -309,6 +310,145 @@ export class WorkflowsState {
   @Action(ClearWorkflowErrors)
   clearErrors(ctx: StateContext<WorkflowsStateModel>) {
     ctx.patchState({ error: null });
+  }
+
+  // --------------------
+  // Actions: SSE
+  // --------------------
+
+  @Action(ApplyWorkflowRunStatusFromSse)
+  applyWorkflowRunStatusFromSse(
+    ctx: StateContext<WorkflowsStateModel>,
+    action: ApplyWorkflowRunStatusFromSse,
+  ) {
+    const s = ctx.getState();
+    const p = action.payload;
+
+    const existing = s.runsById[p.runId];
+
+    // If we never loaded it via REST yet, create a minimal synthetic run so the list can show it instantly.
+    const nowIso = new Date().toISOString();
+    const base: WorkflowRun =
+      existing ??
+      ({
+        id: p.runId,
+        workflowId: p.workflowId,
+        ownerKey: '',
+        status: p.status,
+        currentNodeId: p.currentNodeId,
+        label: null,
+        stats: p.stats ?? null,
+        error: p.error ?? null,
+        startedAt: null,
+        finishedAt: null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      } as WorkflowRun);
+
+    const merged: WorkflowRun = {
+      ...base,
+      workflowId: base.workflowId || p.workflowId,
+      status: p.status ?? base.status,
+      currentNodeId: p.currentNodeId ?? base.currentNodeId,
+      stats: p.stats ?? base.stats,
+      error: p.error ?? base.error,
+      updatedAt: nowIso,
+    };
+
+    // keep runs array unique + newest first
+    const runs = [merged, ...s.runs.filter((x) => x.id !== merged.id)];
+    const runsById = { ...s.runsById, [merged.id]: merged };
+
+    // If details are cached, update the embedded run too
+    const details = s.runDetailsById[merged.id];
+    const runDetailsById = details
+      ? { ...s.runDetailsById, [merged.id]: { ...details, run: merged } }
+      : s.runDetailsById;
+
+    ctx.patchState({ runs, runsById, runDetailsById });
+  }
+
+  @Action(ApplyWorkflowNodeRunUpsertFromSse)
+  applyWorkflowNodeRunUpsertFromSse(
+    ctx: StateContext<WorkflowsStateModel>,
+    action: ApplyWorkflowNodeRunUpsertFromSse,
+  ) {
+    const s = ctx.getState();
+    const p = action.payload;
+
+    const details = s.runDetailsById[p.runId];
+    if (!details) return; // only update heavy details if they are loaded/open
+
+    const existing = details.nodeRuns.find((nr) => nr.nodeId === p.nodeId);
+
+    const merged: WorkflowNodeRun = existing
+      ? {
+          ...existing,
+          status: p.status,
+          error: p.error,
+          startedAt: p.startedAt ?? existing.startedAt,
+          finishedAt: p.finishedAt ?? existing.finishedAt,
+        }
+      : ({
+          id: `sse:${p.runId}:${p.nodeId}`,
+          workflowRunId: p.runId,
+          nodeId: p.nodeId,
+          status: p.status,
+          inputSnapshot: null,
+          outputText: '',
+          outputJson: null,
+          primaryArtifactId: null,
+          error: p.error,
+          startedAt: p.startedAt,
+          finishedAt: p.finishedAt,
+          createdAt: new Date().toISOString(),
+        } as WorkflowNodeRun);
+
+    const nodeRuns = existing
+      ? details.nodeRuns.map((x) => (x.nodeId === p.nodeId ? merged : x))
+      : [...details.nodeRuns, merged];
+
+    ctx.patchState({
+      runDetailsById: {
+        ...s.runDetailsById,
+        [p.runId]: { ...details, nodeRuns },
+      },
+    });
+  }
+
+  @Action(ApplyWorkflowArtifactCreatedFromSse)
+  applyWorkflowArtifactCreatedFromSse(
+    ctx: StateContext<WorkflowsStateModel>,
+    action: ApplyWorkflowArtifactCreatedFromSse,
+  ) {
+    const s = ctx.getState();
+    const p = action.payload;
+
+    const details = s.runDetailsById[p.runId];
+    if (!details) return;
+
+    const already = details.artifacts.some((a) => a.id === p.artifactId);
+    if (already) return;
+
+    const artifact: Artifact = {
+      id: p.artifactId,
+      workflowRunId: p.runId,
+      nodeRunId: null,
+      kind: p.kind,
+      mimeType: p.mimeType ?? null,
+      filename: p.filename ?? null,
+      contentText: null,
+      contentJson: null,
+      blobPath: null,
+      createdAt: new Date().toISOString(),
+    };
+
+    ctx.patchState({
+      runDetailsById: {
+        ...s.runDetailsById,
+        [p.runId]: { ...details, artifacts: [...details.artifacts, artifact] },
+      },
+    });
   }
 
   // --------------------

@@ -146,6 +146,102 @@ export class SseController {
     return merge(replay$, live$, heartbeat$);
   }
 
+  @Sse('workflows/:workflowId')
+  @ApiProduces('text/event-stream')
+  @ApiOperation({
+    summary: 'Workflow-scoped SSE stream (run + node updates)',
+    description:
+      'Emits events for a single workflow:\n' +
+      '- workflow.run.status\n' +
+      '- workflow.node-run.upsert\n' +
+      '- workflow.artifact.created\n' +
+      '- heartbeat\n\n' +
+      'Replay: Uses Last-Event-ID to replay buffered events. Clients should resync via REST on reconnect.',
+  })
+  streamWorkflow(
+    @Req() req: Request,
+    @Param('workflowId') workflowId: string,
+  ): Observable<MessageEvent> {
+    const lastId = this.parseLastEventId(req);
+
+    const replay$ = from(this.bus.getWorkflowReplay(workflowId, lastId)).pipe(
+      map((e) => this.toMessageEvent(e)),
+    );
+
+    const live$ = this.bus.observeWorkflow(workflowId).pipe(
+      filter(
+        (e) =>
+          e.type === 'workflow.run.status' ||
+          e.type === 'workflow.node-run.upsert' ||
+          e.type === 'workflow.artifact.created',
+      ),
+      map((e) => this.toMessageEvent(e)),
+    );
+
+    const heartbeat$ = interval(15_000).pipe(
+      map(() =>
+        this.toMessageEvent(
+          this.bus.publish({
+            type: 'heartbeat',
+            workflowId,
+            payload: { ok: true },
+          }),
+        ),
+      ),
+    );
+
+    return merge(replay$, live$, heartbeat$);
+  }
+
+  @Sse('workflow-runs/:runId')
+  @ApiProduces('text/event-stream')
+  @ApiOperation({
+    summary: 'Workflow-run scoped SSE stream (node updates + artifacts)',
+    description:
+      'Emits events for a single workflow run:\n' +
+      '- workflow.run.status\n' +
+      '- workflow.node-run.upsert\n' +
+      '- workflow.artifact.created\n' +
+      '- heartbeat\n\n' +
+      'Replay: Uses Last-Event-ID to replay buffered events. Clients should resync via REST on reconnect.',
+  })
+  streamWorkflowRun(
+    @Req() req: Request,
+    @Param('runId') runId: string,
+    @Query('workflowId') workflowId?: string,
+  ): Observable<MessageEvent> {
+    const lastId = this.parseLastEventId(req);
+
+    const replay$ = from(this.bus.getWorkflowRunReplay(runId, lastId)).pipe(
+      map((e) => this.toMessageEvent(e)),
+    );
+
+    const live$ = this.bus.observeWorkflowRun(runId).pipe(
+      filter(
+        (e) =>
+          e.type === 'workflow.run.status' ||
+          e.type === 'workflow.node-run.upsert' ||
+          e.type === 'workflow.artifact.created',
+      ),
+      map((e) => this.toMessageEvent(e)),
+    );
+
+    const heartbeat$ = interval(15_000).pipe(
+      map(() =>
+        this.toMessageEvent(
+          this.bus.publish({
+            type: 'heartbeat',
+            workflowId,
+            runId,
+            payload: { ok: true },
+          }),
+        ),
+      ),
+    );
+
+    return merge(replay$, live$, heartbeat$);
+  }
+
   private toMessageEvent(e: SseEnvelopeDto): MessageEvent {
     return {
       id: String(e.id),

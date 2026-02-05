@@ -7,6 +7,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export type SseEventType =
   | 'run.status'
   | 'variant.snapshot'
+  // Workflows
+  | 'workflow.run.status'
+  | 'workflow.node-run.upsert'
+  | 'workflow.artifact.created'
   | 'chat.meta.changed'
   | 'chat.thread.changed'
   | 'sidebar.changed'
@@ -29,6 +33,9 @@ export class SseEnvelopeDto<TPayload = any> {
     enum: [
       'run.status',
       'variant.snapshot',
+      'workflow.run.status',
+      'workflow.node-run.upsert',
+      'workflow.artifact.created',
       'chat.meta.changed',
       'chat.thread.changed',
       'sidebar.changed',
@@ -41,8 +48,17 @@ export class SseEnvelopeDto<TPayload = any> {
   @ApiPropertyOptional({ description: 'Chat id (if the event is scoped to a chat).' })
   chatId?: string;
 
+  @ApiPropertyOptional({ description: 'Workflow id (if the event is scoped to a workflow).' })
+  workflowId?: string;
+
   @ApiPropertyOptional({ description: 'Run id (if the event is related to a run).' })
   runId?: string;
+
+  @ApiPropertyOptional({ description: 'Workflow node id (if the event is related to a node).' })
+  nodeId?: string;
+
+  @ApiPropertyOptional({ description: 'Artifact id (if the event is related to an artifact).' })
+  artifactId?: string;
 
   @ApiPropertyOptional({
     description: 'Message id (if the event is related to a message/variant).',
@@ -63,8 +79,68 @@ export class SseEnvelopeDto<TPayload = any> {
   payload!: TPayload;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Workflow payloads
+// ---------------------------------------------------------------------------------------------
+
+export class WorkflowRunStatusEventPayloadDto {
+  @ApiProperty({
+    enum: ['queued', 'running', 'completed', 'failed', 'canceled'],
+    description: 'Current workflow run status.',
+  })
+  status!: 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
+
+  @ApiPropertyOptional({ description: 'Current node id (if running).', nullable: true })
+  currentNodeId?: string | null;
+
+  @ApiPropertyOptional({ description: 'Error message if status=failed.', nullable: true })
+  error?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Optional stats/metadata.',
+    type: 'object',
+    additionalProperties: true,
+    nullable: true,
+  })
+  stats?: Record<string, any> | null;
+}
+
+export class WorkflowNodeRunUpsertPayloadDto {
+  @ApiProperty({ description: 'Node id.' })
+  nodeId!: string;
+
+  @ApiProperty({ enum: ['pending', 'running', 'completed', 'failed', 'stale'] })
+  status!: 'pending' | 'running' | 'completed' | 'failed' | 'stale';
+
+  @ApiPropertyOptional({ nullable: true })
+  error?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  startedAt?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  finishedAt?: string | null;
+}
+
+export class WorkflowArtifactCreatedPayloadDto {
+  @ApiProperty({ description: 'Artifact id.' })
+  artifactId!: string;
+
+  @ApiPropertyOptional({ description: 'Node id that produced the artifact.', nullable: true })
+  nodeId?: string | null;
+
+  @ApiProperty({ enum: ['json', 'text', 'image', 'binary'] })
+  kind!: 'json' | 'text' | 'image' | 'binary';
+
+  @ApiPropertyOptional({ nullable: true })
+  mimeType?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  filename?: string | null;
+}
+
 /**
- * Payload for run status events.
+ * Payload for chat run status events.
  */
 export class RunStatusEventPayloadDto {
   @ApiProperty({
@@ -85,10 +161,6 @@ export class RunStatusEventPayloadDto {
   stats?: Record<string, any> | null;
 }
 
-/**
- * Payload for variant snapshot events.
- * We send "content so far" for a single assistant message's active variant.
- */
 export class VariantSnapshotEventPayloadDto {
   @ApiProperty({ description: 'Active content for the target assistant message (content so far).' })
   content!: string;
@@ -100,9 +172,6 @@ export class VariantSnapshotEventPayloadDto {
   reasoning?: string | null;
 }
 
-/**
- * Invalidate / notify events: clients should re-fetch via REST.
- */
 export class ChatMetaChangedPayloadDto {
   @ApiPropertyOptional({
     description: 'Optional list of changed fields (for smarter clients).',
@@ -169,9 +238,6 @@ export class ModelsChangedPayloadDto {
   error?: string | null;
 }
 
-/**
- * Payload for heartbeat events.
- */
 export class HeartbeatPayloadDto {
   @ApiProperty({ example: true })
   ok!: boolean;

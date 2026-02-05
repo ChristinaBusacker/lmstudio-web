@@ -3,6 +3,9 @@ import type {
   UpdateWorkflowPayload,
   CreateWorkflowRunPayload,
   ListWorkflowRunsQuery,
+  WorkflowNodeRunStatus,
+  ArtifactKind,
+  WorkflowRunStatus,
 } from './workflow.models';
 
 export class LoadWorkflows {
@@ -73,4 +76,55 @@ export class SetSelectedRun {
 
 export class ClearWorkflowErrors {
   static readonly type = '[Workflows] Clear Errors';
+}
+
+// --------------------
+// SSE -> Store sync
+// --------------------
+
+export class ApplyWorkflowRunStatusFromSse {
+  static readonly type = '[Workflows][SSE] Apply Run Status';
+
+  constructor(
+    public readonly payload: {
+      workflowId: string;
+      runId: string;
+      status: WorkflowRunStatus;
+      currentNodeId: string | null;
+      stats: any;
+      error: string | null;
+    },
+  ) {}
+}
+
+export class ApplyWorkflowNodeRunUpsertFromSse {
+  static readonly type = '[Workflows][SSE] Upsert Node Run';
+
+  constructor(
+    public readonly payload: {
+      workflowId: string;
+      runId: string;
+      nodeId: string;
+      status: WorkflowNodeRunStatus;
+      error: string | null;
+      startedAt: string | null;
+      finishedAt: string | null;
+    },
+  ) {}
+}
+
+export class ApplyWorkflowArtifactCreatedFromSse {
+  static readonly type = '[Workflows][SSE] Artifact Created';
+
+  constructor(
+    public readonly payload: {
+      workflowId: string;
+      runId: string;
+      artifactId: string;
+      nodeId: string | null;
+      kind: ArtifactKind;
+      mimeType: string | null;
+      filename: string | null;
+    },
+  ) {}
 }

@@ -41,6 +41,7 @@ import {
   workflowToDiagramModel,
 } from './workflow-diagram.adapter';
 import { WorkflowEditorStateService } from './workflow-editor-state.service';
+import { WorkflowRunListContainer } from './components/workflow-run-list-container/workflow-run-list-container';
 
 function isEditableTarget(t: EventTarget | null): boolean {
   const el = t as HTMLElement | null;
@@ -60,6 +61,7 @@ type GraphSnapshot = { nodes: any[]; edges: any[] };
     NgDiagramComponent,
     NgDiagramBackgroundComponent,
     Icon,
+    WorkflowRunListContainer,
   ],
   providers: [provideNgDiagram(), WorkflowDiagramCommandsService, WorkflowEditorStateService],
   templateUrl: './workflow-page.html',
@@ -73,7 +75,6 @@ export class WorkflowPage implements OnInit {
   private readonly commands = inject(WorkflowDiagramCommandsService);
   private readonly envInjector = inject(EnvironmentInjector);
 
-  // ngDiagram model service (scoped by provideNgDiagram())
   private readonly diagramModel = inject(NgDiagramModelService);
 
   workflowId!: string;
@@ -95,7 +96,6 @@ export class WorkflowPage implements OnInit {
   private redoStack: GraphSnapshot[] = [];
   private lastSavedSnapshot: GraphSnapshot | null = null;
 
-  // signature gate for store -> editor apply
   private lastLoadedGraphSig: string | null = null;
 
   private diagramReady = false;
@@ -122,7 +122,7 @@ export class WorkflowPage implements OnInit {
   model: unknown = initializeModel({ nodes: [], edges: [] });
 
   ngOnInit() {
-    // Node-data edits (prompt/profile/etc.) request snapshots; we consume that here.
+    // Node-data edits request snapshots; we consume that here.
     runInInjectionContext(this.envInjector, () => {
       effect(() => {
         if (this.editorState.consumeSnapshotRequest()) {
@@ -138,12 +138,21 @@ export class WorkflowPage implements OnInit {
         distinctUntilChanged(),
         tap((workflowId) => {
           this.workflowId = workflowId;
+
+          // ✅ Connect workflow SSE so run list updates live
+          this.sse.connectWorkflow(workflowId);
+
           this.store.dispatch(new SetSelectedWorkflow(workflowId));
         }),
         switchMap(() => of(null)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe();
+
+    // on destroy: stop the workflow stream
+    this.destroyRef.onDestroy(() => {
+      this.sse.disconnectWorkflow();
+    });
 
     this.workflow$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((wf) => {
       runInInjectionContext(this.envInjector, () => {
@@ -157,7 +166,7 @@ export class WorkflowPage implements OnInit {
         // Protect local edits
         if (this.editorDirty()) return;
 
-        // Avoid re-initializing for the same content (e.g., after save)
+        // Avoid re-initializing for same content
         if (incomingSig === this.lastLoadedGraphSig) return;
 
         this.resetEditorForIncomingModel();
@@ -166,7 +175,6 @@ export class WorkflowPage implements OnInit {
         this.model = initializeModel({ nodes, edges });
 
         this.lastLoadedGraphSig = incomingSig;
-        // lastSavedSnapshot will be set in onDiagramInit()
       });
     });
   }
@@ -174,7 +182,6 @@ export class WorkflowPage implements OnInit {
   onDiagramInit() {
     this.diagramReady = true;
 
-    // Now it's SAFE to read diagramModel/toJSON
     this.lastSavedSnapshot = this.snapshot();
     this.undoStack = [];
     this.redoStack = [];
@@ -190,8 +197,6 @@ export class WorkflowPage implements OnInit {
   onDiagramPointerDown(e: PointerEvent) {
     if (e.button !== 0) return;
     if (isEditableTarget(e.target)) return;
-
-    // Snapshot BEFORE user starts modifying (drag / connect)
     this.runWhenReady(() => this.pushHistorySnapshot());
   }
 
@@ -239,7 +244,6 @@ export class WorkflowPage implements OnInit {
       const diagramJsonString = this.diagramModel.toJSON();
       const graph = diagramJsonToWorkflowGraph(diagramJsonString);
 
-      // expect this signature back from store after save
       this.lastLoadedGraphSig = this.workflowGraphSig({ graph });
 
       this.store.dispatch(new UpdateWorkflow(wf.id, { graph }));
@@ -356,7 +360,6 @@ export class WorkflowPage implements OnInit {
     this.pushHistorySnapshot();
     this.dataEditSnapshotTaken = true;
 
-    // one meaningful undo step during “typing bursts”
     if (this.dataEditTimer !== null) window.clearTimeout(this.dataEditTimer);
     this.dataEditTimer = window.setTimeout(() => {
       this.dataEditSnapshotTaken = false;

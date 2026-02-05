@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { WorkflowPage } from './workflow-page';
+import { WorkflowRunList } from './workflow-run-list';
 
-describe('WorkflowPage', () => {
-  let component: WorkflowPage;
-  let fixture: ComponentFixture<WorkflowPage>;
+describe('WorkflowRunList', () => {
+  let component: WorkflowRunList;
+  let fixture: ComponentFixture<WorkflowRunList>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [WorkflowPage]
+      imports: [WorkflowRunList]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(WorkflowPage);
+    fixture = TestBed.createComponent(WorkflowRunList);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

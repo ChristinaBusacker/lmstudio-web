@@ -1,0 +1,7 @@
+<app-workflow-run-list
+  [runs]="vm.runs"
+  [selectedRunId]="vm.selectedRunId"
+  [isLoading]="vm.isLoading"
+  (selectRun)="onSelectRun($event)"
+  (refresh)="onRefresh()"
+/>
