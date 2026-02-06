@@ -1,22 +1,23 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Workflow } from '@frontend/src/app/core/state/workflows/workflow.models';
 
-/**
- * Persisted WorkflowGraph (v2)
- * - nodes[]
- * - edges[]: source -> target
- *
- * Legacy migration:
- * - if edges are missing, derive edges from node.inputFrom (v1)
- */
+export const NODE_LLM = 'lmstudio.llm';
+export const NODE_CONDITION = 'workflow.condition';
+export const NODE_LOOP = 'workflow.loop';
+export const NODE_MERGE = 'workflow.merge';
+export const NODE_EXPORT = 'workflow.export';
+export const NODE_PREVIEW = 'ui.preview';
+
 export type WorkflowGraph = {
   nodes: Array<{
     id: string;
     type: string;
     profileName?: string;
     prompt?: string;
+    config?: any;
     position?: { x: number; y: number };
 
     // legacy only (read-only for migration)
@@ -28,15 +29,11 @@ export type WorkflowGraph = {
     source: string;
     target: string;
 
-    // These are important for preserving arrow direction and rendering
     sourcePort?: string;
     targetPort?: string;
     type?: string;
-
-    // ng-diagram often stores styling/marker config here
     data?: any;
 
-    // allow additional properties without losing them
     [key: string]: any;
   }>;
 };
@@ -46,11 +43,21 @@ export type DiagramNodeData = {
   nodeType: string;
   profileName: string;
   prompt: string;
+
+  mergeSeparator?: string;
+  mergeInputCount?: number;
+
+  exportFilename?: string;
+
+  previewMaxLines?: number;
 };
 
 export const WORKFLOW_NODE_TEMPLATE = 'workflowNode';
 export const DEFAULT_SOURCE_PORT = 'port-right';
 export const DEFAULT_TARGET_PORT = 'port-left';
+
+export const MERGE_OUT_PORT = 'out';
+export const MERGE_IN_PREFIX = 'in-';
 
 type DiagramEdge = {
   id: string;
@@ -77,10 +84,10 @@ function normalizeNodes(input: any): WorkflowGraph['nodes'] {
     .filter((n) => !!n?.id)
     .map((n, idx) => ({
       id: String(n.id),
-      type: String(n.type ?? 'lmstudio.llm'),
+      type: String(n.type ?? NODE_LLM),
       profileName: String(n.profileName ?? ''),
       prompt: String(n.prompt ?? ''),
-      // keep legacy in memory (migration), but don’t rely on it long-term
+      config: n.config ?? null,
       inputFrom:
         n.inputFrom === undefined ? null : n.inputFrom === null ? null : String(n.inputFrom),
       position: n.position
@@ -101,7 +108,6 @@ function normalizeEdgesPreserveAll(input: any, nodeIds: Set<string>): DiagramEdg
     if (source === target) continue;
     if (!nodeIds.has(source) || !nodeIds.has(target)) continue;
 
-    // IMPORTANT: preserve all edge props so arrows/styles survive reload
     out.push({
       ...e,
       id: String(e?.id ?? `${source}->${target}`),
@@ -114,11 +120,10 @@ function normalizeEdgesPreserveAll(input: any, nodeIds: Set<string>): DiagramEdg
     });
   }
 
-  // Dedupe by (source->target) but keep the first encountered edge props
   const seen = new Set<string>();
   const deduped: DiagramEdge[] = [];
   for (const e of out) {
-    const k = `${e.source}->${e.target}`;
+    const k = `${e.source}->${e.target}|${e.sourcePort ?? ''}|${e.targetPort ?? ''}`;
     if (seen.has(k)) continue;
     seen.add(k);
     deduped.push(e);
@@ -143,7 +148,6 @@ function deriveEdgesFromLegacyInputFrom(nodes: WorkflowGraph['nodes']): DiagramE
       target: n.id,
       sourcePort: DEFAULT_SOURCE_PORT,
       targetPort: DEFAULT_TARGET_PORT,
-      // NOTE: type/data unknown in legacy, but ports + id are enough for directional render
       data: {},
     });
   }
@@ -155,28 +159,59 @@ export function normalizeWorkflowGraph(input: any): WorkflowGraph {
   const nodes = normalizeNodes(input);
   const nodeIds = new Set(nodes.map((n) => n.id));
 
-  // Use persisted edges if present; otherwise migrate legacy inputFrom
   const persistedEdges = normalizeEdgesPreserveAll(input, nodeIds);
   const edges = persistedEdges.length ? persistedEdges : deriveEdgesFromLegacyInputFrom(nodes);
 
   return { nodes, edges };
 }
 
+function nodeDefaultsByType(nodeType: string): Partial<DiagramNodeData> {
+  if (nodeType === NODE_MERGE) {
+    return {
+      mergeSeparator: '\n\n',
+      mergeInputCount: 1,
+    };
+  }
+  if (nodeType === NODE_EXPORT) {
+    return {
+      exportFilename: 'export.txt',
+    };
+  }
+  if (nodeType === NODE_PREVIEW) {
+    return {
+      previewMaxLines: 10,
+    };
+  }
+  return {};
+}
+
 export function workflowToDiagramModel(workflow: Workflow) {
   const graph = normalizeWorkflowGraph(workflow.graph);
 
   return {
-    nodes: graph.nodes.map((n) => ({
-      id: n.id,
-      position: n.position!,
-      type: WORKFLOW_NODE_TEMPLATE,
-      data: {
-        label: n.id,
-        nodeType: n.type,
-        profileName: n.profileName ?? '',
-        prompt: n.prompt ?? '',
-      } satisfies DiagramNodeData,
-    })),
+    nodes: graph.nodes.map((n) => {
+      const cfg = n.config ?? {};
+      const defaults = nodeDefaultsByType(n.type);
+
+      return {
+        id: n.id,
+        position: n.position!,
+        type: WORKFLOW_NODE_TEMPLATE,
+        data: {
+          label: n.id,
+          nodeType: n.type,
+          profileName: n.profileName ?? '',
+          prompt: n.prompt ?? '',
+
+          mergeSeparator: cfg?.merge?.separator ?? defaults.mergeSeparator,
+          mergeInputCount: cfg?.merge?.inputCount ?? defaults.mergeInputCount,
+
+          exportFilename: cfg?.export?.filename ?? defaults.exportFilename,
+
+          previewMaxLines: cfg?.preview?.maxLines ?? defaults.previewMaxLines,
+        } satisfies DiagramNodeData,
+      };
+    }),
 
     edges: (graph.edges ?? []).map((e) => ({
       ...e,
@@ -193,8 +228,6 @@ export function workflowToDiagramModel(workflow: Workflow) {
 
 /**
  * Diagram JSON -> Persisted Graph
- * - Persists nodes[] + edges[] (including rendering metadata)
- * - Does NOT persist inputFrom anymore
  */
 export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
   const json = JSON.parse(diagramJson);
@@ -203,24 +236,39 @@ export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
   const edges = Array.isArray(json?.edges) ? json.edges : [];
 
   return normalizeWorkflowGraph({
-    nodes: nodes.map((n: any) => ({
-      id: String(n.id),
-      type: String(n.data?.nodeType ?? 'lmstudio.llm'),
-      profileName: String(n.data?.profileName ?? ''),
-      prompt: String(n.data?.prompt ?? ''),
-      position: n.position ? { x: Number(n.position.x), y: Number(n.position.y) } : undefined,
-    })),
-    // keep edges as-is so we do not lose arrow metadata
+    nodes: nodes.map((n: any) => {
+      const nodeType = String(n.data?.nodeType ?? NODE_LLM);
+
+      const config: any = {};
+
+      if (nodeType === NODE_MERGE) {
+        config.merge = {
+          separator: String(n.data?.mergeSeparator ?? '\n\n'),
+          inputCount: Number(n.data?.mergeInputCount ?? 1),
+        };
+      }
+
+      if (nodeType === NODE_EXPORT) {
+        config.export = {
+          filename: String(n.data?.exportFilename ?? 'export.txt'),
+        };
+      }
+
+      if (nodeType === NODE_PREVIEW) {
+        config.preview = {
+          maxLines: Number(n.data?.previewMaxLines ?? 10),
+        };
+      }
+
+      return {
+        id: String(n.id),
+        type: nodeType,
+        profileName: String(n.data?.profileName ?? ''),
+        prompt: String(n.data?.prompt ?? ''),
+        config,
+        position: n.position ? { x: Number(n.position.x), y: Number(n.position.y) } : undefined,
+      };
+    }),
     edges: edges.map((e: any) => ({ ...e })),
   });
-}
-
-export function createNewNodeId(existingIds: string[], base: string) {
-  let i = 1;
-  let id = base;
-  while (existingIds.includes(id)) {
-    i += 1;
-    id = `${base}${i}`;
-  }
-  return id;
 }

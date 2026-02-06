@@ -10,10 +10,26 @@ export type WorkflowNodeRunStatus = 'pending' | 'running' | 'completed' | 'faile
 export type WorkflowGraph = {
   nodes: Array<{
     id: string;
-    /** e.g. 'lmstudio.llm', 'workflow.condition', 'workflow.loop' */
+
+    /**
+     * e.g.
+     * - 'lmstudio.llm'
+     * - 'workflow.merge'
+     * - 'workflow.export'
+     * - 'ui.preview'
+     * - 'workflow.condition'
+     * - 'workflow.loop'
+     */
     type: string;
+
     profileName?: string;
     prompt?: string;
+
+    /**
+     * Node-specific config. Stored as plain JSON to keep the graph extensible.
+     */
+    config?: any;
+
     position?: { x: number; y: number };
 
     /**
@@ -28,6 +44,21 @@ export type WorkflowGraph = {
     id: string;
     source: string;
     target: string;
+
+    /**
+     * Port ids are persisted so we can preserve ordering/UX
+     * (e.g. merge inputs in-1..in-n).
+     */
+    sourcePort?: string;
+    targetPort?: string;
+
+    /**
+     * Rendering metadata (ng-diagram stores markers/styles here).
+     */
+    type?: string;
+    data?: any;
+
+    [key: string]: any;
   }>;
 };
 

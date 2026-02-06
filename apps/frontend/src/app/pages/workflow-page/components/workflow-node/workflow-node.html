@@ -1,6 +1,40 @@
 <div class="node">
-  <ng-diagram-port id="port-left" side="left" type="both"></ng-diagram-port>
-  <ng-diagram-port id="port-right" side="right" type="both"></ng-diagram-port>
+  @if (isMerge()) {
+    @for (pid of mergePorts(); track pid; let i = $index) {
+      <ng-diagram-port
+        class="mergePort port-in"
+        [id]="pid"
+        side="left"
+        type="target"
+        originPoint="leftMiddle"
+        [style.top.px]="mergePortTop(i)"
+      >
+        <div class="mergePortInner">
+          <div class="mergePortDot" aria-hidden="true"></div>
+          <div class="mergePortBadge">{{ getPortIndexLabel(pid) }}</div>
+        </div>
+      </ng-diagram-port>
+    }
+
+    <ng-diagram-port
+      class="mergeOutPort"
+      [id]="MERGE_OUT_PORT"
+      side="right"
+      type="source"
+      originPoint="rightMiddle"
+      [style.top.px]="mergeOutPortTop()"
+    >
+      <div class="mergePortInner mergeOutInner">
+        <div class="mergePortDot" aria-hidden="true"></div>
+        <div class="mergePortBadge">out</div>
+      </div>
+    </ng-diagram-port>
+  } @else if (isExport() || isPreview()) {
+    <ng-diagram-port id="port-left" side="left" type="target"></ng-diagram-port>
+  } @else {
+    <ng-diagram-port id="port-left" side="left" type="both"></ng-diagram-port>
+    <ng-diagram-port id="port-right" side="right" type="both"></ng-diagram-port>
+  }
 
   <div class="header">
     <div class="title">{{ title() }}</div>
@@ -15,42 +49,97 @@
         [value]="node().data.nodeType"
         (change)="updateNodeType($event.target.value)"
       >
-        <option value="lmstudio.llm">lmstudio.llm</option>
-        <option value="workflow.condition">workflow.condition</option>
-        <option value="workflow.loop">workflow.loop</option>
-        <option value="stable-diffusion.txt2img">stable-diffusion.txt2img</option>
+        <option [value]="NODE_LLM">lmstudio.llm</option>
+        <option [value]="NODE_MERGE">workflow.merge</option>
+        <option [value]="NODE_EXPORT">workflow.export</option>
+        <option [value]="NODE_PREVIEW">ui.preview</option>
+        <option [value]="NODE_CONDITION">workflow.condition</option>
+        <option [value]="NODE_LOOP">workflow.loop</option>
       </select>
     </label>
 
-    <!-- inputFrom DROPDOWN ENTFÄLLT KOMPLETT -->
+    @if (isLlm()) {
+      <label class="field">
+        <div class="label">Profile</div>
+        <select
+          class="config input"
+          [value]="node().data.profileName"
+          (change)="updateProfileName($event.target.value)"
+          title="Visit settings to define presets"
+        >
+          <option value="">Default</option>
+          @for (profile of profiles$ | async; track $index) {
+            <option [value]="profile.name" [selected]="profile.name === node().data.profileName">
+              {{ profile.name }}
+            </option>
+          }
+        </select>
+      </label>
 
-    <label class="field">
-      <div class="label">Profile</div>
-      <select
-        class="config input"
-        [value]="node().data.profileName"
-        (change)="updateProfileName($event.target.value)"
-        title="Visit settings to define presets"
-      >
-        <option value="">Default</option>
-        @for (profile of profiles$ | async; track $index) {
-          <option [value]="profile.name" [selected]="profile.name === node().data.profileName">
-            {{ profile.name }}
-          </option>
-        }
-      </select>
-    </label>
+      <label class="field">
+        <div class="label">Prompt</div>
+        <textarea
+          class="textarea"
+          rows="5"
+          [value]="node().data.prompt"
+          (input)="promptInput$.next($any($event.target).value)"
+          placeholder="Prompt für diesen Schritt..."
+        ></textarea>
+      </label>
+    }
 
-    <label class="field">
-      <div class="label">Prompt</div>
-      <textarea
-        class="textarea"
-        rows="5"
-        [value]="node().data.prompt"
-        (input)="promptInput$.next($any($event.target).value)"
-        placeholder="Prompt für diesen Schritt..."
-      ></textarea>
-    </label>
+    @if (isMerge()) {
+      <label class="field">
+        <div class="label">Separator</div>
+        <textarea
+          class="textarea"
+          rows="2"
+          [value]="node().data.mergeSeparator ?? '\n\n'"
+          (input)="updateMergeSeparator($any($event.target).value)"
+          placeholder="\n\n"
+        ></textarea>
+      </label>
+
+      <div class="hint">
+        Inputs are merged in port order (in-1, in-2, …). One free input is always available.
+      </div>
+    }
+
+    @if (isExport()) {
+      <label class="field">
+        <div class="label">Filename</div>
+        <input
+          class="input"
+          type="text"
+          [value]="node().data.exportFilename ?? 'export.txt'"
+          (input)="updateExportFilename($any($event.target).value)"
+          placeholder="export.txt"
+        />
+      </label>
+
+      <div class="hint">Creates a text artifact for the current run.</div>
+    }
+
+    @if (isPreview()) {
+      <label class="field">
+        <div class="label">Max lines</div>
+        <input
+          class="input"
+          type="number"
+          min="3"
+          max="50"
+          [value]="node().data.previewMaxLines ?? 10"
+          (input)="updatePreviewMaxLines(Number($any($event.target).value))"
+        />
+      </label>
+
+      <div class="preview">
+        @let details = selectedRunDetails$ | async;
+        <pre class="previewText">{{ getPreviewText(details) }}</pre>
+      </div>
+
+      <div class="hint">Shows output of the connected upstream node for the selected run.</div>
+    }
 
     <ng-diagram-node-resize-adornment />
     <ng-diagram-node-rotate-adornment />

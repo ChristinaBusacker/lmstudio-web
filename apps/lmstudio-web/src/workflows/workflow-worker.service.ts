@@ -10,10 +10,25 @@ import type { LmMessage } from '../common/types/llm.types';
 
 type Graph = {
   nodes?: any[];
-  edges?: Array<{ id?: string; source?: string; target?: string }>;
+  edges?: Array<{
+    id?: string;
+    source?: string;
+    target?: string;
+    sourcePort?: string;
+    targetPort?: string;
+    [key: string]: any;
+  }>;
 };
 
-type Edge = { id: string; source: string; target: string };
+type Edge = {
+  id: string;
+  source: string;
+  target: string;
+  sourcePort?: string;
+  targetPort?: string;
+};
+
+type IncomingEdge = Edge;
 
 @Injectable()
 export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -73,14 +88,21 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       if (!source || !target) continue;
       if (source === target) continue;
       if (!nodeIds.has(source) || !nodeIds.has(target)) continue;
-      out.push({ id: `${source}->${target}`, source, target });
+
+      out.push({
+        id: String(e?.id ?? `${source}->${target}`),
+        source,
+        target,
+        sourcePort: e?.sourcePort ? String(e.sourcePort) : undefined,
+        targetPort: e?.targetPort ? String(e.targetPort) : undefined,
+      });
     }
 
     // dedupe + stable
     const seen = new Set<string>();
     const deduped: Edge[] = [];
     for (const e of out) {
-      const k = `${e.source}->${e.target}`;
+      const k = `${e.source}->${e.target}|${e.sourcePort ?? ''}|${e.targetPort ?? ''}`;
       if (seen.has(k)) continue;
       seen.add(k);
       deduped.push(e);
@@ -97,7 +119,13 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       if (!source || !target) continue;
       if (source === target) continue;
       if (!nodeIds.has(source) || !nodeIds.has(target)) continue;
-      out.push({ id: `${source}->${target}`, source, target });
+      out.push({
+        id: `${source}->${target}`,
+        source,
+        target,
+        sourcePort: 'port-right',
+        targetPort: 'port-left',
+      });
     }
     return out.sort((a, b) => a.id.localeCompare(b.id));
   }
@@ -132,12 +160,12 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
   private buildDependencies(graph: Graph) {
     const { nodes, ids, nodeIds, edges } = this.getNormalizedGraph(graph);
 
-    const incoming = new Map<string, string[]>();
+    const incoming = new Map<string, IncomingEdge[]>();
     for (const e of edges) {
       if (!incoming.has(e.target)) incoming.set(e.target, []);
-      incoming.get(e.target)!.push(e.source);
+      incoming.get(e.target)!.push(e);
     }
-    for (const [k, arr] of incoming) arr.sort((a, b) => a.localeCompare(b));
+    for (const [k, arr] of incoming) arr.sort((a, b) => a.id.localeCompare(b.id));
 
     const nodeById = new Map<string, any>();
     for (const n of nodes) if (n?.id) nodeById.set(String(n.id), n);
@@ -152,14 +180,19 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       const nodeType = String(n.type ?? 'lmstudio.llm');
       const prompt = String(n.prompt ?? '');
 
-      // Edge dependencies
-      const needsEdgeInput = nodeType === 'workflow.condition' || nodeType === 'workflow.loop';
+      // These node types always depend on upstream edges (even without {{input}}).
+      const needsEdgeInput =
+        nodeType === 'workflow.condition' ||
+        nodeType === 'workflow.loop' ||
+        nodeType === 'workflow.merge' ||
+        nodeType === 'workflow.export' ||
+        nodeType === 'ui.preview';
 
-      for (const src of incoming.get(id) ?? []) {
+      for (const e of incoming.get(id) ?? []) {
+        const src = e.source;
         if (nodeIds.has(src) && src !== id) deps.get(id)!.add(src);
       }
 
-      // Template references always create deps
       for (const ref of this.extractNodeRefs(prompt)) {
         if (nodeIds.has(ref) && ref !== id) deps.get(id)!.add(ref);
       }
@@ -277,6 +310,21 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     return msgs;
   }
 
+  private portIndex(portId?: string): number | null {
+    if (!portId) return null;
+    // expects "in-1", "in-2", ...
+    const m = /^in-(\d+)$/.exec(portId);
+    if (!m) return null;
+    const n = Number(m[1]);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  private toText(value: any): string {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    return JSON.stringify(value, null, 2);
+  }
+
   private async executeRun(runId: string, workflowId: string) {
     try {
       const wf = await this.workflows.get(this.ownerKey, workflowId);
@@ -310,19 +358,24 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         const nodeType = String(node.type ?? 'lmstudio.llm');
 
         const rawPrompt = String(node.prompt ?? '').trim();
-        const needsInput = nodeType === 'workflow.condition' || nodeType === 'workflow.loop';
 
-        const sources = (incoming.get(nodeId) ?? []).slice().sort((a, b) => a.localeCompare(b));
+        const edgesIn = (incoming.get(nodeId) ?? []).slice();
 
-        if (sources.length === 1) {
-          const src = sources[0];
+        // default upstream resolution: sorted by source id
+        const sourcesSorted = edgesIn
+          .map((e) => e.source)
+          .slice()
+          .sort((a, b) => a.localeCompare(b));
+
+        if (sourcesSorted.length === 1) {
+          const src = sourcesSorted[0];
           if (!(src in ctx.nodes)) {
             throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
           }
           ctx.input = ctx.nodes[src];
-        } else if (sources.length > 1) {
+        } else if (sourcesSorted.length > 1) {
           const obj: Record<string, any> = {};
-          for (const src of sources) {
+          for (const src of sourcesSorted) {
             if (!(src in ctx.nodes)) {
               throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
             }
@@ -333,30 +386,11 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           ctx.input = null;
         }
 
-        let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
-
-        if (sources.length > 0) {
-          const inputText =
-            ctx.input === null || ctx.input === undefined
-              ? ''
-              : typeof ctx.input === 'string'
-                ? ctx.input
-                : JSON.stringify(ctx.input, null, 2);
-
-          renderedPrompt =
-            `You are given upstream context from previous workflow steps.\n` +
-            `---\nUPSTREAM_INPUT:\n${inputText}\n---\n\n` +
-            renderedPrompt;
-        }
-
-        if (nodeType === 'workflow.condition' || nodeType === 'workflow.loop') {
-          const content = ctx.input;
-          const text =
-            content === null || content === undefined
-              ? ''
-              : typeof content === 'string'
-                ? content
-                : JSON.stringify(content);
+        // ----------------------------
+        // UI preview node (no-op-ish, but allowed in runs)
+        // ----------------------------
+        if (nodeType === 'ui.preview') {
+          const text = this.toText(ctx.input);
 
           const artifact = await this.workflows.createArtifact(runId, null, {
             kind: 'text',
@@ -372,8 +406,140 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             outputJson: null,
             primaryArtifactId: artifact.id,
             inputSnapshot: {
-              sources,
-              needsInput,
+              sources: sourcesSorted,
+              note: 'ui.preview pass-through',
+            },
+            error: null,
+          });
+
+          ctx.nodes[nodeId] = text;
+          continue;
+        }
+
+        // ----------------------------
+        // Merge node (ordered concatenation by targetPort in-1..in-n)
+        // ----------------------------
+        if (nodeType === 'workflow.merge') {
+          const separator = (node?.config?.merge?.separator ??
+            node?.mergeSeparator ??
+            '\n\n') as string;
+
+          const ordered = edgesIn
+            .map((e) => ({
+              source: e.source,
+              idx: this.portIndex(e.targetPort),
+              targetPort: e.targetPort,
+            }))
+            .sort((a, b) => {
+              const ai = a.idx ?? 999999;
+              const bi = b.idx ?? 999999;
+              if (ai !== bi) return ai - bi;
+              return a.source.localeCompare(b.source);
+            });
+
+          const parts: string[] = [];
+          for (const item of ordered) {
+            if (!(item.source in ctx.nodes)) {
+              throw new Error(`Missing upstream output: ${item.source} required by ${nodeId}`);
+            }
+            parts.push(this.toText(ctx.nodes[item.source]));
+          }
+
+          const merged = parts.join(String(separator ?? '\n\n'));
+
+          const artifact = await this.workflows.createArtifact(runId, null, {
+            kind: 'text',
+            mimeType: 'text/plain',
+            contentText: merged,
+          });
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'completed',
+            startedAt: new Date(),
+            finishedAt: new Date(),
+            outputText: merged,
+            outputJson: null,
+            primaryArtifactId: artifact.id,
+            inputSnapshot: {
+              sources: ordered.map((x) => ({ source: x.source, targetPort: x.targetPort ?? null })),
+              separator: String(separator ?? '\n\n'),
+              note: 'workflow.merge',
+            },
+            error: null,
+          });
+
+          ctx.nodes[nodeId] = merged;
+          continue;
+        }
+
+        // ----------------------------
+        // Export node (creates artifact with filename)
+        // ----------------------------
+        if (nodeType === 'workflow.export') {
+          if (sourcesSorted.length !== 1) {
+            throw new Error(
+              `workflow.export requires exactly 1 input (got ${sourcesSorted.length})`,
+            );
+          }
+
+          const src = sourcesSorted[0];
+          if (!(src in ctx.nodes))
+            throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
+
+          const text = this.toText(ctx.nodes[src]);
+
+          const filename = (node?.config?.export?.filename ??
+            node?.exportFilename ??
+            `export-${runId}-${nodeId}.txt`) as string;
+
+          const artifact = await this.workflows.createArtifact(runId, null, {
+            kind: 'text',
+            mimeType: 'text/plain',
+            filename: String(filename),
+            contentText: text,
+          });
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'completed',
+            startedAt: new Date(),
+            finishedAt: new Date(),
+            outputText: text,
+            outputJson: null,
+            primaryArtifactId: artifact.id,
+            inputSnapshot: {
+              sources: sourcesSorted,
+              filename: String(filename),
+              note: 'workflow.export',
+            },
+            error: null,
+          });
+
+          // Export can also be used as a pass-through output for downstream steps.
+          ctx.nodes[nodeId] = text;
+          continue;
+        }
+
+        // ----------------------------
+        // Existing pass-through nodes
+        // ----------------------------
+        if (nodeType === 'workflow.condition' || nodeType === 'workflow.loop') {
+          const text = this.toText(ctx.input);
+
+          const artifact = await this.workflows.createArtifact(runId, null, {
+            kind: 'text',
+            mimeType: 'text/plain',
+            contentText: text,
+          });
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'completed',
+            startedAt: new Date(),
+            finishedAt: new Date(),
+            outputText: text,
+            outputJson: null,
+            primaryArtifactId: artifact.id,
+            inputSnapshot: {
+              sources: sourcesSorted,
               note: 'pass-through v2',
             },
             error: null,
@@ -382,6 +548,10 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           ctx.nodes[nodeId] = text;
           continue;
         }
+
+        // ----------------------------
+        // LLM nodes
+        // ----------------------------
 
         if (nodeType !== 'lmstudio.llm') {
           await this.workflows.upsertNodeRun(runId, nodeId, {
@@ -395,6 +565,17 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         const profileName = String(node.profileName ?? '').trim();
         if (!profileName) throw new Error(`Node ${nodeId} missing profileName`);
         if (!rawPrompt) throw new Error(`Node ${nodeId} missing prompt`);
+
+        // Render prompt after ctx.input is set.
+        let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
+
+        if (sourcesSorted.length > 0) {
+          const inputText = this.toText(ctx.input);
+          renderedPrompt =
+            `You are given upstream context from previous workflow steps.\n` +
+            `---\nUPSTREAM_INPUT:\n${inputText}\n---\n\n` +
+            renderedPrompt;
+        }
 
         const profile = await this.settings.getByName(this.ownerKey, profileName);
         if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
@@ -414,8 +595,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             profileName,
             modelKey: params.modelKey,
             params,
-            sources,
-            needsInput,
+            sources: sourcesSorted,
             prompt: renderedPrompt,
           },
           error: null,

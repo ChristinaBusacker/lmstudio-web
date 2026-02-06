@@ -81,7 +81,6 @@ export class WorkflowsService {
 
     const saved = await this.runs.save(run);
 
-    // SSE: run status
     this.sse.publish({
       type: 'workflow.run.status',
       workflowId,
@@ -129,7 +128,6 @@ export class WorkflowsService {
   }
 
   async claimNextQueued(ownerKey: string, lockedBy: string) {
-    // naive claim: pick the oldest queued run that isn't locked
     const run = await this.runs.findOne({
       where: { ownerKey, status: 'queued' as WorkflowRunStatus },
       order: { createdAt: 'ASC' },
@@ -149,7 +147,6 @@ export class WorkflowsService {
     const updated = await this.runs.findOne({ where: { id: run.id } });
     if (!updated) return null;
 
-    // SSE: run status
     this.sse.publish({
       type: 'workflow.run.status',
       workflowId: updated.workflowId,
@@ -393,7 +390,6 @@ export class WorkflowsService {
         out.push({ source, target });
       }
 
-      // fallback legacy inputFrom -> edges if no edges exist
       if (!out.length) {
         for (const n of nodes) {
           const target = String(n?.id ?? '').trim();
@@ -405,7 +401,6 @@ export class WorkflowsService {
         }
       }
 
-      // dedupe
       const seen = new Set<string>();
       const deduped: Edge[] = [];
       for (const e of out) {
@@ -420,7 +415,6 @@ export class WorkflowsService {
 
     const edges = normalizeEdges();
 
-    // incoming map
     const incoming = new Map<string, string[]>();
     for (const e of edges) {
       if (!incoming.has(e.target)) incoming.set(e.target, []);
@@ -431,7 +425,6 @@ export class WorkflowsService {
     const nodeById = new Map<string, any>();
     for (const n of nodes) if (n?.id) nodeById.set(String(n.id), n);
 
-    // Build adjacency for downstream traversal based on EFFECTIVE deps
     const adj = new Map<string, Set<string>>();
 
     for (const id of ids) {
@@ -444,6 +437,9 @@ export class WorkflowsService {
       const needsEdgeInput =
         nodeType === 'workflow.condition' ||
         nodeType === 'workflow.loop' ||
+        nodeType === 'workflow.merge' ||
+        nodeType === 'workflow.export' ||
+        nodeType === 'ui.preview' ||
         promptNeedsInput(prompt);
 
       const deps = new Set<string>();
@@ -464,7 +460,6 @@ export class WorkflowsService {
       }
     }
 
-    // Downstream traversal
     const downstream = new Set<string>();
     const stack = [nodeId];
     while (stack.length) {

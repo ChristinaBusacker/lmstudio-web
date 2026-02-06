@@ -19,6 +19,7 @@ import {
   NgDiagramConfig,
   NgDiagramNodeTemplateMap,
   provideNgDiagram,
+  type EdgeDrawnEvent,
 } from 'ng-diagram';
 import { distinctUntilChanged, filter, map, tap } from 'rxjs';
 
@@ -160,6 +161,10 @@ export class WorkflowPage {
 
   onSelectionMoved(): void {
     this.facade.markDirty();
+  }
+
+  onEdgeDrawn(e: EdgeDrawnEvent): void {
+    this.facade.onEdgeDrawn(e);
   }
 
   addNode(): void {

@@ -11,6 +11,7 @@
       [nodeTemplateMap]="nodeTemplateMap"
       (diagramInit)="onDiagramInit()"
       (selectionMoved)="onSelectionMoved()"
+      (edgeDrawn)="onEdgeDrawn($event)"
     >
       <ng-diagram-background />
     </ng-diagram>

@@ -3,7 +3,20 @@
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.35);
-  color: inherit;
+
+  position: relative;
+
+  /* IMPORTANT:
+   * Ports intentionally sit outside the node bounds (negative left/right),
+   * so the node itself must not clip them.
+   */
+  overflow: visible;
+}
+
+/* We still want clean rounded corners for the inner content */
+.header,
+.body {
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -52,6 +65,29 @@
   line-height: 1.35;
 }
 
+.hint {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.preview {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8px;
+}
+
+.previewText {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  max-height: 160px;
+  overflow: auto;
+}
+
 .controls {
   display: flex;
   justify-content: flex-end;
@@ -63,4 +99,73 @@
     align-items: center;
     justify-content: center;
   }
+}
+
+/* ---------------- merge ports ---------------- */
+
+.mergePort,
+.mergeOutPort {
+  position: absolute;
+  z-index: 5;
+
+  /* reliable connection / hit target */
+  --ng-diagram-port-size: 14px;
+  --ng-diagram-port-bg: transparent;
+  --ng-diagram-port-border: transparent;
+}
+
+.mergePort {
+  left: -28px;
+}
+
+.mergeOutPort {
+  right: -12px;
+}
+
+.mergePortInner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 10px 0 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.45);
+  user-select: none;
+}
+
+.mergePortDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+.mergePortBadge {
+  width: 22px;
+  height: 18px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  opacity: 0.9;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  flex: 0 0 auto;
+}
+
+.mergePortLabelText {
+  font-size: 11px;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+  width: 110px;
+}
+
+.mergeOutInner {
+  padding-right: 8px;
+  padding-left: 8px;
 }
