@@ -8,7 +8,12 @@ import { SettingsService } from '../settings/settings.service';
 import { ChatEngineService } from '../chats/chat-engine.service';
 import type { LmMessage } from '../common/types/llm.types';
 
-type Graph = { nodes?: any[] };
+type Graph = {
+  nodes?: any[];
+  edges?: Array<{ id?: string; source?: string; target?: string }>;
+};
+
+type Edge = { id: string; source: string; target: string };
 
 @Injectable()
 export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -54,32 +59,138 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // ----------------------------
+  // Graph normalization (v2 + legacy)
+  // ----------------------------
+
+  private normalizeEdges(graph: Graph, nodeIds: Set<string>): Edge[] {
+    const raw = Array.isArray(graph.edges) ? graph.edges : [];
+    const out: Edge[] = [];
+
+    for (const e of raw) {
+      const source = String(e?.source ?? '').trim();
+      const target = String(e?.target ?? '').trim();
+      if (!source || !target) continue;
+      if (source === target) continue;
+      if (!nodeIds.has(source) || !nodeIds.has(target)) continue;
+      out.push({ id: `${source}->${target}`, source, target });
+    }
+
+    // dedupe + stable
+    const seen = new Set<string>();
+    const deduped: Edge[] = [];
+    for (const e of out) {
+      const k = `${e.source}->${e.target}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      deduped.push(e);
+    }
+
+    return deduped.sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  private deriveEdgesFromLegacyInputFrom(nodes: any[], nodeIds: Set<string>): Edge[] {
+    const out: Edge[] = [];
+    for (const n of nodes) {
+      const target = String(n?.id ?? '').trim();
+      const source = typeof n?.inputFrom === 'string' ? n.inputFrom.trim() : '';
+      if (!source || !target) continue;
+      if (source === target) continue;
+      if (!nodeIds.has(source) || !nodeIds.has(target)) continue;
+      out.push({ id: `${source}->${target}`, source, target });
+    }
+    return out.sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  private getNormalizedGraph(graph: Graph) {
+    const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
+    const ids = nodes.map((n) => String(n?.id ?? '')).filter(Boolean);
+    const nodeIds = new Set(ids);
+
+    const edges = this.normalizeEdges(graph, nodeIds);
+    const finalEdges = edges.length ? edges : this.deriveEdgesFromLegacyInputFrom(nodes, nodeIds);
+
+    return { nodes, ids, nodeIds, edges: finalEdges };
+  }
+
+  // ----------------------------
+  // Dependency detection
+  // ----------------------------
+
+  private extractNodeRefs(prompt: string): string[] {
+    // supports {{nodes.X}} and {{steps.X}} (+ optional .path)
+    const txt = String(prompt ?? '');
+    const out: string[] = [];
+
+    const rx = /\{\{\s*(?:nodes|steps)\.([a-zA-Z0-9_-]+)(?:\.[^}]+)?\s*\}\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = rx.exec(txt))) out.push(m[1]);
+
+    return out;
+  }
+
+  private buildDependencies(graph: Graph) {
+    const { nodes, ids, nodeIds, edges } = this.getNormalizedGraph(graph);
+
+    const incoming = new Map<string, string[]>();
+    for (const e of edges) {
+      if (!incoming.has(e.target)) incoming.set(e.target, []);
+      incoming.get(e.target)!.push(e.source);
+    }
+    for (const [k, arr] of incoming) arr.sort((a, b) => a.localeCompare(b));
+
+    const nodeById = new Map<string, any>();
+    for (const n of nodes) if (n?.id) nodeById.set(String(n.id), n);
+
+    const deps = new Map<string, Set<string>>();
+    for (const id of ids) deps.set(id, new Set());
+
+    for (const id of ids) {
+      const n = nodeById.get(id);
+      if (!n) continue;
+
+      const nodeType = String(n.type ?? 'lmstudio.llm');
+      const prompt = String(n.prompt ?? '');
+
+      // Edge dependencies
+      const needsEdgeInput = nodeType === 'workflow.condition' || nodeType === 'workflow.loop';
+
+      for (const src of incoming.get(id) ?? []) {
+        if (nodeIds.has(src) && src !== id) deps.get(id)!.add(src);
+      }
+
+      // Template references always create deps
+      for (const ref of this.extractNodeRefs(prompt)) {
+        if (nodeIds.has(ref) && ref !== id) deps.get(id)!.add(ref);
+      }
+    }
+
+    return { ids, nodeById, deps, incoming };
+  }
+
   /**
-   * v1 execution order is derived from data dependencies:
-   * each node may reference a single upstream node via `inputFrom`.
+   * Topological order derived from computed deps.
+   * - If cycle/missing -> fall back to declared node order.
    */
   private topoSort(graph: Graph): string[] {
-    const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
-    const ids = nodes.map((n) => n?.id).filter(Boolean);
+    const { ids, deps } = this.buildDependencies(graph);
 
     const indeg = new Map<string, number>();
     const adj = new Map<string, Set<string>>();
+
     for (const id of ids) indeg.set(id, 0);
 
-    const idSet = new Set(ids);
-    for (const n of nodes) {
-      const to = n?.id;
-      const from = typeof n?.inputFrom === 'string' ? n.inputFrom.trim() : '';
-      if (!to || !from) continue;
-      if (!idSet.has(from) || !idSet.has(to)) continue;
-      if (from === to) continue;
-      indeg.set(to, (indeg.get(to) ?? 0) + 1);
-      if (!adj.has(from)) adj.set(from, new Set());
-      adj.get(from)!.add(to);
+    for (const [to, fromSet] of deps) {
+      for (const from of fromSet) {
+        indeg.set(to, (indeg.get(to) ?? 0) + 1);
+        if (!adj.has(from)) adj.set(from, new Set());
+        adj.get(from)!.add(to);
+      }
     }
 
     const q: string[] = [];
     for (const [id, d] of indeg) if (d === 0) q.push(id);
+    q.sort((a, b) => a.localeCompare(b));
 
     const out: string[] = [];
     while (q.length) {
@@ -87,20 +198,24 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       out.push(cur);
       for (const nx of adj.get(cur) ?? []) {
         indeg.set(nx, (indeg.get(nx) ?? 0) - 1);
-        if (indeg.get(nx) === 0) q.push(nx);
+        if (indeg.get(nx) === 0) {
+          q.push(nx);
+          q.sort((a, b) => a.localeCompare(b));
+        }
       }
     }
 
-    // Fallback: if cycle/missing edges -> preserve node list order
     if (out.length !== ids.length) return ids;
     return out;
   }
 
+  // ----------------------------
+  // Templating and execution
+  // ----------------------------
+
   private renderTemplate(input: string, ctx: any): string {
-    // Backwards compat: allow {{steps.X}} and {{nodes.X}}.
     const alias = input.replace(/\{\{\s*steps\./g, '{{nodes.');
 
-    // v1 preferred: {{input}} / {{input.path.to.field}}
     const withInput = alias.replace(
       /\{\{\s*input(?:\.([a-zA-Z0-9_$. -]+))?\s*\}\}/g,
       (_m, rest) => {
@@ -123,7 +238,6 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       },
     );
 
-    // Legacy: {{nodes.NODEID}} / {{nodes.NODEID.path}}
     return withInput.replace(
       /\{\{\s*nodes\.([a-zA-Z0-9_-]+)(?:\.([a-zA-Z0-9_$. -]+))?\s*\}\}/g,
       (_m, nodeId, rest) => {
@@ -167,12 +281,12 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     try {
       const wf = await this.workflows.get(this.ownerKey, workflowId);
       const graph: Graph = wf.graph ?? {};
-      const nodeOrder = this.topoSort(graph);
 
-      const nodeById = new Map<string, any>();
-      for (const n of graph.nodes ?? []) if (n?.id) nodeById.set(n.id, n);
+      const nodeOrder = this.topoSort(graph);
+      const { nodeById, incoming } = this.buildDependencies(graph);
 
       // Context of resolved outputs for templating
+      // ctx.input is computed per-node from incoming edges
       const ctx: any = { nodes: {}, input: null };
 
       // Rehydrate already-completed node runs (resume support)
@@ -199,25 +313,54 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
         const nodeType = String(node.type ?? 'lmstudio.llm');
 
-        // Resolve the single-input dependency (v1)
-        const inputFrom = typeof node.inputFrom === 'string' ? node.inputFrom.trim() : '';
-        if (inputFrom) {
-          // Ensure upstream output exists
-          if (!(inputFrom in ctx.nodes)) {
-            throw new Error(
-              `Node ${nodeId} depends on ${inputFrom}, but its output is not available. ` +
-                `Check 'Input (from node)' bindings and cycles.`,
-            );
+        // Build input from ALL incoming edges (only if prompt/type needs it)
+        const rawPrompt = String(node.prompt ?? '').trim();
+        const needsInput = nodeType === 'workflow.condition' || nodeType === 'workflow.loop';
+
+        const sources = (incoming.get(nodeId) ?? []).slice().sort((a, b) => a.localeCompare(b));
+
+        // ctx.input aus ALLEN Sources bauen (1 source -> value, mehrere -> object keyed by nodeId)
+        if (sources.length === 1) {
+          const src = sources[0];
+          if (!(src in ctx.nodes)) {
+            throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
           }
-          ctx.input = ctx.nodes[inputFrom];
+          ctx.input = ctx.nodes[src];
+        } else if (sources.length > 1) {
+          const obj: Record<string, any> = {};
+          for (const src of sources) {
+            if (!(src in ctx.nodes)) {
+              throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
+            }
+            obj[src] = ctx.nodes[src];
+          }
+          ctx.input = obj;
         } else {
           ctx.input = null;
         }
 
+        // Prompt rendern
+        let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
+
+        // AUTOMATISCHE Input-Injection, sobald es Sources gibt,
+        // aber nur wenn der User nicht explizit {{input}} verwendet (sonst doppelt)
+        if (sources.length > 0 && !this.promptNeedsInput(rawPrompt)) {
+          const inputText =
+            ctx.input === null || ctx.input === undefined
+              ? ''
+              : typeof ctx.input === 'string'
+                ? ctx.input
+                : JSON.stringify(ctx.input, null, 2);
+
+          renderedPrompt =
+            `You are given upstream context from previous workflow steps.\n` +
+            `---\nUPSTREAM_INPUT:\n${inputText}\n---\n\n` +
+            renderedPrompt;
+        }
+
         // Execute by node type
         if (nodeType === 'workflow.condition' || nodeType === 'workflow.loop') {
-          // v1 placeholders: pass-through (so these node types can exist in the diagram)
-          // Later: condition will gate branches; loop will iterate a subgraph.
+          // still pass-through for now
           const content = ctx.input;
           const text =
             content === null || content === undefined
@@ -225,11 +368,13 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
               : typeof content === 'string'
                 ? content
                 : JSON.stringify(content);
+
           const artifact = await this.workflows.createArtifact(runId, null, {
             kind: 'text',
             mimeType: 'text/plain',
             contentText: text,
           });
+
           await this.workflows.upsertNodeRun(runId, nodeId, {
             status: 'completed',
             startedAt: new Date(),
@@ -237,9 +382,14 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             outputText: text,
             outputJson: null,
             primaryArtifactId: artifact.id,
-            inputSnapshot: { inputFrom, note: 'pass-through v1' },
+            inputSnapshot: {
+              sources,
+              needsInput,
+              note: 'pass-through v2',
+            },
             error: null,
           });
+
           ctx.nodes[nodeId] = text;
           continue;
         }
@@ -254,7 +404,6 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         }
 
         const profileName = String(node.profileName ?? '').trim();
-        const rawPrompt = String(node.prompt ?? '').trim();
         if (!profileName) throw new Error(`Node ${nodeId} missing profileName`);
         if (!rawPrompt) throw new Error(`Node ${nodeId} missing prompt`);
 
@@ -264,7 +413,6 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         const params = (profile.params ?? {}) as Record<string, any>;
         if (!params.modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
-        const renderedPrompt = this.renderTemplate(rawPrompt, ctx);
         const systemPrompt = String(
           (profile as any).systemPrompt ?? (params as any).systemPrompt ?? '',
         ).trim();
@@ -277,13 +425,13 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             profileName,
             modelKey: params.modelKey,
             params,
-            inputFrom,
+            sources,
+            needsInput,
             prompt: renderedPrompt,
           },
           error: null,
         });
 
-        // Stream into local buffer; we persist at the end (V1).
         let full = '';
         const gen = this.engine.streamChat(
           runId + ':' + nodeId,
@@ -294,11 +442,9 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         while (true) {
           const { value, done } = await gen.next();
           if (done) {
-            // Persist outputs
             const parsed = this.safeJsonParse(full.trim());
-            let artifact;
             if (parsed.ok) {
-              artifact = await this.workflows.createArtifact(runId, nodeRun.id, {
+              const artifact = await this.workflows.createArtifact(runId, nodeRun.id, {
                 kind: 'json',
                 mimeType: 'application/json',
                 contentJson: parsed.value,
@@ -312,7 +458,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
               });
               ctx.nodes[nodeId] = parsed.value;
             } else {
-              artifact = await this.workflows.createArtifact(runId, nodeRun.id, {
+              const artifact = await this.workflows.createArtifact(runId, nodeRun.id, {
                 kind: 'text',
                 mimeType: 'text/plain',
                 contentText: full,
@@ -330,9 +476,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           }
 
           if (typeof (value as any)?.delta === 'string') full += (value as any).delta;
-          else if (value?.delta && typeof value.delta === 'object') {
-            full += value.delta['content'];
-          }
+          else if (value?.delta && typeof value.delta === 'object') full += value.delta['content'];
         }
       }
 

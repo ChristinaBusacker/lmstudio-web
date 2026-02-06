@@ -349,7 +349,7 @@ export class WorkflowsService {
 
   /**
    * Rerun-from: delete downstream node runs + artifacts and set run back to queued.
-   * v1: downstream is derived from `inputFrom` links.
+   * v2: downstream is derived from edges + prompt/type dependencies (matching worker behavior).
    */
   async rerunFrom(ownerKey: string, runId: string, nodeId: string) {
     const run = await this.runs.findOne({ where: { id: runId, ownerKey } });
@@ -361,20 +361,110 @@ export class WorkflowsService {
     const graph = wf.graph ?? {};
     const nodes: any[] = Array.isArray(graph.nodes) ? graph.nodes : [];
 
-    const nodeIds = new Set(nodes.map((n) => n?.id).filter(Boolean));
+    const ids = nodes.map((n) => String(n?.id ?? '')).filter(Boolean);
+    const nodeIds = new Set(ids);
+
     if (!nodeIds.has(nodeId)) throw new BadRequestException(`Unknown nodeId: ${nodeId}`);
 
-    // v1: downstream depends on `inputFrom` links (data dependencies)
-    // Edge direction: inputFrom (upstream) -> node (downstream)
+    const promptNeedsInput = (prompt: string) =>
+      /\{\{\s*input(?:\.[^}]+)?\s*\}\}/.test(prompt ?? '');
+
+    const extractNodeRefs = (prompt: string): string[] => {
+      const txt = String(prompt ?? '');
+      const out: string[] = [];
+      const rx = /\{\{\s*(?:nodes|steps)\.([a-zA-Z0-9_-]+)(?:\.[^}]+)?\s*\}\}/g;
+      let m: RegExpExecArray | null;
+      while ((m = rx.exec(txt))) out.push(m[1]);
+      return out;
+    };
+
+    type Edge = { source: string; target: string };
+
+    const normalizeEdges = (): Edge[] => {
+      const raw: any[] = Array.isArray(graph?.edges) ? graph.edges : [];
+      const out: Edge[] = [];
+
+      for (const e of raw) {
+        const source = String(e?.source ?? '').trim();
+        const target = String(e?.target ?? '').trim();
+        if (!source || !target) continue;
+        if (source === target) continue;
+        if (!nodeIds.has(source) || !nodeIds.has(target)) continue;
+        out.push({ source, target });
+      }
+
+      // fallback legacy inputFrom -> edges if no edges exist
+      if (!out.length) {
+        for (const n of nodes) {
+          const target = String(n?.id ?? '').trim();
+          const source = typeof n?.inputFrom === 'string' ? n.inputFrom.trim() : '';
+          if (!source || !target) continue;
+          if (source === target) continue;
+          if (!nodeIds.has(source) || !nodeIds.has(target)) continue;
+          out.push({ source, target });
+        }
+      }
+
+      // dedupe
+      const seen = new Set<string>();
+      const deduped: Edge[] = [];
+      for (const e of out) {
+        const k = `${e.source}->${e.target}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        deduped.push(e);
+      }
+
+      return deduped;
+    };
+
+    const edges = normalizeEdges();
+
+    // incoming map
+    const incoming = new Map<string, string[]>();
+    for (const e of edges) {
+      if (!incoming.has(e.target)) incoming.set(e.target, []);
+      incoming.get(e.target)!.push(e.source);
+    }
+    for (const [k, arr] of incoming) arr.sort((a, b) => a.localeCompare(b));
+
+    const nodeById = new Map<string, any>();
+    for (const n of nodes) if (n?.id) nodeById.set(String(n.id), n);
+
+    // Build adjacency for downstream traversal based on EFFECTIVE deps
     const adj = new Map<string, Set<string>>();
-    for (const n of nodes) {
-      const to = n?.id;
-      const from = typeof n?.inputFrom === 'string' ? n.inputFrom.trim() : '';
-      if (!from || !to) continue;
-      if (!adj.has(from)) adj.set(from, new Set());
-      adj.get(from)!.add(to);
+
+    for (const id of ids) {
+      const n = nodeById.get(id);
+      if (!n) continue;
+
+      const nodeType = String(n.type ?? 'lmstudio.llm');
+      const prompt = String(n.prompt ?? '');
+
+      const needsEdgeInput =
+        nodeType === 'workflow.condition' ||
+        nodeType === 'workflow.loop' ||
+        promptNeedsInput(prompt);
+
+      const deps = new Set<string>();
+
+      if (needsEdgeInput) {
+        for (const src of incoming.get(id) ?? []) {
+          if (nodeIds.has(src) && src !== id) deps.add(src);
+        }
+      }
+
+      for (const ref of extractNodeRefs(prompt)) {
+        if (nodeIds.has(ref) && ref !== id) deps.add(ref);
+      }
+
+      for (const from of deps) {
+        if (!adj.has(from)) adj.set(from, new Set());
+        adj.get(from)!.add(id);
+      }
     }
 
+    // Downstream traversal
     const downstream = new Set<string>();
     const stack = [nodeId];
     while (stack.length) {

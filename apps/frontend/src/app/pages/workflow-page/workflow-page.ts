@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { CommonModule } from '@angular/common';
 import {
@@ -45,6 +46,7 @@ import {
   WORKFLOW_NODE_TEMPLATE,
   workflowToDiagramModel,
 } from './workflow-diagram.adapter';
+
 import { WorkflowEditorStateService } from './workflow-editor-state.service';
 
 function isEditableTarget(t: EventTarget | null): boolean {
@@ -101,6 +103,7 @@ export class WorkflowPage implements OnInit {
   private lastSavedSnapshot: GraphSnapshot | null = null;
 
   private lastLoadedGraphSig: string | null = null;
+  private pointerDownSig: string | null = null;
 
   private diagramReady = false;
   private queuedOps: Array<() => void> = [];
@@ -126,7 +129,6 @@ export class WorkflowPage implements OnInit {
   model: unknown = initializeModel({ nodes: [], edges: [] });
 
   ngOnInit() {
-    // Node-data edits request snapshots; we consume that here.
     runInInjectionContext(this.envInjector, () => {
       effect(() => {
         if (this.editorState.consumeSnapshotRequest()) {
@@ -142,8 +144,6 @@ export class WorkflowPage implements OnInit {
         distinctUntilChanged(),
         tap((workflowId) => {
           this.workflowId = workflowId;
-
-          // ✅ Connect workflow SSE so run list updates live
           this.sse.connectWorkflow(workflowId);
 
           this.store.dispatch(new SetSelectedWorkflow(workflowId));
@@ -153,7 +153,6 @@ export class WorkflowPage implements OnInit {
       )
       .subscribe();
 
-    // on destroy: stop the workflow stream
     this.destroyRef.onDestroy(() => {
       this.sse.disconnectWorkflow();
     });
@@ -167,10 +166,7 @@ export class WorkflowPage implements OnInit {
 
         const incomingSig = this.workflowGraphSig(wf);
 
-        // Protect local edits
         if (this.editorDirty()) return;
-
-        // Avoid re-initializing for same content
         if (incomingSig === this.lastLoadedGraphSig) return;
 
         this.resetEditorForIncomingModel();
@@ -180,6 +176,19 @@ export class WorkflowPage implements OnInit {
 
         this.lastLoadedGraphSig = incomingSig;
       });
+    });
+  }
+
+  @HostListener('window:pointerup', ['$event'])
+  onPointerUp(_e: PointerEvent) {
+    this.runWhenReady(() => {
+      if (this.pointerDownSig === null) return;
+
+      const after = this.diagramSig();
+      if (after !== this.pointerDownSig) {
+        this.editorDirty.set(true);
+      }
+      this.pointerDownSig = null;
     });
   }
 
@@ -201,14 +210,18 @@ export class WorkflowPage implements OnInit {
   onDiagramPointerDown(e: PointerEvent) {
     if (e.button !== 0) return;
     if (isEditableTarget(e.target)) return;
-    this.runWhenReady(() => this.pushHistorySnapshot());
+
+    this.runWhenReady(() => {
+      this.pointerDownSig = this.diagramSig();
+      this.pushHistorySnapshot();
+    });
   }
 
   onSelectionMoved() {
     this.editorDirty.set(true);
   }
 
-  addNode(kind: 'author' | 'book' | 'llm') {
+  addNode() {
     this.runWhenReady(() => {
       this.pushHistorySnapshot();
       this.editorDirty.set(true);
@@ -227,10 +240,8 @@ export class WorkflowPage implements OnInit {
           data: {
             label: id,
             nodeType: 'lmstudio.llm',
-            profileName:
-              kind === 'author' ? 'Personen Generator' : kind === 'book' ? 'Buch-Generator' : '',
+            profileName: 'Default',
             prompt: '',
-            inputFrom: '',
           },
         },
       ]);
@@ -247,7 +258,9 @@ export class WorkflowPage implements OnInit {
 
       this.lastLoadedGraphSig = this.workflowGraphSig({ graph });
 
-      this.store.dispatch(new UpdateWorkflow(wf.id, { graph }));
+      if (graph) {
+        this.store.dispatch(new UpdateWorkflow(wf.id, { graph: graph as any }));
+      }
 
       this.editorDirty.set(false);
       this.lastSavedSnapshot = this.snapshot();
@@ -358,6 +371,37 @@ export class WorkflowPage implements OnInit {
 
   // ---------- internals ----------
 
+  private diagramSig(): string {
+    const json = JSON.parse(this.diagramModel.toJSON());
+    const nodes = Array.isArray(json?.nodes) ? json.nodes : [];
+    const edges = Array.isArray(json?.edges) ? json.edges : [];
+
+    // nur "logische" Felder, keine transienten UI Sachen
+    return JSON.stringify({
+      nodes: nodes.map((n: any) => ({
+        id: n.id,
+        position: n.position ?? null,
+        type: n.type ?? null,
+        data: {
+          // hier nur die Felder, die du persistierst
+          label: n.data?.label ?? null,
+          nodeType: n.data?.nodeType ?? null,
+          profileName: n.data?.profileName ?? null,
+          prompt: n.data?.prompt ?? null,
+        },
+      })),
+      edges: edges.map((e: any) => ({
+        id: e.id ?? null,
+        source: e.source ?? null,
+        target: e.target ?? null,
+        sourcePort: e.sourcePort ?? null,
+        targetPort: e.targetPort ?? null,
+        type: e.type ?? null,
+        // data nicht in die Signatur, weil oft rein visuell
+      })),
+    });
+  }
+
   private ensureDataEditSnapshot() {
     if (this.dataEditSnapshotTaken) return;
     this.pushHistorySnapshot();
@@ -390,8 +434,14 @@ export class WorkflowPage implements OnInit {
     this.undoStack.push(this.snapshot());
     this.redoStack = [];
   }
-
   private applySnapshot(snapshot: GraphSnapshot) {
+    const modelAny = this.diagramModel as any;
+
+    if (typeof modelAny.edges === 'function' && typeof modelAny.deleteEdges === 'function') {
+      const existingEdgeIds = (modelAny.edges() ?? []).map((e: any) => e.id);
+      if (existingEdgeIds.length) modelAny.deleteEdges(existingEdgeIds);
+    }
+
     const existingNodeIds = this.diagramModel.nodes().map((n) => n.id);
     if (existingNodeIds.length) this.diagramModel.deleteNodes(existingNodeIds);
 
@@ -400,7 +450,24 @@ export class WorkflowPage implements OnInit {
   }
 
   private workflowGraphSig(wf: { graph?: unknown } | null): string {
-    return JSON.stringify(normalizeWorkflowGraph(wf?.graph ?? null));
+    const g = normalizeWorkflowGraph(wf?.graph ?? null);
+
+    return JSON.stringify({
+      nodes: g.nodes.map((n) => ({
+        id: n.id,
+        type: n.type,
+        profileName: n.profileName ?? '',
+        prompt: n.prompt ?? '',
+        position: n.position ?? null,
+      })),
+      edges: (g.edges ?? []).map((e) => ({
+        source: e.source,
+        target: e.target,
+        sourcePort: e.sourcePort ?? null,
+        targetPort: e.targetPort ?? null,
+        type: e.type ?? null,
+      })),
+    });
   }
 
   private resetEditorForEmpty() {

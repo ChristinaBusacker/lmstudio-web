@@ -1,5 +1,4 @@
 <div class="node">
-  <!-- Ports (match default ids from docs: port-left / port-right) -->
   <ng-diagram-port id="port-left" side="left" type="both"></ng-diagram-port>
   <ng-diagram-port id="port-right" side="right" type="both"></ng-diagram-port>
 
@@ -23,20 +22,7 @@
       </select>
     </label>
 
-    <label class="field">
-      <div class="label">Input (from node)</div>
-      <select
-        class="config input"
-        [value]="node().data.inputFrom"
-        (change)="updateInputFrom($event.target.value)"
-        title="Execution order is derived from this dependency"
-      >
-        <option value="">None</option>
-        @for (id of upstreamNodeOptions(); track id) {
-          <option [value]="id" [selected]="id === node().data.inputFrom">{{ id }}</option>
-        }
-      </select>
-    </label>
+    <!-- inputFrom DROPDOWN ENTFÄLLT KOMPLETT -->
 
     <label class="field">
       <div class="label">Profile</div>
@@ -44,7 +30,6 @@
         class="config input"
         [value]="node().data.profileName"
         (change)="updateProfileName($event.target.value)"
-        #configSelect
         title="Visit settings to define presets"
       >
         <option value="">Default</option>

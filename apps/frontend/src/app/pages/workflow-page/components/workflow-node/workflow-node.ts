@@ -54,20 +54,6 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
 
   title = computed(() => this.node().data.label || this.node().id);
 
-  /**
-   * Options for the single input port. This returns all other node ids.
-   * We intentionally keep this simple (v1): one input, one output.
-   */
-  upstreamNodeOptions = computed(() => {
-    const selfId = this.node().id;
-    const ids = this.model
-      .nodes()
-      .map((n) => n.id)
-      .filter((id) => id && id !== selfId)
-      .sort((a, b) => a.localeCompare(b));
-    return ids;
-  });
-
   readonly promptInput$ = new Subject<string>();
 
   constructor() {
@@ -100,14 +86,6 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
 
     const n = this.node();
     this.model.updateNodeData(n.id, { ...n.data, nodeType: value });
-  }
-
-  updateInputFrom(value: string) {
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-
-    const n = this.node();
-    this.model.updateNodeData(n.id, { ...n.data, inputFrom: value });
   }
 
   deleteNode() {

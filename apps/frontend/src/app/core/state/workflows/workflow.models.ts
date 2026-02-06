@@ -2,12 +2,10 @@ export type WorkflowRunStatus = 'queued' | 'running' | 'completed' | 'failed' | 
 export type WorkflowNodeRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'stale';
 
 /**
- * v1 Workflow Graph
+ * Workflow Graph (v2)
  *
- * Key rules:
- * - No persisted diagram edges.
- * - Each node has exactly ONE input (`inputFrom`) and ONE output (the node's full artifact).
- * - Execution order is derived from the dependencies implied by `inputFrom`.
+ * - Persisted: nodes[] + edges[]
+ * - Input eines Nodes ergibt sich aus allen incoming edges.
  */
 export type WorkflowGraph = {
   nodes: Array<{
@@ -16,12 +14,20 @@ export type WorkflowGraph = {
     type: string;
     profileName?: string;
     prompt?: string;
-    /**
-     * If set, this node consumes the full output artifact of the referenced node.
-     * This field defines the dependency and therefore the execution order.
-     */
-    inputFrom?: string | null;
     position?: { x: number; y: number };
+
+    /**
+     * v1 legacy. Nicht mehr nutzen, nicht mehr speichern.
+     * (Backend kann trotzdem legacy Graphen lesen und daraus edges ableiten.)
+     */
+    inputFrom?: never;
+  }>;
+
+  /** direction: source -> target */
+  edges?: Array<{
+    id: string;
+    source: string;
+    target: string;
   }>;
 };
 
