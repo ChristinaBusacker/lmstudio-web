@@ -7,15 +7,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export type SseEventType =
   | 'run.status'
   | 'variant.snapshot'
-  // Workflows
-  | 'workflow.run.status'
-  | 'workflow.node-run.upsert'
-  | 'workflow.artifact.created'
   | 'chat.meta.changed'
   | 'chat.thread.changed'
   | 'sidebar.changed'
   | 'models.changed'
-  | 'heartbeat';
+  | 'heartbeat'
+  // Workflows
+  | 'workflow.run.status'
+  | 'workflow.node-run.upsert'
+  | 'workflow.artifact.created';
 
 /**
  * Envelope used for all SSE events.
@@ -33,14 +33,14 @@ export class SseEnvelopeDto<TPayload = any> {
     enum: [
       'run.status',
       'variant.snapshot',
-      'workflow.run.status',
-      'workflow.node-run.upsert',
-      'workflow.artifact.created',
       'chat.meta.changed',
       'chat.thread.changed',
       'sidebar.changed',
       'models.changed',
       'heartbeat',
+      'workflow.run.status',
+      'workflow.node-run.upsert',
+      'workflow.artifact.created',
     ],
   })
   type!: SseEventType;
@@ -48,7 +48,7 @@ export class SseEnvelopeDto<TPayload = any> {
   @ApiPropertyOptional({ description: 'Chat id (if the event is scoped to a chat).' })
   chatId?: string;
 
-  @ApiPropertyOptional({ description: 'Workflow id (if the event is scoped to a workflow).' })
+  @ApiPropertyOptional({ description: 'Workflow id (if event is scoped to a workflow).' })
   workflowId?: string;
 
   @ApiPropertyOptional({ description: 'Run id (if the event is related to a run).' })
@@ -79,68 +79,8 @@ export class SseEnvelopeDto<TPayload = any> {
   payload!: TPayload;
 }
 
-// ---------------------------------------------------------------------------------------------
-// Workflow payloads
-// ---------------------------------------------------------------------------------------------
-
-export class WorkflowRunStatusEventPayloadDto {
-  @ApiProperty({
-    enum: ['queued', 'running', 'completed', 'failed', 'canceled'],
-    description: 'Current workflow run status.',
-  })
-  status!: 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
-
-  @ApiPropertyOptional({ description: 'Current node id (if running).', nullable: true })
-  currentNodeId?: string | null;
-
-  @ApiPropertyOptional({ description: 'Error message if status=failed.', nullable: true })
-  error?: string | null;
-
-  @ApiPropertyOptional({
-    description: 'Optional stats/metadata.',
-    type: 'object',
-    additionalProperties: true,
-    nullable: true,
-  })
-  stats?: Record<string, any> | null;
-}
-
-export class WorkflowNodeRunUpsertPayloadDto {
-  @ApiProperty({ description: 'Node id.' })
-  nodeId!: string;
-
-  @ApiProperty({ enum: ['pending', 'running', 'completed', 'failed', 'stale'] })
-  status!: 'pending' | 'running' | 'completed' | 'failed' | 'stale';
-
-  @ApiPropertyOptional({ nullable: true })
-  error?: string | null;
-
-  @ApiPropertyOptional({ nullable: true })
-  startedAt?: string | null;
-
-  @ApiPropertyOptional({ nullable: true })
-  finishedAt?: string | null;
-}
-
-export class WorkflowArtifactCreatedPayloadDto {
-  @ApiProperty({ description: 'Artifact id.' })
-  artifactId!: string;
-
-  @ApiPropertyOptional({ description: 'Node id that produced the artifact.', nullable: true })
-  nodeId?: string | null;
-
-  @ApiProperty({ enum: ['json', 'text', 'image', 'binary'] })
-  kind!: 'json' | 'text' | 'image' | 'binary';
-
-  @ApiPropertyOptional({ nullable: true })
-  mimeType?: string | null;
-
-  @ApiPropertyOptional({ nullable: true })
-  filename?: string | null;
-}
-
 /**
- * Payload for chat run status events.
+ * Payload for run status events (chat runs).
  */
 export class RunStatusEventPayloadDto {
   @ApiProperty({
@@ -161,6 +101,33 @@ export class RunStatusEventPayloadDto {
   stats?: Record<string, any> | null;
 }
 
+/**
+ * Workflow run status payload.
+ */
+export class WorkflowRunStatusPayloadDto {
+  @ApiProperty({
+    enum: ['queued', 'running', 'completed', 'failed', 'canceled'],
+  })
+  status!: 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
+
+  @ApiPropertyOptional({ nullable: true })
+  currentNodeId?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  error?: string | null;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    nullable: true,
+  })
+  stats?: Record<string, any> | null;
+}
+
+/**
+ * Payload for variant snapshot events.
+ * We send "content so far" for a single assistant message's active variant.
+ */
 export class VariantSnapshotEventPayloadDto {
   @ApiProperty({ description: 'Active content for the target assistant message (content so far).' })
   content!: string;
@@ -172,72 +139,9 @@ export class VariantSnapshotEventPayloadDto {
   reasoning?: string | null;
 }
 
-export class ChatMetaChangedPayloadDto {
-  @ApiPropertyOptional({
-    description: 'Optional list of changed fields (for smarter clients).',
-    example: ['title', 'folderId'],
-    type: [String],
-  })
-  fields?: string[];
-
-  @ApiPropertyOptional({
-    description: 'Optional patch (only include changed values).',
-    example: { title: 'My new title' },
-    type: 'object',
-    additionalProperties: true,
-  })
-  patch?: {
-    title?: string | null;
-    folderId?: string | null;
-    activeHeadMessageId?: string | null;
-    deletedAt?: string | null;
-    defaultSettingsProfileId?: string | null;
-  };
-}
-
-export class ChatThreadChangedPayloadDto {
-  @ApiPropertyOptional({
-    description: 'Optional hint why thread changed.',
-    example: 'activate-head',
-  })
-  reason?: string;
-}
-
-export class SidebarChangedPayloadDto {
-  @ApiPropertyOptional({
-    description: 'Optional hint for UI.',
-    example: 'folder-renamed',
-  })
-  reason?: string;
-
-  @ApiPropertyOptional({
-    description: 'Optional patch (only include changed values).',
-    example: { title: 'My new title' },
-    type: 'object',
-    additionalProperties: true,
-  })
-  patch?: {
-    title?: string | null;
-    folderId?: string | null;
-    activeHeadMessageId?: string | null;
-    deletedAt?: string | null;
-    defaultSettingsProfileId?: string | null;
-  };
-}
-
-export class ModelsChangedPayloadDto {
-  reason?:
-    | 'model-loading-started'
-    | 'model-loaded'
-    | 'model-unloading-started'
-    | 'model-unloaded'
-    | 'model-load-failed'
-    | 'model-unload-failed';
-  modelId?: string;
-  state?: 'loading' | 'loaded' | 'unloading' | 'not-loaded' | 'unknown';
-  error?: string | null;
-}
-
+/**
+ * Payload for heartbeat events.
+ */
 export class HeartbeatPayloadDto {
   @ApiProperty({ example: true })
   ok!: boolean;

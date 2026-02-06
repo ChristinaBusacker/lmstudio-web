@@ -18,30 +18,6 @@ export class WorkflowsController {
     return this.workflows.create(this.ownerKey, dto);
   }
 
-  @Get()
-  @ApiOperation({ summary: 'List workflows' })
-  listWorkflows() {
-    return this.workflows.list(this.ownerKey);
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Get workflow by id' })
-  getWorkflow(@Param('id') id: string) {
-    return this.workflows.get(this.ownerKey, id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update workflow' })
-  updateWorkflow(@Param('id') id: string, @Body() dto: UpdateWorkflowDto) {
-    return this.workflows.update(this.ownerKey, id, dto);
-  }
-
-  @Post(':id/runs')
-  @ApiOperation({ summary: 'Start workflow run (server-side execution)' })
-  startRun(@Param('id') workflowId: string, @Body() dto: CreateWorkflowRunDto) {
-    return this.workflows.createRun(this.ownerKey, workflowId, dto);
-  }
-
   @Get('workflow-runs')
   @ApiOperation({ summary: 'List workflow runs' })
   listRuns(
@@ -66,5 +42,29 @@ export class WorkflowsController {
   @ApiOperation({ summary: 'Rerun from node (invalidate downstream)' })
   rerunFrom(@Param('runId') runId: string, @Param('nodeId') nodeId: string) {
     return this.workflows.rerunFrom(this.ownerKey, runId, nodeId);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'List workflows' })
+  listWorkflows() {
+    return this.workflows.list(this.ownerKey);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get workflow by id' })
+  getWorkflow(@Param('id') id: string) {
+    return this.workflows.get(this.ownerKey, id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update workflow' })
+  updateWorkflow(@Param('id') id: string, @Body() dto: UpdateWorkflowDto) {
+    return this.workflows.update(this.ownerKey, id, dto);
+  }
+
+  @Post(':id/runs')
+  @ApiOperation({ summary: 'Start workflow run (server-side execution)' })
+  startRun(@Param('id') workflowId: string, @Body() dto: CreateWorkflowRunDto) {
+    return this.workflows.createRun(this.ownerKey, workflowId, dto);
   }
 }

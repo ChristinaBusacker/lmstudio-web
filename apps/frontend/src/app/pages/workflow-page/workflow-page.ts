@@ -208,10 +208,6 @@ export class WorkflowPage implements OnInit {
     this.editorDirty.set(true);
   }
 
-  onEdgeDrawn() {
-    this.editorDirty.set(true);
-  }
-
   addNode(kind: 'author' | 'book' | 'llm') {
     this.runWhenReady(() => {
       this.pushHistorySnapshot();
@@ -234,6 +230,7 @@ export class WorkflowPage implements OnInit {
             profileName:
               kind === 'author' ? 'Personen Generator' : kind === 'book' ? 'Buch-Generator' : '',
             prompt: '',
+            inputFrom: '',
           },
         },
       ]);
@@ -259,63 +256,61 @@ export class WorkflowPage implements OnInit {
     });
   }
 
-  resetToLastSaved() {
-    this.runWhenReady(() => {
-      if (!this.lastSavedSnapshot) return;
-      this.pushHistorySnapshot();
-      this.applySnapshot(structuredClone(this.lastSavedSnapshot));
-      this.editorDirty.set(false);
-    });
-  }
-
   startRun(workflowId: string) {
-    this.store.dispatch(new StartWorkflowRun(workflowId, {}));
+    this.store.dispatch(new StartWorkflowRun(workflowId));
   }
 
   undo() {
     this.runWhenReady(() => {
-      if (this.undoStack.length === 0) return;
+      const prev = this.undoStack.pop();
+      if (!prev) return;
 
-      const current = this.snapshot();
-      const previous = this.undoStack.pop()!;
-
-      this.redoStack.push(current);
-      this.applySnapshot(previous);
+      this.redoStack.push(this.snapshot());
+      this.applySnapshot(prev);
       this.editorDirty.set(true);
     });
   }
 
   redo() {
     this.runWhenReady(() => {
-      if (this.redoStack.length === 0) return;
+      const next = this.redoStack.pop();
+      if (!next) return;
 
-      const current = this.snapshot();
-      const next = this.redoStack.pop()!;
-
-      this.undoStack.push(current);
+      this.undoStack.push(this.snapshot());
       this.applySnapshot(next);
       this.editorDirty.set(true);
     });
   }
 
+  resetToLastSaved() {
+    this.runWhenReady(() => {
+      if (!this.lastSavedSnapshot) return;
+      this.applySnapshot(this.lastSavedSnapshot);
+      this.editorDirty.set(false);
+      this.undoStack = [];
+      this.redoStack = [];
+    });
+  }
+
   @HostListener('window:keydown', ['$event'])
   onKeyDown(e: KeyboardEvent) {
+    // keep existing shortcuts behavior
     if (isEditableTarget(e.target)) return;
-
     const key = e.key.toLowerCase();
-    const ctrlOrCmd = e.ctrlKey || e.metaKey;
-    if (!ctrlOrCmd) return;
+    const mod = e.ctrlKey || e.metaKey;
 
     const stop = () => {
       e.preventDefault();
       e.stopPropagation();
     };
 
-    if (key === 's') {
+    if (mod && key === 's') {
       stop();
       this.saveGraph();
       return;
     }
+
+    if (!mod) return;
 
     if (key === 'z' && !e.shiftKey) {
       stop();

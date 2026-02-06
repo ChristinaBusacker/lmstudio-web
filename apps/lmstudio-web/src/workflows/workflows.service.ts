@@ -1,15 +1,16 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { SseBusService } from '../sse/sse-bus.service';
 import { WorkflowEntity } from './entities/workflow.entity';
 import { WorkflowRunEntity, WorkflowRunStatus } from './entities/workflow-run.entity';
-import { WorkflowNodeRunEntity } from './entities/workflow-node-run.entity';
-import { ArtifactEntity } from './entities/artifact.entity';
+import { WorkflowNodeRunEntity, WorkflowNodeRunStatus } from './entities/workflow-node-run.entity';
+import { ArtifactEntity, ArtifactKind } from './entities/artifact.entity';
+import { CreateWorkflowDto } from './dto/create-workflow.dto';
+import { UpdateWorkflowDto } from './dto/update-workflow.dto';
+import { CreateWorkflowRunDto } from './dto/create-workflow-run.dto';
+import { SseBusService } from '../sse/sse-bus.service';
 
 @Injectable()
 export class WorkflowsService {
@@ -22,68 +23,65 @@ export class WorkflowsService {
     private readonly sse: SseBusService,
   ) {}
 
-  // --------------------------------------------------------------------------------------------
-  // Workflows
-  // --------------------------------------------------------------------------------------------
-
-  async create(ownerKey: string, dto: { name: string; description?: string; graph: any }) {
-    if (!dto.graph || typeof dto.graph !== 'object')
-      throw new BadRequestException('graph must be an object');
-
-    const entity = this.workflows.create({
-      ownerKey,
-      name: dto.name.trim(),
-      description: dto.description?.trim() ?? null,
-      graph: dto.graph,
-    });
-
-    return this.workflows.save(entity);
-  }
-
   async list(ownerKey: string) {
-    return this.workflows.find({ where: { ownerKey }, order: { updatedAt: 'DESC' } });
+    return this.workflows.find({
+      where: { ownerKey },
+      order: { updatedAt: 'DESC' },
+    });
   }
 
-  async get(ownerKey: string, id: string) {
-    const wf = await this.workflows.findOne({ where: { id, ownerKey } });
-    if (!wf) throw new NotFoundException(`Workflow not found: ${id}`);
+  async get(ownerKey: string, workflowId: string) {
+    const wf = await this.workflows.findOne({ where: { id: workflowId, ownerKey } });
+    if (!wf) throw new NotFoundException(`Workflow not found: ${workflowId}`);
     return wf;
   }
 
-  async update(ownerKey: string, id: string, patch: any) {
-    const wf = await this.get(ownerKey, id);
+  async create(ownerKey: string, dto: CreateWorkflowDto) {
+    const wf = this.workflows.create({
+      ownerKey,
+      name: dto.name,
+      description: dto.description ?? null,
+      graph: dto.graph ?? { nodes: [] },
+    });
+    return this.workflows.save(wf);
+  }
 
-    if (patch.name !== undefined) wf.name = String(patch.name).trim();
-    if (patch.description !== undefined)
-      wf.description = patch.description ? String(patch.description).trim() : null;
-    if (patch.graph !== undefined) wf.graph = patch.graph;
+  async update(ownerKey: string, workflowId: string, dto: UpdateWorkflowDto) {
+    const wf = await this.get(ownerKey, workflowId);
+
+    wf.name = dto.name ?? wf.name;
+    wf.description = dto.description ?? wf.description;
+    if (dto.graph !== undefined) wf.graph = dto.graph;
 
     return this.workflows.save(wf);
   }
 
-  // --------------------------------------------------------------------------------------------
-  // Runs
-  // --------------------------------------------------------------------------------------------
+  async delete(ownerKey: string, workflowId: string) {
+    const wf = await this.get(ownerKey, workflowId);
+    await this.workflows.delete({ id: wf.id });
+    return { ok: true };
+  }
 
-  async createRun(ownerKey: string, workflowId: string, dto?: { label?: string }) {
-    await this.get(ownerKey, workflowId);
+  async createRun(ownerKey: string, workflowId: string, dto: CreateWorkflowRunDto) {
+    const wf = await this.get(ownerKey, workflowId);
 
     const run = this.runs.create({
-      workflowId,
       ownerKey,
+      workflowId: wf.id,
       status: 'queued',
-      currentNodeId: null,
-      label: dto?.label?.trim() ?? null,
+      label: dto.label ?? null,
       stats: null,
       error: null,
-      lockedBy: null,
-      lockedAt: null,
       startedAt: null,
       finishedAt: null,
+      currentNodeId: null,
+      lockedBy: null,
+      lockedAt: null,
     });
 
     const saved = await this.runs.save(run);
 
+    // SSE: run status
     this.sse.publish({
       type: 'workflow.run.status',
       workflowId,
@@ -92,24 +90,25 @@ export class WorkflowsService {
         status: saved.status,
         currentNodeId: saved.currentNodeId,
         error: saved.error,
-        stats: saved.stats,
+        stats: saved.stats ?? null,
       },
     });
 
     return saved;
   }
 
-  async listRuns(
-    ownerKey: string,
-    params?: { workflowId?: string; status?: WorkflowRunStatus; limit?: number },
-  ) {
-    const limit = Math.min(params?.limit ?? 50, 200);
+  async listRuns(ownerKey: string, q: { workflowId?: string; status?: any; limit?: number }) {
     const where: any = { ownerKey };
+    if (q.workflowId) where.workflowId = q.workflowId;
+    if (q.status) where.status = q.status;
 
-    if (params?.workflowId) where.workflowId = params.workflowId;
-    if (params?.status) where.status = params.status;
+    const limit = Math.min(Math.max(Number(q.limit ?? 50), 1), 200);
 
-    return this.runs.find({ where, order: { createdAt: 'DESC' }, take: limit });
+    return this.runs.find({
+      where,
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
   }
 
   async getRun(ownerKey: string, runId: string) {
@@ -117,170 +116,160 @@ export class WorkflowsService {
     if (!run) throw new NotFoundException(`WorkflowRun not found: ${runId}`);
 
     const nodeRuns = await this.nodeRuns.find({
-      where: { workflowRunId: run.id },
+      where: { workflowRunId: runId },
       order: { createdAt: 'ASC' },
     });
+
     const artifacts = await this.artifacts.find({
-      where: { workflowRunId: run.id },
+      where: { workflowRunId: runId },
       order: { createdAt: 'ASC' },
     });
 
     return { run, nodeRuns, artifacts };
   }
 
-  async claimNextQueued(ownerKey: string, lockedBy: string): Promise<WorkflowRunEntity | null> {
-    const next = await this.runs.findOne({
+  async claimNextQueued(ownerKey: string, lockedBy: string) {
+    // naive claim: pick the oldest queued run that isn't locked
+    const run = await this.runs.findOne({
       where: { ownerKey, status: 'queued' as WorkflowRunStatus },
       order: { createdAt: 'ASC' },
     });
-    if (!next) return null;
+    if (!run) return null;
 
-    const now = new Date();
-    const res = await this.runs.update(
-      { id: next.id, status: 'queued' as WorkflowRunStatus },
-      { status: 'running', lockedBy, lockedAt: now, startedAt: now },
+    await this.runs.update(
+      { id: run.id },
+      {
+        status: 'running',
+        lockedBy,
+        lockedAt: new Date(),
+        startedAt: new Date(),
+      },
     );
-    if (res.affected !== 1) return null;
 
-    const updated = await this.runs.findOne({ where: { id: next.id } });
-    if (updated) {
-      this.sse.publish({
-        type: 'workflow.run.status',
-        workflowId: updated.workflowId,
-        runId: updated.id,
-        payload: {
-          status: updated.status,
-          currentNodeId: updated.currentNodeId,
-          error: updated.error,
-          stats: updated.stats,
-        },
-      });
-    }
+    const updated = await this.runs.findOne({ where: { id: run.id } });
+    if (!updated) return null;
+
+    // SSE: run status
+    this.sse.publish({
+      type: 'workflow.run.status',
+      workflowId: updated.workflowId,
+      runId: updated.id,
+      payload: {
+        status: updated.status,
+        currentNodeId: updated.currentNodeId,
+        error: updated.error,
+        stats: updated.stats ?? null,
+      },
+    });
+
     return updated;
   }
 
-  async markRunCompleted(runId: string) {
-    const run = await this.runs.findOne({ where: { id: runId } });
-
-    await this.runs.update(
-      { id: runId },
-      {
-        status: 'completed',
-        finishedAt: new Date(),
-        lockedBy: null,
-        lockedAt: null,
-        error: null,
-        currentNodeId: null,
-      },
-    );
-
-    if (run) {
-      this.sse.publish({
-        type: 'workflow.run.status',
-        workflowId: run.workflowId,
-        runId: run.id,
-        payload: {
-          status: 'completed',
-          currentNodeId: null,
-          error: null,
-          stats: run.stats ?? null,
-        },
-      });
-    }
-  }
-
-  async markRunFailed(runId: string, message: string) {
-    const run = await this.runs.findOne({ where: { id: runId } });
-
-    await this.runs.update(
-      { id: runId },
-      {
-        status: 'failed',
-        finishedAt: new Date(),
-        lockedBy: null,
-        lockedAt: null,
-        error: message,
-        currentNodeId: null,
-      },
-    );
-
-    if (run) {
-      this.sse.publish({
-        type: 'workflow.run.status',
-        workflowId: run.workflowId,
-        runId: run.id,
-        payload: {
-          status: 'failed',
-          currentNodeId: null,
-          error: message,
-          stats: run.stats ?? null,
-        },
-      });
-    }
-  }
-
   async setCurrentNode(runId: string, nodeId: string | null) {
-    const run = await this.runs.findOne({ where: { id: runId } });
     await this.runs.update({ id: runId }, { currentNodeId: nodeId });
 
-    if (run) {
-      this.sse.publish({
-        type: 'workflow.run.status',
-        workflowId: run.workflowId,
-        runId: run.id,
-        payload: {
-          status: run.status,
-          currentNodeId: nodeId,
-          error: run.error,
-          stats: run.stats ?? null,
-        },
-      });
-    }
+    const updated = await this.runs.findOne({ where: { id: runId } });
+    if (!updated) return;
+
+    this.sse.publish({
+      type: 'workflow.run.status',
+      workflowId: updated.workflowId,
+      runId: updated.id,
+      payload: {
+        status: updated.status,
+        currentNodeId: updated.currentNodeId,
+        error: updated.error,
+        stats: updated.stats ?? null,
+      },
+    });
   }
 
-  async upsertNodeRun(runId: string, nodeId: string, patch: Partial<WorkflowNodeRunEntity>) {
-    const run = await this.runs.findOne({ where: { id: runId } });
+  async markRunCompleted(runId: string) {
+    await this.runs.update(
+      { id: runId },
+      { status: 'completed', finishedAt: new Date(), lockedBy: null, lockedAt: null },
+    );
 
-    const existing = await this.nodeRuns.findOne({ where: { workflowRunId: runId, nodeId } });
-    if (existing) {
-      Object.assign(existing, patch);
-      const saved = await this.nodeRuns.save(existing);
+    const updated = await this.runs.findOne({ where: { id: runId } });
+    if (!updated) return;
 
-      if (run) {
-        this.sse.publish({
-          type: 'workflow.node-run.upsert',
-          workflowId: run.workflowId,
-          runId,
-          nodeId,
-          payload: {
-            nodeId,
-            status: saved.status,
-            error: saved.error,
-            startedAt: saved.startedAt ? saved.startedAt.toISOString() : null,
-            finishedAt: saved.finishedAt ? saved.finishedAt.toISOString() : null,
-          },
-        });
-      }
-
-      return saved;
-    }
-
-    const nr = this.nodeRuns.create({
-      workflowRunId: runId,
-      nodeId,
-      status: 'pending',
-      inputSnapshot: null,
-      outputText: null,
-      outputJson: null,
-      primaryArtifactId: null,
-      error: null,
-      startedAt: null,
-      finishedAt: null,
-      ...patch,
+    this.sse.publish({
+      type: 'workflow.run.status',
+      workflowId: updated.workflowId,
+      runId: updated.id,
+      payload: {
+        status: updated.status,
+        currentNodeId: updated.currentNodeId,
+        error: updated.error,
+        stats: updated.stats ?? null,
+      },
     });
+  }
+
+  async markRunFailed(runId: string, error: string) {
+    await this.runs.update(
+      { id: runId },
+      { status: 'failed', error, finishedAt: new Date(), lockedBy: null, lockedAt: null },
+    );
+
+    const updated = await this.runs.findOne({ where: { id: runId } });
+    if (!updated) return;
+
+    this.sse.publish({
+      type: 'workflow.run.status',
+      workflowId: updated.workflowId,
+      runId: updated.id,
+      payload: {
+        status: updated.status,
+        currentNodeId: updated.currentNodeId,
+        error: updated.error,
+        stats: updated.stats ?? null,
+      },
+    });
+  }
+
+  async upsertNodeRun(
+    runId: string,
+    nodeId: string,
+    patch: Partial<{
+      status: WorkflowNodeRunStatus;
+      inputSnapshot: any;
+      outputText: string | null;
+      outputJson: any;
+      primaryArtifactId: string | null;
+      error: string | null;
+      startedAt: Date | null;
+      finishedAt: Date | null;
+    }>,
+  ) {
+    let nr = await this.nodeRuns.findOne({ where: { workflowRunId: runId, nodeId } });
+    if (!nr) {
+      nr = this.nodeRuns.create({
+        workflowRunId: runId,
+        nodeId,
+        status: patch.status ?? 'pending',
+        inputSnapshot: patch.inputSnapshot ?? null,
+        outputText: patch.outputText ?? null,
+        outputJson: patch.outputJson ?? null,
+        primaryArtifactId: patch.primaryArtifactId ?? null,
+        error: patch.error ?? null,
+        startedAt: patch.startedAt ?? null,
+        finishedAt: patch.finishedAt ?? null,
+      });
+    } else {
+      if (patch.status !== undefined) nr.status = patch.status;
+      if (patch.inputSnapshot !== undefined) nr.inputSnapshot = patch.inputSnapshot;
+      if (patch.outputText !== undefined) nr.outputText = patch.outputText;
+      if (patch.outputJson !== undefined) nr.outputJson = patch.outputJson;
+      if (patch.primaryArtifactId !== undefined) nr.primaryArtifactId = patch.primaryArtifactId;
+      if (patch.error !== undefined) nr.error = patch.error;
+      if (patch.startedAt !== undefined) nr.startedAt = patch.startedAt;
+      if (patch.finishedAt !== undefined) nr.finishedAt = patch.finishedAt;
+    }
 
     const saved = await this.nodeRuns.save(nr);
 
+    const run = await this.runs.findOne({ where: { id: runId } });
     if (run) {
       this.sse.publish({
         type: 'workflow.node-run.upsert',
@@ -288,11 +277,18 @@ export class WorkflowsService {
         runId,
         nodeId,
         payload: {
-          nodeId,
+          id: saved.id,
+          workflowRunId: saved.workflowRunId,
+          nodeId: saved.nodeId,
           status: saved.status,
+          inputSnapshot: saved.inputSnapshot ?? null,
+          outputText: saved.outputText ?? null,
+          outputJson: saved.outputJson ?? null,
+          primaryArtifactId: saved.primaryArtifactId,
           error: saved.error,
-          startedAt: saved.startedAt ? saved.startedAt.toISOString() : null,
-          finishedAt: saved.finishedAt ? saved.finishedAt.toISOString() : null,
+          startedAt: saved.startedAt,
+          finishedAt: saved.finishedAt,
+          createdAt: saved.createdAt,
         },
       });
     }
@@ -300,9 +296,18 @@ export class WorkflowsService {
     return saved;
   }
 
-  async createArtifact(runId: string, nodeRunId: string | null, patch: Partial<ArtifactEntity>) {
-    const run = await this.runs.findOne({ where: { id: runId } });
-
+  async createArtifact(
+    runId: string,
+    nodeRunId: string | null,
+    payload: Partial<{
+      kind: ArtifactKind;
+      mimeType: string | null;
+      filename: string | null;
+      contentText: string | null;
+      contentJson: any;
+      blobPath: string | null;
+    }>,
+  ) {
     const nodeId = nodeRunId
       ? ((await this.nodeRuns.findOne({ where: { id: nodeRunId } }))?.nodeId ?? null)
       : null;
@@ -310,16 +315,17 @@ export class WorkflowsService {
     const a = this.artifacts.create({
       workflowRunId: runId,
       nodeRunId,
-      kind: 'text',
-      mimeType: null,
-      filename: null,
-      contentText: null,
-      contentJson: null,
-      blobPath: null,
-      ...patch,
+      kind: payload.kind ?? 'text',
+      mimeType: payload.mimeType ?? null,
+      filename: payload.filename ?? null,
+      contentText: payload.contentText ?? null,
+      contentJson: payload.contentJson ?? null,
+      blobPath: payload.blobPath ?? null,
     });
 
     const saved = await this.artifacts.save(a);
+
+    const run = await this.runs.findOne({ where: { id: runId } });
 
     if (run) {
       this.sse.publish({
@@ -343,7 +349,7 @@ export class WorkflowsService {
 
   /**
    * Rerun-from: delete downstream node runs + artifacts and set run back to queued.
-   * Uses edges source/target.
+   * v1: downstream is derived from `inputFrom` links.
    */
   async rerunFrom(ownerKey: string, runId: string, nodeId: string) {
     const run = await this.runs.findOne({ where: { id: runId, ownerKey } });
@@ -354,15 +360,16 @@ export class WorkflowsService {
 
     const graph = wf.graph ?? {};
     const nodes: any[] = Array.isArray(graph.nodes) ? graph.nodes : [];
-    const edges: any[] = Array.isArray(graph.edges) ? graph.edges : [];
 
     const nodeIds = new Set(nodes.map((n) => n?.id).filter(Boolean));
     if (!nodeIds.has(nodeId)) throw new BadRequestException(`Unknown nodeId: ${nodeId}`);
 
+    // v1: downstream depends on `inputFrom` links (data dependencies)
+    // Edge direction: inputFrom (upstream) -> node (downstream)
     const adj = new Map<string, Set<string>>();
-    for (const e of edges) {
-      const from = e?.source;
-      const to = e?.target;
+    for (const n of nodes) {
+      const to = n?.id;
+      const from = typeof n?.inputFrom === 'string' ? n.inputFrom.trim() : '';
       if (!from || !to) continue;
       if (!adj.has(from)) adj.set(from, new Set());
       adj.get(from)!.add(to);
@@ -418,7 +425,5 @@ export class WorkflowsService {
         },
       });
     }
-
-    return updated;
   }
 }

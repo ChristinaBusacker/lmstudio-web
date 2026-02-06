@@ -8,7 +8,7 @@ import { SettingsService } from '../settings/settings.service';
 import { ChatEngineService } from '../chats/chat-engine.service';
 import type { LmMessage } from '../common/types/llm.types';
 
-type Graph = { nodes?: any[]; edges?: any[] };
+type Graph = { nodes?: any[] };
 
 @Injectable()
 export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -54,21 +54,25 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * v1 execution order is derived from data dependencies:
+   * each node may reference a single upstream node via `inputFrom`.
+   */
   private topoSort(graph: Graph): string[] {
     const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
-    const edges = Array.isArray(graph.edges) ? graph.edges : [];
-
     const ids = nodes.map((n) => n?.id).filter(Boolean);
+
     const indeg = new Map<string, number>();
     const adj = new Map<string, Set<string>>();
-
     for (const id of ids) indeg.set(id, 0);
 
-    for (const e of edges) {
-      const from = e?.source;
-      const to = e?.target;
-      if (!from || !to) continue;
-      if (!indeg.has(from) || !indeg.has(to)) continue;
+    const idSet = new Set(ids);
+    for (const n of nodes) {
+      const to = n?.id;
+      const from = typeof n?.inputFrom === 'string' ? n.inputFrom.trim() : '';
+      if (!to || !from) continue;
+      if (!idSet.has(from) || !idSet.has(to)) continue;
+      if (from === to) continue;
       indeg.set(to, (indeg.get(to) ?? 0) + 1);
       if (!adj.has(from)) adj.set(from, new Set());
       adj.get(from)!.add(to);
@@ -93,14 +97,39 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private renderTemplate(input: string, ctx: any): string {
+    // Backwards compat: allow {{steps.X}} and {{nodes.X}}.
     const alias = input.replace(/\{\{\s*steps\./g, '{{nodes.');
-    return alias.replace(
+
+    // v1 preferred: {{input}} / {{input.path.to.field}}
+    const withInput = alias.replace(
+      /\{\{\s*input(?:\.([a-zA-Z0-9_$. -]+))?\s*\}\}/g,
+      (_m, rest) => {
+        const base = ctx?.input;
+        if (base === undefined || base === null) return '';
+        if (!rest) return typeof base === 'string' ? base : JSON.stringify(base);
+        const parts = String(rest)
+          .split('.')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        let cur: any = base;
+        for (const p of parts) {
+          if (!cur || typeof cur !== 'object') return '';
+          cur = cur[p];
+        }
+        if (cur === undefined || cur === null) return '';
+        if (typeof cur === 'string' || typeof cur === 'number' || typeof cur === 'boolean')
+          return String(cur);
+        return JSON.stringify(cur);
+      },
+    );
+
+    // Legacy: {{nodes.NODEID}} / {{nodes.NODEID.path}}
+    return withInput.replace(
       /\{\{\s*nodes\.([a-zA-Z0-9_-]+)(?:\.([a-zA-Z0-9_$. -]+))?\s*\}\}/g,
       (_m, nodeId, rest) => {
         const base = ctx?.nodes?.[nodeId];
         if (!base) return '';
         if (!rest) return typeof base === 'string' ? base : JSON.stringify(base);
-
         const parts = String(rest)
           .split('.')
           .map((s) => s.trim())
@@ -144,7 +173,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       for (const n of graph.nodes ?? []) if (n?.id) nodeById.set(n.id, n);
 
       // Context of resolved outputs for templating
-      const ctx: any = { nodes: {} };
+      const ctx: any = { nodes: {}, input: null };
 
       // Rehydrate already-completed node runs (resume support)
       const details = await this.workflows.getRun(this.ownerKey, runId);
@@ -169,6 +198,52 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         await this.workflows.setCurrentNode(runId, nodeId);
 
         const nodeType = String(node.type ?? 'lmstudio.llm');
+
+        // Resolve the single-input dependency (v1)
+        const inputFrom = typeof node.inputFrom === 'string' ? node.inputFrom.trim() : '';
+        if (inputFrom) {
+          // Ensure upstream output exists
+          if (!(inputFrom in ctx.nodes)) {
+            throw new Error(
+              `Node ${nodeId} depends on ${inputFrom}, but its output is not available. ` +
+                `Check 'Input (from node)' bindings and cycles.`,
+            );
+          }
+          ctx.input = ctx.nodes[inputFrom];
+        } else {
+          ctx.input = null;
+        }
+
+        // Execute by node type
+        if (nodeType === 'workflow.condition' || nodeType === 'workflow.loop') {
+          // v1 placeholders: pass-through (so these node types can exist in the diagram)
+          // Later: condition will gate branches; loop will iterate a subgraph.
+          const content = ctx.input;
+          const text =
+            content === null || content === undefined
+              ? ''
+              : typeof content === 'string'
+                ? content
+                : JSON.stringify(content);
+          const artifact = await this.workflows.createArtifact(runId, null, {
+            kind: 'text',
+            mimeType: 'text/plain',
+            contentText: text,
+          });
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'completed',
+            startedAt: new Date(),
+            finishedAt: new Date(),
+            outputText: text,
+            outputJson: null,
+            primaryArtifactId: artifact.id,
+            inputSnapshot: { inputFrom, note: 'pass-through v1' },
+            error: null,
+          });
+          ctx.nodes[nodeId] = text;
+          continue;
+        }
+
         if (nodeType !== 'lmstudio.llm') {
           await this.workflows.upsertNodeRun(runId, nodeId, {
             status: 'failed',
@@ -202,6 +277,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             profileName,
             modelKey: params.modelKey,
             params,
+            inputFrom,
             prompt: renderedPrompt,
           },
           error: null,

@@ -1,18 +1,24 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Workflow } from '@frontend/src/app/core/state/workflows/workflow.models';
 
+/**
+ * Frontend diagram adapter for the v1 WorkflowGraph.
+ *
+ * Persisted graph:
+ * - nodes[] only
+ * - each node has ONE input via `inputFrom` (optional)
+ *
+ * Diagram-only:
+ * - edges are derived from `inputFrom` for visualization
+ */
 export type WorkflowGraph = {
   nodes: Array<{
     id: string;
-    type: string; // e.g. 'lmstudio.llm'
+    type: string; // e.g. 'lmstudio.llm', 'workflow.condition', 'workflow.loop'
     profileName?: string;
     prompt?: string;
+    inputFrom?: string | null;
     position?: { x: number; y: number };
-  }>;
-  edges: Array<{
-    id: string;
-    source: string;
-    target: string;
   }>;
 };
 
@@ -21,16 +27,37 @@ export type DiagramNodeData = {
   nodeType: string;
   profileName: string;
   prompt: string;
+  /** stores the upstream node id (or empty string) */
+  inputFrom: string;
 };
 
 export const WORKFLOW_NODE_TEMPLATE = 'workflowNode';
 export const DEFAULT_SOURCE_PORT = 'port-right';
 export const DEFAULT_TARGET_PORT = 'port-left';
 
+type DiagramEdge = {
+  id: string;
+  source: string;
+  target: string;
+};
+
+function deriveDiagramEdges(nodes: WorkflowGraph['nodes']): DiagramEdge[] {
+  const ids = new Set(nodes.map((n) => n.id));
+  const out: DiagramEdge[] = [];
+  for (const n of nodes) {
+    const from = (n.inputFrom ?? '').trim();
+    if (!from) continue;
+    if (!ids.has(from)) continue;
+    if (from === n.id) continue;
+    out.push({ id: `${from}->${n.id}`, source: from, target: n.id });
+  }
+  // Stable ordering
+  return out.sort((a, b) => a.id.localeCompare(b.id));
+}
+
 export function normalizeWorkflowGraph(input: any): WorkflowGraph {
   const g: WorkflowGraph = {
     nodes: Array.isArray(input?.nodes) ? input.nodes : [],
-    edges: Array.isArray(input?.edges) ? input.edges : [],
   };
 
   const spacingX = 340;
@@ -43,6 +70,8 @@ export function normalizeWorkflowGraph(input: any): WorkflowGraph {
       type: String(n.type ?? 'lmstudio.llm'),
       profileName: String(n.profileName ?? ''),
       prompt: String(n.prompt ?? ''),
+      inputFrom:
+        n.inputFrom === undefined ? null : n.inputFrom === null ? null : String(n.inputFrom),
       position: n.position
         ? { x: Number(n.position.x ?? 0), y: Number(n.position.y ?? 0) }
         : { x: 40 + (idx % 2) * spacingX, y: 40 + Math.floor(idx / 2) * spacingY },
@@ -50,20 +79,12 @@ export function normalizeWorkflowGraph(input: any): WorkflowGraph {
     // Stable ordering makes signatures/diffs deterministic.
     .sort((a, b) => a.id.localeCompare(b.id));
 
-  g.edges = g.edges
-    .filter((e) => !!e?.id && !!e?.source && !!e?.target)
-    .map((e) => ({
-      id: String(e.id),
-      source: String(e.source),
-      target: String(e.target),
-    }))
-    .sort((a, b) => a.id.localeCompare(b.id));
-
   return g;
 }
 
 export function workflowToDiagramModel(workflow: Workflow) {
   const graph = normalizeWorkflowGraph(workflow.graph);
+  const edges = deriveDiagramEdges(graph.nodes);
 
   return {
     nodes: graph.nodes.map((n) => ({
@@ -75,9 +96,10 @@ export function workflowToDiagramModel(workflow: Workflow) {
         nodeType: n.type,
         profileName: n.profileName ?? '',
         prompt: n.prompt ?? '',
+        inputFrom: (n.inputFrom ?? '') || '',
       } satisfies DiagramNodeData,
     })),
-    edges: graph.edges.map((e) => ({
+    edges: edges.map((e) => ({
       id: e.id,
       source: e.source,
       target: e.target,
@@ -88,10 +110,14 @@ export function workflowToDiagramModel(workflow: Workflow) {
   };
 }
 
+/**
+ * Converts diagram JSON into a persisted WorkflowGraph.
+ *
+ * Important: edges are ignored. We only persist node `inputFrom`.
+ */
 export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
   const json = JSON.parse(diagramJson);
   const nodes = Array.isArray(json?.nodes) ? json.nodes : [];
-  const edges = Array.isArray(json?.edges) ? json.edges : [];
 
   return normalizeWorkflowGraph({
     nodes: nodes.map((n: any) => ({
@@ -99,12 +125,8 @@ export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
       type: String(n.data?.nodeType ?? 'lmstudio.llm'),
       profileName: String(n.data?.profileName ?? ''),
       prompt: String(n.data?.prompt ?? ''),
+      inputFrom: n.data?.inputFrom ? String(n.data.inputFrom) : null,
       position: n.position ? { x: Number(n.position.x), y: Number(n.position.y) } : undefined,
-    })),
-    edges: edges.map((e: any) => ({
-      id: String(e.id),
-      source: String(e.source),
-      target: String(e.target),
     })),
   });
 }

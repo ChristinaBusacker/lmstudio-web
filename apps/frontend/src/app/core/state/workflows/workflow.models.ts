@@ -1,18 +1,27 @@
 export type WorkflowRunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
 export type WorkflowNodeRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'stale';
 
+/**
+ * v1 Workflow Graph
+ *
+ * Key rules:
+ * - No persisted diagram edges.
+ * - Each node has exactly ONE input (`inputFrom`) and ONE output (the node's full artifact).
+ * - Execution order is derived from the dependencies implied by `inputFrom`.
+ */
 export type WorkflowGraph = {
   nodes: Array<{
     id: string;
+    /** e.g. 'lmstudio.llm', 'workflow.condition', 'workflow.loop' */
     type: string;
     profileName?: string;
     prompt?: string;
+    /**
+     * If set, this node consumes the full output artifact of the referenced node.
+     * This field defines the dependency and therefore the execution order.
+     */
+    inputFrom?: string | null;
     position?: { x: number; y: number };
-  }>;
-  edges: Array<{
-    id: string;
-    source: string;
-    target: string;
   }>;
 };
 

@@ -11,7 +11,31 @@
   <div class="body">
     <label class="field">
       <div class="label">Node Type</div>
-      <input class="input" value="lmstudio.llm" readonly />
+      <select
+        class="config input"
+        [value]="node().data.nodeType"
+        (change)="updateNodeType($event.target.value)"
+      >
+        <option value="lmstudio.llm">lmstudio.llm</option>
+        <option value="workflow.condition">workflow.condition</option>
+        <option value="workflow.loop">workflow.loop</option>
+        <option value="stable-diffusion.txt2img">stable-diffusion.txt2img</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <div class="label">Input (from node)</div>
+      <select
+        class="config input"
+        [value]="node().data.inputFrom"
+        (change)="updateInputFrom($event.target.value)"
+        title="Execution order is derived from this dependency"
+      >
+        <option value="">None</option>
+        @for (id of upstreamNodeOptions(); track id) {
+          <option [value]="id" [selected]="id === node().data.inputFrom">{{ id }}</option>
+        }
+      </select>
     </label>
 
     <label class="field">
