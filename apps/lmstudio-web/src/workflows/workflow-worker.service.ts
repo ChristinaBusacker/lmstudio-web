@@ -285,11 +285,8 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       const nodeOrder = this.topoSort(graph);
       const { nodeById, incoming } = this.buildDependencies(graph);
 
-      // Context of resolved outputs for templating
-      // ctx.input is computed per-node from incoming edges
       const ctx: any = { nodes: {}, input: null };
 
-      // Rehydrate already-completed node runs (resume support)
       const details = await this.workflows.getRun(this.ownerKey, runId);
       for (const nr of details.nodeRuns) {
         if (nr.status === 'completed') {
@@ -303,7 +300,6 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         const node = nodeById.get(nodeId);
         if (!node) continue;
 
-        // Skip if already completed
         const existing = (await this.workflows.getRun(this.ownerKey, runId)).nodeRuns.find(
           (r) => r.nodeId === nodeId,
         );
@@ -313,13 +309,11 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
         const nodeType = String(node.type ?? 'lmstudio.llm');
 
-        // Build input from ALL incoming edges (only if prompt/type needs it)
         const rawPrompt = String(node.prompt ?? '').trim();
         const needsInput = nodeType === 'workflow.condition' || nodeType === 'workflow.loop';
 
         const sources = (incoming.get(nodeId) ?? []).slice().sort((a, b) => a.localeCompare(b));
 
-        // ctx.input aus ALLEN Sources bauen (1 source -> value, mehrere -> object keyed by nodeId)
         if (sources.length === 1) {
           const src = sources[0];
           if (!(src in ctx.nodes)) {
@@ -339,12 +333,9 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           ctx.input = null;
         }
 
-        // Prompt rendern
         let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
 
-        // AUTOMATISCHE Input-Injection, sobald es Sources gibt,
-        // aber nur wenn der User nicht explizit {{input}} verwendet (sonst doppelt)
-        if (sources.length > 0 && !this.promptNeedsInput(rawPrompt)) {
+        if (sources.length > 0) {
           const inputText =
             ctx.input === null || ctx.input === undefined
               ? ''
@@ -358,9 +349,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             renderedPrompt;
         }
 
-        // Execute by node type
         if (nodeType === 'workflow.condition' || nodeType === 'workflow.loop') {
-          // still pass-through for now
           const content = ctx.input;
           const text =
             content === null || content === undefined

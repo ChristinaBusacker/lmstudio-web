@@ -1,14 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { CommonModule } from '@angular/common';
 import {
   Component,
   DestroyRef,
   effect,
   EnvironmentInjector,
-  HostListener,
+  HostBinding,
   inject,
-  OnInit,
   runInInjectionContext,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -17,47 +14,35 @@ import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngxs/store';
 import {
   configureShortcuts,
-  initializeModel,
   NgDiagramBackgroundComponent,
   NgDiagramComponent,
   NgDiagramConfig,
-  NgDiagramModelService,
   NgDiagramNodeTemplateMap,
   provideNgDiagram,
 } from 'ng-diagram';
-import { distinctUntilChanged, filter, map, of, switchMap, tap } from 'rxjs';
+import { distinctUntilChanged, filter, map, tap } from 'rxjs';
 
 import { SseService } from '../../core/sse/sse.service';
 import { SettingsState } from '../../core/state/settings/settings.state';
-import {
-  SetSelectedWorkflow,
-  StartWorkflowRun,
-  UpdateWorkflow,
-} from '../../core/state/workflows/workflow.actions';
+import { SetSelectedWorkflow, StartWorkflowRun } from '../../core/state/workflows/workflow.actions';
 import { WorkflowsState } from '../../core/state/workflows/workflow.state';
-import { shortId } from '../../core/utils/shortId.util';
 import { Icon } from '../../ui/icon/icon';
 import { WorkflowNodeComponent } from './components/workflow-node/workflow-node';
 import { WorkflowRunListContainer } from './components/workflow-run-list-container/workflow-run-list-container';
 import { WorkflowDiagramCommandsService } from './workflow-diagram-commands.service';
-import {
-  diagramJsonToWorkflowGraph,
-  normalizeWorkflowGraph,
-  WORKFLOW_NODE_TEMPLATE,
-  workflowToDiagramModel,
-} from './workflow-diagram.adapter';
-
+import { WORKFLOW_NODE_TEMPLATE } from './workflow-diagram.adapter';
+import { WorkflowDiagramFacade } from './workflow-diagram.facade';
 import { WorkflowEditorStateService } from './workflow-editor-state.service';
 
-function isEditableTarget(t: EventTarget | null): boolean {
-  const el = t as HTMLElement | null;
+function isEditableTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
   if (!el) return false;
+
   const tag = el.tagName?.toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+
   return el.isContentEditable === true;
 }
-
-type GraphSnapshot = { nodes: any[]; edges: any[] };
 
 @Component({
   selector: 'app-workflow-page',
@@ -69,24 +54,27 @@ type GraphSnapshot = { nodes: any[]; edges: any[] };
     Icon,
     WorkflowRunListContainer,
   ],
-  providers: [provideNgDiagram(), WorkflowDiagramCommandsService, WorkflowEditorStateService],
+  providers: [
+    provideNgDiagram(),
+    WorkflowDiagramCommandsService,
+    WorkflowEditorStateService,
+    WorkflowDiagramFacade,
+  ],
   templateUrl: './workflow-page.html',
   styleUrl: './workflow-page.scss',
 })
-export class WorkflowPage implements OnInit {
+export class WorkflowPage {
   private readonly route = inject(ActivatedRoute);
   private readonly store = inject(Store);
   private readonly sse = inject(SseService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly commands = inject(WorkflowDiagramCommandsService);
   private readonly envInjector = inject(EnvironmentInjector);
 
-  private readonly diagramModel = inject(NgDiagramModelService);
+  readonly commands = inject(WorkflowDiagramCommandsService);
+  readonly facade = inject(WorkflowDiagramFacade);
+  private readonly editorState = inject(WorkflowEditorStateService);
 
   workflowId!: string;
-
-  private dataEditSnapshotTaken = false;
-  private dataEditTimer: number | null = null;
 
   readonly workflow$ = this.store.select(WorkflowsState.selectedWorkflow);
   readonly selectedRun = this.store.select(WorkflowsState.selectedRun);
@@ -95,18 +83,7 @@ export class WorkflowPage implements OnInit {
   readonly error = this.store.select(WorkflowsState.error);
   readonly profiles$ = this.store.select(SettingsState.profiles);
 
-  private readonly editorState = inject(WorkflowEditorStateService);
   readonly editorDirty = this.editorState.dirty;
-
-  private undoStack: GraphSnapshot[] = [];
-  private redoStack: GraphSnapshot[] = [];
-  private lastSavedSnapshot: GraphSnapshot | null = null;
-
-  private lastLoadedGraphSig: string | null = null;
-  private pointerDownSig: string | null = null;
-
-  private diagramReady = false;
-  private queuedOps: Array<() => void> = [];
 
   readonly nodeTemplateMap = new NgDiagramNodeTemplateMap([
     [WORKFLOW_NODE_TEMPLATE, WorkflowNodeComponent],
@@ -126,15 +103,15 @@ export class WorkflowPage implements OnInit {
     ]),
   };
 
-  model: unknown = initializeModel({ nodes: [], edges: [] });
+  model: unknown = null;
 
-  ngOnInit() {
-    runInInjectionContext(this.envInjector, () => {
-      effect(() => {
-        if (this.editorState.consumeSnapshotRequest()) {
-          this.runWhenReady(() => this.ensureDataEditSnapshot());
-        }
-      });
+  @HostBinding('class.runbar-open') runbarOpen = false;
+
+  constructor() {
+    effect(() => {
+      if (this.editorState.consumeSnapshotRequest()) {
+        this.facade.ensureDataEditSnapshot();
+      }
     });
 
     this.route.paramMap
@@ -145,10 +122,8 @@ export class WorkflowPage implements OnInit {
         tap((workflowId) => {
           this.workflowId = workflowId;
           this.sse.connectWorkflow(workflowId);
-
           this.store.dispatch(new SetSelectedWorkflow(workflowId));
         }),
-        switchMap(() => of(null)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe();
@@ -159,156 +134,61 @@ export class WorkflowPage implements OnInit {
 
     this.workflow$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((wf) => {
       runInInjectionContext(this.envInjector, () => {
-        if (!wf) {
-          this.resetEditorForEmpty();
-          return;
-        }
-
-        const incomingSig = this.workflowGraphSig(wf);
-
-        if (this.editorDirty()) return;
-        if (incomingSig === this.lastLoadedGraphSig) return;
-
-        this.resetEditorForIncomingModel();
-
-        const { nodes, edges } = workflowToDiagramModel(wf);
-        this.model = initializeModel({ nodes, edges });
-
-        this.lastLoadedGraphSig = incomingSig;
+        this.model = this.facade.loadWorkflowGraph(wf).model;
       });
     });
   }
 
-  @HostListener('window:pointerup', ['$event'])
-  onPointerUp(_e: PointerEvent) {
-    this.runWhenReady(() => {
-      if (this.pointerDownSig === null) return;
-
-      const after = this.diagramSig();
-      if (after !== this.pointerDownSig) {
-        this.editorDirty.set(true);
-      }
-      this.pointerDownSig = null;
-    });
+  onDiagramInit(): void {
+    this.facade.onDiagramInit();
   }
 
-  onDiagramInit() {
-    this.diagramReady = true;
-
-    this.lastSavedSnapshot = this.snapshot();
-    this.undoStack = [];
-    this.redoStack = [];
-
-    for (const fn of this.queuedOps) fn();
-    this.queuedOps = [];
-  }
-
-  onDiagramMouseMove(e: MouseEvent) {
+  onDiagramMouseMove(e: MouseEvent): void {
     this.commands.setLastMouseClientPosition({ x: e.clientX, y: e.clientY });
   }
 
-  onDiagramPointerDown(e: PointerEvent) {
+  onDiagramPointerDown(e: PointerEvent): void {
     if (e.button !== 0) return;
     if (isEditableTarget(e.target)) return;
 
-    this.runWhenReady(() => {
-      this.pointerDownSig = this.diagramSig();
-      this.pushHistorySnapshot();
-    });
+    this.facade.onPointerDownStartTracking();
   }
 
-  onSelectionMoved() {
-    this.editorDirty.set(true);
+  onPointerUp(): void {
+    this.facade.onPointerUpFinishTracking();
   }
 
-  addNode() {
-    this.runWhenReady(() => {
-      this.pushHistorySnapshot();
-      this.editorDirty.set(true);
-
-      const existing = this.diagramModel.nodes().map((n) => n.id);
-      const id = shortId();
-
-      const x = 60 + existing.length * 40;
-      const y = 60 + existing.length * 30;
-
-      this.diagramModel.addNodes([
-        {
-          id,
-          type: WORKFLOW_NODE_TEMPLATE,
-          position: { x, y },
-          data: {
-            label: id,
-            nodeType: 'lmstudio.llm',
-            profileName: 'Default',
-            prompt: '',
-          },
-        },
-      ]);
-    });
+  onSelectionMoved(): void {
+    this.facade.markDirty();
   }
 
-  saveGraph() {
-    this.runWhenReady(() => {
-      const wf = this.store.selectSnapshot(WorkflowsState.selectedWorkflow);
-      if (!wf) return;
-
-      const diagramJsonString = this.diagramModel.toJSON();
-      const graph = diagramJsonToWorkflowGraph(diagramJsonString);
-
-      this.lastLoadedGraphSig = this.workflowGraphSig({ graph });
-
-      if (graph) {
-        this.store.dispatch(new UpdateWorkflow(wf.id, { graph: graph as any }));
-      }
-
-      this.editorDirty.set(false);
-      this.lastSavedSnapshot = this.snapshot();
-      this.undoStack = [];
-      this.redoStack = [];
-    });
+  addNode(): void {
+    this.facade.addNode();
   }
 
-  startRun(workflowId: string) {
+  saveGraph(): void {
+    this.facade.saveSelectedWorkflow();
+  }
+
+  startRun(workflowId: string): void {
     this.store.dispatch(new StartWorkflowRun(workflowId));
   }
 
-  undo() {
-    this.runWhenReady(() => {
-      const prev = this.undoStack.pop();
-      if (!prev) return;
-
-      this.redoStack.push(this.snapshot());
-      this.applySnapshot(prev);
-      this.editorDirty.set(true);
-    });
+  undo(): void {
+    this.facade.undo();
   }
 
-  redo() {
-    this.runWhenReady(() => {
-      const next = this.redoStack.pop();
-      if (!next) return;
-
-      this.undoStack.push(this.snapshot());
-      this.applySnapshot(next);
-      this.editorDirty.set(true);
-    });
+  redo(): void {
+    this.facade.redo();
   }
 
-  resetToLastSaved() {
-    this.runWhenReady(() => {
-      if (!this.lastSavedSnapshot) return;
-      this.applySnapshot(this.lastSavedSnapshot);
-      this.editorDirty.set(false);
-      this.undoStack = [];
-      this.redoStack = [];
-    });
+  resetToLastSaved(): void {
+    this.facade.resetToLastSaved();
   }
 
-  @HostListener('window:keydown', ['$event'])
-  onKeyDown(e: KeyboardEvent) {
-    // keep existing shortcuts behavior
+  onKeyDown(e: KeyboardEvent): void {
     if (isEditableTarget(e.target)) return;
+
     const key = e.key.toLowerCase();
     const mod = e.ctrlKey || e.metaKey;
 
@@ -339,27 +219,23 @@ export class WorkflowPage implements OnInit {
 
     if (key === 'c') {
       stop();
-      this.runWhenReady(() => this.commands.copy());
+      this.commands.copy();
       return;
     }
 
     if (key === 'x') {
       stop();
-      this.runWhenReady(() => {
-        this.pushHistorySnapshot();
-        this.editorDirty.set(true);
-        this.commands.cut();
-      });
+      this.facade.onPointerDownStartTracking();
+      this.commands.cut();
+      this.facade.markDirty();
       return;
     }
 
     if (key === 'v') {
       stop();
-      this.runWhenReady(() => {
-        this.pushHistorySnapshot();
-        this.editorDirty.set(true);
-        this.commands.paste();
-      });
+      this.facade.onPointerDownStartTracking();
+      this.commands.paste();
+      this.facade.markDirty();
       return;
     }
 
@@ -367,129 +243,5 @@ export class WorkflowPage implements OnInit {
       stop();
       this.resetToLastSaved();
     }
-  }
-
-  // ---------- internals ----------
-
-  private diagramSig(): string {
-    const json = JSON.parse(this.diagramModel.toJSON());
-    const nodes = Array.isArray(json?.nodes) ? json.nodes : [];
-    const edges = Array.isArray(json?.edges) ? json.edges : [];
-
-    // nur "logische" Felder, keine transienten UI Sachen
-    return JSON.stringify({
-      nodes: nodes.map((n: any) => ({
-        id: n.id,
-        position: n.position ?? null,
-        type: n.type ?? null,
-        data: {
-          // hier nur die Felder, die du persistierst
-          label: n.data?.label ?? null,
-          nodeType: n.data?.nodeType ?? null,
-          profileName: n.data?.profileName ?? null,
-          prompt: n.data?.prompt ?? null,
-        },
-      })),
-      edges: edges.map((e: any) => ({
-        id: e.id ?? null,
-        source: e.source ?? null,
-        target: e.target ?? null,
-        sourcePort: e.sourcePort ?? null,
-        targetPort: e.targetPort ?? null,
-        type: e.type ?? null,
-        // data nicht in die Signatur, weil oft rein visuell
-      })),
-    });
-  }
-
-  private ensureDataEditSnapshot() {
-    if (this.dataEditSnapshotTaken) return;
-    this.pushHistorySnapshot();
-    this.dataEditSnapshotTaken = true;
-
-    if (this.dataEditTimer !== null) window.clearTimeout(this.dataEditTimer);
-    this.dataEditTimer = window.setTimeout(() => {
-      this.dataEditSnapshotTaken = false;
-      this.dataEditTimer = null;
-    }, 800);
-  }
-
-  private runWhenReady(fn: () => void) {
-    if (this.diagramReady) {
-      fn();
-      return;
-    }
-    this.queuedOps.push(fn);
-  }
-
-  private snapshot(): GraphSnapshot {
-    const json = JSON.parse(this.diagramModel.toJSON());
-    return structuredClone({
-      nodes: Array.isArray(json?.nodes) ? json.nodes : [],
-      edges: Array.isArray(json?.edges) ? json.edges : [],
-    });
-  }
-
-  private pushHistorySnapshot() {
-    this.undoStack.push(this.snapshot());
-    this.redoStack = [];
-  }
-  private applySnapshot(snapshot: GraphSnapshot) {
-    const modelAny = this.diagramModel as any;
-
-    if (typeof modelAny.edges === 'function' && typeof modelAny.deleteEdges === 'function') {
-      const existingEdgeIds = (modelAny.edges() ?? []).map((e: any) => e.id);
-      if (existingEdgeIds.length) modelAny.deleteEdges(existingEdgeIds);
-    }
-
-    const existingNodeIds = this.diagramModel.nodes().map((n) => n.id);
-    if (existingNodeIds.length) this.diagramModel.deleteNodes(existingNodeIds);
-
-    if (snapshot.nodes?.length) this.diagramModel.addNodes(snapshot.nodes);
-    if (snapshot.edges?.length) this.diagramModel.addEdges(snapshot.edges);
-  }
-
-  private workflowGraphSig(wf: { graph?: unknown } | null): string {
-    const g = normalizeWorkflowGraph(wf?.graph ?? null);
-
-    return JSON.stringify({
-      nodes: g.nodes.map((n) => ({
-        id: n.id,
-        type: n.type,
-        profileName: n.profileName ?? '',
-        prompt: n.prompt ?? '',
-        position: n.position ?? null,
-      })),
-      edges: (g.edges ?? []).map((e) => ({
-        source: e.source,
-        target: e.target,
-        sourcePort: e.sourcePort ?? null,
-        targetPort: e.targetPort ?? null,
-        type: e.type ?? null,
-      })),
-    });
-  }
-
-  private resetEditorForEmpty() {
-    runInInjectionContext(this.envInjector, () => {
-      this.diagramReady = false;
-      this.queuedOps = [];
-      this.undoStack = [];
-      this.redoStack = [];
-      this.lastSavedSnapshot = null;
-      this.editorDirty.set(false);
-
-      this.model = initializeModel({ nodes: [], edges: [] });
-      this.lastLoadedGraphSig = null;
-    });
-  }
-
-  private resetEditorForIncomingModel() {
-    this.diagramReady = false;
-    this.queuedOps = [];
-    this.undoStack = [];
-    this.redoStack = [];
-    this.lastSavedSnapshot = null;
-    this.editorDirty.set(false);
   }
 }

@@ -16,7 +16,7 @@
     </ng-diagram>
 
     <div class="controls">
-      <button class="btn" (click)="addNode('llm')"><app-icon name="add-line" /> Add</button>
+      <button class="btn" (click)="addNode()"><app-icon name="add-line" /> Add</button>
 
       <button class="btn btn-primary" (click)="saveGraph()" [disabled]="!editorDirty()">
         <app-icon name="save-line" /> Save
@@ -25,8 +25,20 @@
       <button class="btn btn-accent" (click)="startRun(wf.id)">
         <app-icon name="play-line" /> Run
       </button>
-    </div>
 
-    <app-workflow-run-list-container class="runs-panel" />
+      <button type="button" class="btn" (click)="undo()">Undo</button>
+      <button type="button" class="btn" (click)="redo()">Redo</button>
+
+      <button type="button" class="btn" (click)="resetToLastSaved()">Reset</button>
+    </div>
   }
+  <button class="runbar-toggle" (click)="runbarOpen = !runbarOpen">
+    <div class="runbar-toggle__icon">
+      <app-icon name="arrow-left-s-line" />
+    </div>
+  </button>
+</div>
+
+<div class="runbar" [class.open]="runbarOpen">
+  <app-workflow-run-list-container class="runs-panel" />
 </div>

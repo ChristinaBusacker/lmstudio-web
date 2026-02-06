@@ -1,13 +1,18 @@
 :host {
   display: block;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 
   .diagram-host {
     height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
   }
   .diagram {
     width: 100%;
-    height: 99dvh; // wichtig: parent needs size
-
+    height: calc(100% - 26px);
+    max-height: 100%;
     border: 1px dashed rgba(255, 255, 255, 0.12);
     background: rgba(0, 0, 0, 0.12);
   }
@@ -22,5 +27,41 @@
       display: flex;
       gap: 5px;
     }
+  }
+
+  & .runbar-toggle {
+    width: 100%;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &__icon {
+      transform: rotate(90deg);
+      transition: transform 0.3s ease;
+    }
+
+    &.open {
+      &__icon {
+        transform: rotate(-90deg);
+      }
+    }
+  }
+
+  .runbar {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease;
+  }
+
+  &.runbar-open .diagram-host {
+    flex: 1 1 calc(100% - 200px);
+  }
+
+  &.runbar-open .runbar {
+    flex: 1 1 200px;
+    opacity: 1;
+    max-height: 200px;
+    overflow: auto;
   }
 }
