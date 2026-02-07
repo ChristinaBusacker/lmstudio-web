@@ -345,6 +345,26 @@ export class WorkflowsService {
   }
 
   /**
+   * Load a single artifact by id.
+   *
+   * Artifacts are scoped by ownerKey through their workflow run.
+   */
+  async getArtifact(ownerKey: string, artifactId: string) {
+    const artifact = await this.artifacts.findOne({
+      where: { id: artifactId },
+    });
+    if (!artifact) throw new NotFoundException(`Artifact not found: ${artifactId}`);
+
+    const run = await this.runs.findOne({
+      where: { id: artifact.workflowRunId, ownerKey },
+      select: ['id'],
+    });
+    if (!run) throw new NotFoundException(`Artifact not found: ${artifactId}`);
+
+    return artifact;
+  }
+
+  /**
    * Rerun-from: delete downstream node runs + artifacts and set run back to queued.
    * v2: downstream is derived from edges + prompt/type dependencies (matching worker behavior).
    */

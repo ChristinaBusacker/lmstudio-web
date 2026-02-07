@@ -1,5 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { CreateWorkflowRunDto } from './dto/create-workflow-run.dto';
@@ -38,6 +41,39 @@ export class WorkflowsController {
     return this.workflows.getRun(this.ownerKey, runId);
   }
 
+  @Get('artifacts/:artifactId/download')
+  @ApiOperation({ summary: 'Download an artifact as a file' })
+  async downloadArtifact(@Param('artifactId') artifactId: string, @Res() res: Response) {
+    const a = await this.workflows.getArtifact(this.ownerKey, artifactId);
+
+    const filename = (a.filename ?? `artifact-${a.id}`).replace(/\r|\n/g, ' ').trim();
+    const mime = a.mimeType ?? this.defaultMime(a.kind);
+
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    if (a.blobPath) {
+      try {
+        await stat(a.blobPath);
+        return createReadStream(a.blobPath).pipe(res);
+      } catch {
+        // fall through to in-db content
+      }
+    }
+
+    if (a.kind === 'json') {
+      const json = a.contentJson ?? (a.contentText ? safeParseJson(a.contentText) : null);
+      const body = JSON.stringify(json ?? null, null, 2);
+      return res.send(body);
+    }
+
+    if (a.contentText !== null && a.contentText !== undefined) {
+      return res.send(a.contentText);
+    }
+
+    return res.status(404).send('Artifact content not available');
+  }
+
   @Post('workflow-runs/:runId/rerun-from/:nodeId')
   @ApiOperation({ summary: 'Rerun from node (invalidate downstream)' })
   rerunFrom(@Param('runId') runId: string, @Param('nodeId') nodeId: string) {
@@ -66,5 +102,28 @@ export class WorkflowsController {
   @ApiOperation({ summary: 'Start workflow run (server-side execution)' })
   startRun(@Param('id') workflowId: string, @Body() dto: CreateWorkflowRunDto) {
     return this.workflows.createRun(this.ownerKey, workflowId, dto);
+  }
+
+  private defaultMime(kind: string): string {
+    switch (kind) {
+      case 'json':
+        return 'application/json; charset=utf-8';
+      case 'text':
+        return 'text/plain; charset=utf-8';
+      case 'image':
+        return 'image/png';
+      case 'binary':
+        return 'application/octet-stream';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+}
+
+function safeParseJson(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
   }
 }

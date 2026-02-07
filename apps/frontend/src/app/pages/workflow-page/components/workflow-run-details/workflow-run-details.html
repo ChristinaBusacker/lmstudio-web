@@ -1,0 +1,39 @@
+<div class="details">
+  @if (!details) {
+    <div class="details__empty">Select a run to see its artifacts.</div>
+  } @else {
+    <div class="details__header">
+      <div class="details__title">
+        <app-icon name="file-text-line" />
+        <span>Artifacts</span>
+        <span class="details__count">({{ details.artifacts.length }})</span>
+      </div>
+    </div>
+
+    @if (!details.artifacts.length) {
+      <div class="details__empty">No artifacts for this run.</div>
+    } @else {
+      <ul class="details__list">
+        @for (a of details.artifacts; track a.id) {
+          <li class="details__item">
+            <div class="details__meta">
+              <div class="details__name" title="{{ filename(a) }}">{{ filename(a) }}</div>
+              <div class="details__sub">
+                <span class="details__badge">{{ badge(a) }}</span>
+                <span class="details__time">{{ a.createdAt | date: 'short' }}</span>
+              </div>
+              <div class="details__preview" title="{{ shortPreview(a) }}">
+                {{ shortPreview(a) }}
+              </div>
+            </div>
+
+            <a class="details__download" [href]="downloadUrl(a)">
+              <app-icon name="download-2-line" />
+              <span>Download</span>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  }
+</div>
