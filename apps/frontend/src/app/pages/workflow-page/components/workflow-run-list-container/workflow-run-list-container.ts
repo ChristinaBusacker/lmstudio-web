@@ -1,34 +1,42 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
-import { WorkflowRunList } from '../workflow-run-list/workflow-run-list';
 import { CommonModule } from '@angular/common';
-import { WorkflowRunDetailsComponent } from '../workflow-run-details/workflow-run-details';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Store } from '@ngxs/store';
+import { combineLatest, distinctUntilChanged, filter, map, tap } from 'rxjs';
+
+import { WorkflowRunList } from '../workflow-run-list/workflow-run-list';
+import { WorkflowRunDetailsComponent } from '../workflow-run-details/workflow-run-details';
 import {
   LoadWorkflowRuns,
   SetSelectedRun,
   LoadWorkflowRunDetails,
 } from '@frontend/src/app/core/state/workflows/workflow.actions';
-import {
+import { WorkflowsState } from '@frontend/src/app/core/state/workflows/workflow.state';
+import type {
   WorkflowRun,
   WorkflowRunDetails,
+  WorkflowNodeRun,
 } from '@frontend/src/app/core/state/workflows/workflow.models';
-import { WorkflowsState } from '@frontend/src/app/core/state/workflows/workflow.state';
-import { Store } from '@ngxs/store';
-import { combineLatest, distinctUntilChanged, filter, map, tap } from 'rxjs';
+import { TabsModule } from '@frontend/src/app/ui/tabs/tabs-module';
+
+type RunVm = WorkflowRun & {
+  progress: number | null;
+  isActive: boolean;
+};
 
 @Component({
   selector: 'app-workflow-run-list-container',
-  imports: [CommonModule, WorkflowRunList, WorkflowRunDetailsComponent],
+  imports: [CommonModule, WorkflowRunList, WorkflowRunDetailsComponent, TabsModule],
   templateUrl: './workflow-run-list-container.html',
   styleUrl: './workflow-run-list-container.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkflowRunListContainer {
   private readonly store = inject(Store);
   private readonly destroyRef = inject(DestroyRef);
 
   vm: {
-    runs: WorkflowRun[];
+    runs: RunVm[];
     selectedRunId: string | null;
     isLoading: boolean;
     details: WorkflowRunDetails | null;
@@ -48,15 +56,28 @@ export class WorkflowRunListContainer {
     const selectedRunDetails$ = this.store.select(WorkflowsState.selectedRunDetails);
     const loading$ = this.store.select(WorkflowsState.loading);
 
-    // 1) ViewModel: purely derived, NO dispatch here.
     combineLatest([selectedWorkflow$, runs$, selectedRun$, selectedRunDetails$, loading$])
       .pipe(
         map(([wf, runs, selectedRun, details, loading]) => {
           const workflowId = wf?.id ?? null;
           const filtered = workflowId ? runs.filter((r) => r.workflowId === workflowId) : [];
 
+          const totalExecutable = wf ? this.countExecutableNodes(wf.graph) : 0;
+
+          const withProgress: RunVm[] = filtered.map((r) => {
+            const isActive = r.status === 'running' || r.status === 'queued';
+
+            let progress: number | null = null;
+            if (details?.run?.id === r.id && totalExecutable > 0) {
+              const done = this.countProcessedNodeRuns(details.nodeRuns ?? []);
+              progress = Math.max(0, Math.min(1, done / totalExecutable));
+            }
+
+            return { ...r, isActive, progress };
+          });
+
           return {
-            runs: filtered,
+            runs: withProgress,
             selectedRunId: selectedRun?.id ?? null,
             isLoading: loading.runs,
             details,
@@ -68,7 +89,6 @@ export class WorkflowRunListContainer {
         this.vm = vm;
       });
 
-    // 2) Initial load: only when workflowId changes.
     selectedWorkflow$
       .pipe(
         map((wf) => wf?.id ?? null),
@@ -93,5 +113,20 @@ export class WorkflowRunListContainer {
     if (!wf) return;
 
     this.store.dispatch(new LoadWorkflowRuns({ workflowId: wf.id, limit: 50 }));
+  }
+
+  private countProcessedNodeRuns(nodeRuns: WorkflowNodeRun[]): number {
+    return nodeRuns.filter((nr: any) => nr.status === 'completed' || nr.status === 'failed').length;
+  }
+
+  private countExecutableNodes(graph: any): number {
+    const nodes: any[] = Array.isArray(graph?.nodes) ? graph.nodes : [];
+
+    // Minimal rule-set: exclude preview nodes from "work"
+    return nodes.filter((n) => {
+      const t = String(n?.type ?? n?.nodeType ?? n?.data?.nodeType ?? '');
+      if (t === 'ui.preview') return false;
+      return true;
+    }).length;
   }
 }

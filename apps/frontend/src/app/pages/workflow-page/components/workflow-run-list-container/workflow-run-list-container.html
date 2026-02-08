@@ -1,9 +1,16 @@
-<app-workflow-run-list
-  [runs]="vm.runs"
-  [selectedRunId]="vm.selectedRunId"
-  [isLoading]="vm.isLoading"
-  (selectRun)="onSelectRun($event)"
-  (refresh)="onRefresh()"
-/>
-
-<app-workflow-run-details [details]="vm.details" />
+<app-tabs>
+  <app-tab label="Runs">
+    <app-workflow-run-list
+      [runs]="vm.runs"
+      [selectedRunId]="vm.selectedRunId"
+      [isLoading]="vm.isLoading"
+      (selectRun)="onSelectRun($event)"
+      (refresh)="onRefresh()"
+    />
+  </app-tab>
+  @if (vm.details) {
+    <app-tab label="Artefacts">
+      <app-workflow-run-details [details]="vm.details" />
+    </app-tab>
+  }
+</app-tabs>

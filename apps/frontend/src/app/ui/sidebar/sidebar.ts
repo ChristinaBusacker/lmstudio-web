@@ -17,6 +17,11 @@ import { ContextMenu } from '../context-menu/context-menu';
 import { ContextMenuItem, MenuState } from '../context-menu/context-menu.types';
 import { DialogService } from '../dialog/dialog.service';
 import { Icon } from '../icon/icon';
+import {
+  CreateWorkflow,
+  DeleteWorkflow,
+  UpdateWorkflow,
+} from '../../core/state/workflows/workflow.actions';
 
 @Component({
   selector: 'app-sidebar',
@@ -177,12 +182,100 @@ export class Sidebar {
     },
   ];
 
+  readonly workflowMenuItems: Array<ContextMenuItem<string | null>> = [
+    {
+      id: 'open',
+      label: 'Open workflow',
+      action: (id) => {
+        this.router.navigate(['/', 'workflow', id]);
+      },
+    },
+    {
+      id: 'rename',
+      label: 'Rename workflow',
+      action: (id) => {
+        if (id) {
+          const items = this.store.selectSnapshot(WorkflowsState.workflows);
+          const workflow = items.find((i) => i.id === id);
+          if (workflow) {
+            this.dialog
+              .prompt({
+                title: 'Rename workflow',
+                placeholder: 'Enter workflow name...',
+                initialValue: workflow.name || '',
+                hint: 'Choose a descriptive name.',
+                confirmLabel: 'Save',
+                declineLabel: 'Cancel',
+              })
+              .afterClosed()
+              .subscribe((result) => {
+                if (result.action === 'confirm' && result.data) {
+                  this.store.dispatch(new UpdateWorkflow(id, { name: result.data }));
+                }
+
+                this.closeMenu();
+              });
+          }
+        }
+      },
+    },
+    {
+      id: 'delete',
+      label: 'Delete workflow',
+      danger: true,
+      action: (id) => {
+        if (!id) {
+          this.closeMenu();
+          return;
+        }
+
+        this.dialog
+          .confirm({
+            title: 'Delete workflow',
+            message: 'Do you want to delete the workflow?',
+            confirmLabel: 'Delete',
+            declineLabel: 'Cancel',
+            closeLabel: null,
+          })
+          .afterClosed()
+          .subscribe((result) => {
+            if (result.action === 'confirm') {
+              this.store.dispatch(new DeleteWorkflow(id));
+            }
+            this.closeMenu();
+          });
+      },
+    },
+  ];
+
+  menuType: 'chat' | 'folder' | 'workflow';
+
   isChatMenu = true;
 
   @HostBinding('class.closed') @Input() closed = false;
 
   createNewChat() {
     this.store.dispatch(new CreateChat({ title: 'Untitled' }));
+  }
+
+  createNewWorkflow() {
+    this.dialog
+      .prompt({
+        title: 'Workflow name',
+        placeholder: 'Enter workflow name',
+        initialValue: 'New workflow',
+        hint: 'Choose a descriptive name.',
+        confirmLabel: 'Save',
+        declineLabel: 'Cancel',
+      })
+      .afterClosed()
+      .subscribe((result) => {
+        if (result.action === 'confirm' && result.data) {
+          this.store.dispatch(new CreateWorkflow({ name: result.data, graph: { nodes: [] } }));
+        }
+
+        this.closeMenu();
+      });
   }
 
   createNewFolder() {
@@ -220,7 +313,7 @@ export class Sidebar {
     ev.preventDefault();
     ev.stopPropagation();
 
-    this.isChatMenu = true;
+    this.menuType = 'chat';
 
     this.menu.set({
       open: true,
@@ -229,11 +322,24 @@ export class Sidebar {
     });
   }
 
+  openWorkflowMenu(ev: MouseEvent, workflowId: string): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    this.menuType = 'workflow';
+
+    this.menu.set({
+      open: true,
+      pos: { x: ev.pageX, y: ev.pageY },
+      chatId: workflowId,
+    });
+  }
+
   openFolderMenu(ev: MouseEvent, fodlerId: string): void {
     ev.preventDefault();
     ev.stopPropagation();
 
-    this.isChatMenu = false;
+    this.menuType = 'folder';
 
     this.menu.set({
       open: true,

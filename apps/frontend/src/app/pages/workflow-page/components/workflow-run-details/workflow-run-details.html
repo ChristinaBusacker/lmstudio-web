@@ -1,20 +1,39 @@
 <div class="details">
   @if (!details) {
-    <div class="details__empty">Select a run to see its artifacts.</div>
+    <div class="details__empty">Select a run to see its exports.</div>
   } @else {
     <div class="details__header">
       <div class="details__title">
-        <app-icon name="file-text-line" />
-        <span>Artifacts</span>
-        <span class="details__count">({{ details.artifacts.length }})</span>
+        <app-icon name="download-2-line" />
+        <span>Exports</span>
+        <span class="details__count">({{ exports.length }})</span>
+      </div>
+
+      <div class="details__workflowExport">
+        <a
+          class="details__workflowExportBtn"
+          [href]="'/api/workflows/' + details.run.workflowId + '/export'"
+        >
+          <app-icon name="share-forward-line" />
+          <span>Workflow</span>
+        </a>
+
+        <a
+          class="details__workflowExportBtn"
+          [href]="'/api/workflows/' + details.run.workflowId + '/export?includeRuns=1&limitRuns=50'"
+          title="Includes recent runs and artifacts (limit 50)"
+        >
+          <app-icon name="archive-line" />
+          <span>Workflow + Runs</span>
+        </a>
       </div>
     </div>
 
-    @if (!details.artifacts.length) {
-      <div class="details__empty">No artifacts for this run.</div>
+    @if (!exports.length) {
+      <div class="details__empty">No exporter artifacts for this run.</div>
     } @else {
       <ul class="details__list">
-        @for (a of details.artifacts; track a.id) {
+        @for (a of exports; track a.id) {
           <li class="details__item">
             <div class="details__meta">
               <div class="details__name" title="{{ filename(a) }}">{{ filename(a) }}</div>

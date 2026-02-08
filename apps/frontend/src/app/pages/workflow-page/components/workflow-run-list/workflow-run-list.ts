@@ -1,22 +1,32 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { TabsModule } from '@frontend/src/app/ui/tabs/tabs-module';
 import type { WorkflowRun } from '../../../../core/state/workflows/workflow.models';
 import { Icon } from '../../../../ui/icon/icon';
 
 type RunStatus = WorkflowRun['status'];
-
+type RunVm = {
+  id: string;
+  workflowId: string;
+  status: string;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  error: string | null;
+  progress: number | null;
+  isActive: boolean;
+};
 @Component({
   selector: 'app-workflow-run-list',
   standalone: true,
-  imports: [CommonModule, DatePipe, Icon],
+  imports: [CommonModule, DatePipe, Icon, TabsModule],
   templateUrl: './workflow-run-list.html',
   styleUrls: ['./workflow-run-list.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkflowRunList {
-  @Input({ required: true }) runs: WorkflowRun[] = [];
-  @Input() selectedRunId: string | null = null;
-  @Input() isLoading = false;
+  @Input({ required: true }) runs: RunVm[] = [];
+  @Input({ required: true }) selectedRunId: string | null = null;
+  @Input({ required: true }) isLoading = false;
 
   @Output() selectRun = new EventEmitter<string>();
   @Output() refresh = new EventEmitter<void>();

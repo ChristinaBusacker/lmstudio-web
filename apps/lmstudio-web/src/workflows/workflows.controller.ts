@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { createReadStream } from 'node:fs';
@@ -92,10 +92,40 @@ export class WorkflowsController {
     return this.workflows.get(this.ownerKey, id);
   }
 
+  @Delete(':id')
+  @ApiOperation({ summary: 'Get workflow by id' })
+  deleteWorkflow(@Param('id') id: string) {
+    return this.workflows.delete(this.ownerKey, id);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Update workflow' })
   updateWorkflow(@Param('id') id: string, @Body() dto: UpdateWorkflowDto) {
     return this.workflows.update(this.ownerKey, id, dto);
+  }
+
+  @Get(':id/export')
+  @ApiOperation({ summary: 'Export workflow (optionally including runs + artifacts)' })
+  async exportWorkflow(
+    @Param('id') workflowId: string,
+    @Query('includeRuns') includeRunsRaw: string | undefined,
+    @Query('limitRuns') limitRunsRaw: string | undefined,
+    @Res() res: Response,
+  ) {
+    const includeRuns = includeRunsRaw === '1' || includeRunsRaw === 'true';
+    const limitRuns = limitRunsRaw ? Number(limitRunsRaw) : 50;
+
+    const bundle = await this.workflows.exportWorkflowBundle(this.ownerKey, workflowId, {
+      includeRuns,
+      limitRuns,
+    });
+
+    const wfName = (bundle.workflow.name ?? `workflow-${workflowId}`).replace(/[^\w\-]+/g, '_');
+    const filename = includeRuns ? `${wfName}.with-runs.json` : `${wfName}.json`;
+
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(JSON.stringify(bundle, null, 2));
   }
 
   @Post(':id/runs')

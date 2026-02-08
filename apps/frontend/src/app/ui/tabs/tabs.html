@@ -1,0 +1,47 @@
+<div class="tabs" [class.tabs--below]="headerPosition() === 'below'">
+  <div class="tabs__header" role="tablist" aria-orientation="horizontal">
+    @for (t of tabs(); track $index) {
+      <button
+        #tabBtn
+        type="button"
+        class="tabs__tab"
+        role="tab"
+        [attr.aria-selected]="$index === selectedIndex()"
+        [attr.aria-controls]="panelId($index)"
+        [attr.aria-label]="t.ariaLabel() ?? null"
+        [attr.tabindex]="tabIndexFor($index)"
+        [disabled]="t.disabled()"
+        (click)="selectIndex($index)"
+        (keydown)="onKeydown($event, $index)"
+      >
+        <span class="tabs__label">{{ t.label() }}</span>
+      </button>
+    }
+
+    <!-- Ink bar -->
+    <div class="tabs__inkbar" aria-hidden="true">
+      <div
+        class="tabs__inkbar-indicator"
+        [style.left.px]="inkLeft()"
+        [style.width.px]="inkWidth()"
+      ></div>
+    </div>
+  </div>
+
+  <div class="tabs__body">
+    @for (t of tabs(); track $index) {
+      <section
+        class="tabs__panel"
+        role="tabpanel"
+        [id]="panelId($index)"
+        [attr.aria-labelledby]="tabId($index)"
+        [attr.aria-hidden]="$index === selectedIndex() ? 'false' : 'true'"
+        [class.is-active]="$index === selectedIndex()"
+        [class.is-before]="$index < selectedIndex()"
+        [class.is-after]="$index > selectedIndex()"
+      >
+        <ng-container [ngTemplateOutlet]="t.template" />
+      </section>
+    }
+  </div>
+</div>

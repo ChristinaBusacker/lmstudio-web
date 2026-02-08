@@ -1,4 +1,4 @@
-<div class="node">
+<div class="node" [ngClass]="{ preview: isPreview() }">
   @if (isMerge()) {
     @for (pid of mergePorts(); track pid; let i = $index) {
       <ng-diagram-port

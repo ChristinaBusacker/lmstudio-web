@@ -101,7 +101,6 @@ export class ChatsState {
 
   @Action(SidebarChanged)
   sidebarChanged(ctx: StateContext<ChatsStateModel>) {
-    // V1: treat as invalidation -> reload using last query
     return ctx.dispatch(new ReloadChats());
   }
 
@@ -109,10 +108,8 @@ export class ChatsState {
   create(ctx: StateContext<any>, action: CreateChat) {
     return this.api.create(action.dto).pipe(
       tap((created) => {
-        // Beispiel-Route: /chats/:id — passe an dein Routing an
         void this.router.navigate(['/chat', created.id]);
       }),
-      // Sidebar/Overview updaten (oder du verlässt dich auf SSE sidebar.changed)
       switchMap((created) => ctx.dispatch(new ReloadChats()).pipe(tap(() => created))),
       catchError((err) => {
         console.error('[Chats] create failed', err);

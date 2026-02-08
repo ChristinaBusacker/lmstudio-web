@@ -2,7 +2,7 @@
   width: 280px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.45);
 
   position: relative;
 
@@ -11,6 +11,10 @@
    * so the node itself must not clip them.
    */
   overflow: visible;
+
+  &.preview {
+    background: #343434;
+  }
 }
 
 /* We still want clean rounded corners for the inner content */

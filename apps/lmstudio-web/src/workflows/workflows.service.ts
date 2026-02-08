@@ -12,6 +12,12 @@ import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { CreateWorkflowRunDto } from './dto/create-workflow-run.dto';
 import { SseBusService } from '../sse/sse-bus.service';
 
+type WorkflowExportBundle = {
+  workflow: WorkflowEntity;
+  runs?: WorkflowRunEntity[];
+  nodeRuns?: WorkflowNodeRunEntity[];
+  artifacts?: ArtifactEntity[];
+};
 @Injectable()
 export class WorkflowsService {
   constructor(
@@ -59,6 +65,10 @@ export class WorkflowsService {
   async delete(ownerKey: string, workflowId: string) {
     const wf = await this.get(ownerKey, workflowId);
     await this.workflows.delete({ id: wf.id });
+    this.sse.publish({
+      type: 'sidebar.changed',
+      payload: { reason: 'workflow-deleted' },
+    });
     return { ok: true };
   }
 
@@ -362,6 +372,49 @@ export class WorkflowsService {
     if (!run) throw new NotFoundException(`Artifact not found: ${artifactId}`);
 
     return artifact;
+  }
+
+  /**
+   * Export a workflow as a single JSON bundle.
+   *
+   * - includeRuns: includes workflow runs and their nodeRuns/artifacts
+   * - limitRuns: caps number of runs (most recent first)
+   */
+  async exportWorkflowBundle(
+    ownerKey: string,
+    workflowId: string,
+    opts: { includeRuns: boolean; limitRuns: number },
+  ): Promise<WorkflowExportBundle> {
+    const workflow = await this.get(ownerKey, workflowId);
+
+    if (!opts.includeRuns) {
+      return { workflow };
+    }
+
+    const limit = Math.min(Math.max(Number(opts.limitRuns ?? 50), 1), 500);
+
+    const runs = await this.runs.find({
+      where: { ownerKey, workflowId },
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+
+    const runIds = runs.map((r) => r.id);
+    if (!runIds.length) {
+      return { workflow, runs: [], nodeRuns: [], artifacts: [] };
+    }
+
+    const nodeRuns = await this.nodeRuns.find({
+      where: { workflowRunId: runIds as any },
+      order: { createdAt: 'ASC' },
+    });
+
+    const artifacts = await this.artifacts.find({
+      where: { workflowRunId: runIds as any },
+      order: { createdAt: 'ASC' },
+    });
+
+    return { workflow, runs, nodeRuns, artifacts };
   }
 
   /**

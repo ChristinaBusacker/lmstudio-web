@@ -35,6 +35,10 @@ export class WorkflowApiService {
     return this.http.patch<Workflow>(`/api/workflows/${encodeURIComponent(id)}`, payload);
   }
 
+  deleteWorkflow(id: string): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`/api/workflows/${encodeURIComponent(id)}`);
+  }
+
   // -----------------------
   // Workflow Runs
   // -----------------------

@@ -30,6 +30,11 @@ export class UpdateWorkflow {
   ) {}
 }
 
+export class DeleteWorkflow {
+  static readonly type = '[Workflows] Delete Workflow';
+  constructor(public readonly workflowId: string) {}
+}
+
 // --------------------
 // Runs
 // --------------------

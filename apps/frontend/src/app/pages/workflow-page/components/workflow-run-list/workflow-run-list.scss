@@ -1,156 +1,117 @@
-.runlist {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
+.runs {
+  padding: 10px;
 }
 
-.runlist__header {
+.runs__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 8px;
 }
 
-.runlist__title {
-  display: inline-flex;
+.runs__title {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
-}
-
-.runlist__loading {
-  margin-left: 8px;
+  gap: 6px;
   font-size: 12px;
-  opacity: 0.65;
+  font-weight: 700;
 }
 
-.runlist__refresh {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: transparent;
-  cursor: pointer;
-}
-
-.runlist__empty {
-  padding: 12px;
-  opacity: 0.7;
-  font-size: 13px;
-}
-
-.runlist__items {
-  list-style: none;
-  padding: 8px;
-  margin: 0;
-  overflow: auto;
-  min-height: 0;
-  max-height: 200px;
-}
-
-.runlist__item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 10px;
+.runs__refresh {
+  width: 32px;
+  height: 32px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
-  cursor: pointer;
-  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
 }
 
-.runlist__item.is-selected {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
+.runs__refresh:hover {
+  background: rgba(255, 255, 255, 0.07);
 }
 
-.runlist__left {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
+.runs__empty {
+  padding: 10px;
+  font-size: 12px;
+  opacity: 0.7;
 }
 
-.runlist__right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.runlist__meta {
-  display: inline-flex;
+.runs__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
   gap: 8px;
-  min-width: 0;
 }
 
-.runlist__id {
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
-  font-size: 12px;
-  opacity: 0.85;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 240px;
+.runs__item {
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.28);
+  cursor: pointer;
 }
 
-.runlist__label {
-  font-size: 12px;
-  opacity: 0.8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 240px;
+.runs__item:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.runlist__time {
-  font-size: 12px;
-  opacity: 0.8;
+.runs__item.selected {
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
-.runlist__time--muted {
-  opacity: 0.55;
-}
-
-.runlist__error {
-  display: inline-flex;
+.runs__top {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  opacity: 0.9;
+  gap: 8px;
 }
 
-.runlist__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.runs__status {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  text-transform: lowercase;
 }
 
-.status--queued {
+.runs__time {
+  font-size: 11px;
   opacity: 0.7;
 }
 
-.status--running {
-  opacity: 0.95;
+.runs__progress {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
 }
 
-.status--completed {
-  opacity: 0.95;
+.runs__progressBar {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.status--failed {
-  opacity: 0.95;
+.runs__progressFill {
+  height: 100%;
+  width: 0%;
+  background: rgba(255, 255, 255, 0.25);
 }
 
-.status--canceled {
-  opacity: 0.7;
+.runs__progressText {
+  font-size: 11px;
+  opacity: 0.8;
+  min-width: 38px;
+  text-align: right;
+}
+
+.runs__error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: rgba(255, 120, 120, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

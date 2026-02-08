@@ -1,0 +1,137 @@
+:host {
+  display: block;
+
+  /* “Material-ish” Defaults, leicht anpassbar */
+  --tabs-padding-x: 12px;
+  --tabs-height: 48px;
+  --tabs-gap: 4px;
+
+  --inkbar-height: 2px;
+
+  /* Animationen */
+  --inkbar-duration: 220ms;
+  --panel-duration: 200ms;
+  --easing: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+
+  &.tabs--below {
+    flex-direction: column-reverse;
+  }
+}
+
+.tabs__header {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: var(--tabs-gap);
+  min-height: var(--tabs-height);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.tabs__tab {
+  position: relative;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0 var(--tabs-padding-x);
+  min-height: var(--tabs-height);
+  cursor: pointer;
+
+  border-radius: 10px; /* modern-ish */
+  transition: background-color 140ms var(--easing);
+
+  &:hover:not(:disabled) {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  &:active:not(:disabled) {
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+}
+
+.tabs__label {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font: inherit;
+}
+
+.tabs__inkbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--inkbar-height);
+  pointer-events: none;
+}
+
+.tabs__inkbar-indicator {
+  position: absolute;
+  bottom: 0;
+  height: var(--inkbar-height);
+  border-radius: 999px;
+
+  /* Farbe: nimm currentColor vom Host oder setz eine CSS-Variable */
+  background: currentColor;
+
+  transition:
+    left var(--inkbar-duration) var(--easing),
+    width var(--inkbar-duration) var(--easing);
+}
+
+/* Panels */
+
+.tabs__body {
+  position: relative;
+  padding-top: 8px;
+  min-height: 1px;
+}
+
+.tabs__panel {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+
+  transition:
+    opacity var(--panel-duration) var(--easing),
+    transform var(--panel-duration) var(--easing);
+
+  &.is-active {
+    position: relative; /* nimmt Platz ein */
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  /* kleine Richtungs-Andeutung (optional) */
+  &.is-before {
+    transform: translateX(-8px);
+  }
+
+  &.is-after {
+    transform: translateX(8px);
+  }
+
+  &.is-active.is-before,
+  &.is-active.is-after {
+    transform: translateX(0);
+  }
+}

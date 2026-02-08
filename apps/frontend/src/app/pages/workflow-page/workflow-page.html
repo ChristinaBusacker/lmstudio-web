@@ -17,6 +17,10 @@
     </ng-diagram>
 
     <div class="controls">
+      <div>
+        <b>{{ wf.name }}</b>
+      </div>
+
       <button class="btn" (click)="addNode()"><app-icon name="add-line" /> Add</button>
 
       <button class="btn btn-primary" (click)="saveGraph()" [disabled]="!editorDirty()">

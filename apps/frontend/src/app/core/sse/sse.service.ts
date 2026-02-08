@@ -63,7 +63,6 @@ export class SseService {
     this.chatId = null;
   }
 
-  /** Workflow scoped: good for run list + “current running node” indicator */
   connectWorkflow(workflowId: string): void {
     if (this.workflowEs && this.workflowId === workflowId) return;
 

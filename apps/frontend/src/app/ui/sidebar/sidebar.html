@@ -75,7 +75,7 @@
           class="workflow"
           [title]="w.title || 'Untitled'"
           [routerLink]="['workflow', w.id]"
-          (contextmenu)="openChatMenu($event, w.id)"
+          (contextmenu)="openWorkflowMenu($event, w.id)"
           dragItem
           [dragData]="w"
         >
@@ -85,7 +85,7 @@
       }
     </div>
   </app-accordion>
-  <button class="addBtn" title="Add new chat" (click)="createNewChat()">
+  <button class="addBtn" title="Add new workflow" (click)="createNewWorkflow()">
     <app-icon name="add-line" />
   </button>
 </section>
@@ -94,7 +94,13 @@
   <app-context-menu
     [position]="menu().pos"
     [context]="menu().chatId"
-    [items]="isChatMenu ? chatMenuItems : folderMenuItems"
+    [items]="
+      menuType === 'chat'
+        ? chatMenuItems
+        : menuType === 'folder'
+          ? folderMenuItems
+          : workflowMenuItems
+    "
     (close)="closeMenu()"
   />
 }

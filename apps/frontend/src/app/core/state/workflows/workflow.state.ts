@@ -27,7 +27,9 @@ import {
   ApplyWorkflowRunStatusFromSse,
   ApplyWorkflowNodeRunUpsertFromSse,
   ApplyWorkflowArtifactCreatedFromSse,
+  DeleteWorkflow,
 } from './workflow.actions';
+import { Router } from '@angular/router';
 
 export interface WorkflowsStateModel {
   workflows: Workflow[];
@@ -72,7 +74,10 @@ export interface WorkflowsStateModel {
 })
 @Injectable()
 export class WorkflowsState {
-  constructor(private readonly api: WorkflowApiService) {}
+  constructor(
+    private readonly api: WorkflowApiService,
+    private readonly router: Router,
+  ) {}
 
   // --------------------
   // Selectors
@@ -174,6 +179,7 @@ export class WorkflowsState {
           workflows: [wf, ...s.workflows.filter((x) => x.id !== wf.id)],
           selectedWorkflowId: wf.id,
         });
+        void this.router.navigate(['/workflow', wf.id]);
       }),
       catchError((err) => {
         ctx.patchState({ error: this.toErrorMessage(err) });
@@ -193,6 +199,23 @@ export class WorkflowsState {
           workflowsById: { ...s.workflowsById, [wf.id]: wf },
           workflows: this.upsertListById(s.workflows, wf),
         });
+      }),
+      catchError((err) => {
+        ctx.patchState({ error: this.toErrorMessage(err) });
+        return EMPTY;
+      }),
+    );
+  }
+
+  @Action(DeleteWorkflow)
+  deleteWorkflow(ctx: StateContext<WorkflowsStateModel>, action: DeleteWorkflow) {
+    ctx.patchState({ error: null });
+
+    return this.api.deleteWorkflow(action.workflowId).pipe(
+      tap((response: { ok: boolean }) => {
+        if (response) {
+          ctx.dispatch(new LoadWorkflows());
+        }
       }),
       catchError((err) => {
         ctx.patchState({ error: this.toErrorMessage(err) });
