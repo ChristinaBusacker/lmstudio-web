@@ -36,6 +36,8 @@ body {
 .sidebar-toggle {
   padding: 5px;
   margin: 0;
+  position: relative;
+  z-index: 999;
 
   & .sidebar-toggle__icon {
     transform: rotate(0deg);

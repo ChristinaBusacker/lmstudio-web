@@ -44,7 +44,7 @@
     }
 
     &.open {
-      &__icon {
+      & .runbar-toggle__icon {
         transform: rotate(-90deg);
       }
     }

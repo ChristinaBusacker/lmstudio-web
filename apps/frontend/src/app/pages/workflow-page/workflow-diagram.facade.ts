@@ -76,11 +76,15 @@ export class WorkflowDiagramFacade {
   private lastLoadedGraphSig: string | null = null;
   private pointerDownSig: string | null = null;
 
+  private lastLoadedWorkflowId: string | null = null;
+
   readonly dirty = this.editorState.dirty;
 
   readonly canUndo = computed(() => this.undoStack.length > 0);
   readonly canRedo = computed(() => this.redoStack.length > 0);
   readonly canReset = computed(() => !!this.lastSavedSnapshot);
+
+  private currentModel: DiagramModel | null = null;
 
   constructor() {
     effect(() => {
@@ -179,17 +183,28 @@ export class WorkflowDiagramFacade {
    * Pure loading method: no effects, no reactive setup, no injections.
    * It only returns a model based on current state and input.
    */
-  loadWorkflowGraph(workflow: { graph?: unknown } | null): { model: DiagramModel } {
+  loadWorkflowGraph(workflow: { id?: string; graph?: unknown } | null): { model: DiagramModel } {
     if (!workflow) {
       this.resetEditorForEmpty();
-      return { model: initializeModel({ nodes: [], edges: [] }) };
+      const m = initializeModel({ nodes: [], edges: [] });
+      this.currentModel = m;
+      return { model: m };
     }
+
+    const incomingWorkflowId = workflow?.id ? String(workflow.id) : null;
+    const workflowChanged =
+      incomingWorkflowId !== null && incomingWorkflowId !== this.lastLoadedWorkflowId;
 
     const incomingSig = this.workflowGraphSig(workflow);
 
-    if (this.dirty()) return { model: initializeModel(this.currentDiagramModelData()) };
+    if (!workflowChanged && this.dirty()) {
+      this.lastLoadedWorkflowId = incomingWorkflowId;
+      return { model: this.currentModel ?? initializeModel(this.currentDiagramModelData()) };
+    }
+
     if (incomingSig === this.lastLoadedGraphSig) {
-      return { model: initializeModel(this.currentDiagramModelData()) };
+      this.lastLoadedWorkflowId = incomingWorkflowId;
+      return { model: this.currentModel ?? initializeModel(this.currentDiagramModelData()) };
     }
 
     this.resetEditorForIncomingModel();
@@ -200,7 +215,9 @@ export class WorkflowDiagramFacade {
       edges: edges as DiagramEdge[],
     });
 
+    this.currentModel = model;
     this.lastLoadedGraphSig = incomingSig;
+    this.lastLoadedWorkflowId = incomingWorkflowId;
     return { model };
   }
 

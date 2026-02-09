@@ -421,6 +421,32 @@ export class WorkflowsService {
     return { workflow, runs, nodeRuns, artifacts };
   }
 
+  async importWorkflowBundle(
+    ownerKey: string,
+    dto: { bundle: any; name?: string },
+  ): Promise<WorkflowEntity> {
+    const bundle = dto.bundle;
+    if (!bundle?.workflow) {
+      throw new BadRequestException('Invalid bundle: missing workflow');
+    }
+
+    const wf = this.workflows.create({
+      ownerKey,
+      name: dto.name ?? bundle.workflow.name ?? 'Imported Workflow',
+      description: bundle.workflow.description ?? null,
+      graph: bundle.workflow.graph ?? { nodes: [] },
+    });
+
+    const saved = await this.workflows.save(wf);
+
+    this.sse.publish({
+      type: 'sidebar.changed',
+      payload: { reason: 'workflow-imported' },
+    });
+
+    return saved;
+  }
+
   /**
    * Rerun-from: delete downstream node runs + artifacts and set run back to queued.
    * v2: downstream is derived from edges + prompt/type dependencies (matching worker behavior).

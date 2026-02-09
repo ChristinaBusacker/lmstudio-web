@@ -7,6 +7,7 @@ import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { CreateWorkflowRunDto } from './dto/create-workflow-run.dto';
 import { WorkflowsService } from './workflows.service';
+import { ImportWorkflowBundleDto } from './dto/import-workflow-bundle.dto';
 
 @ApiTags('Workflows')
 @Controller('workflows')
@@ -132,6 +133,15 @@ export class WorkflowsController {
   @ApiOperation({ summary: 'Start workflow run (server-side execution)' })
   startRun(@Param('id') workflowId: string, @Body() dto: CreateWorkflowRunDto) {
     return this.workflows.createRun(this.ownerKey, workflowId, dto);
+  }
+
+  @Post('import')
+  @ApiOperation({ summary: 'Import workflow bundle as a new workflow' })
+  importWorkflow(@Body() dto: ImportWorkflowBundleDto) {
+    return this.workflows.importWorkflowBundle(this.ownerKey, {
+      bundle: dto.bundle,
+      name: dto.name,
+    });
   }
 
   private defaultMime(kind: string): string {

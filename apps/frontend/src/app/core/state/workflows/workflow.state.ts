@@ -242,9 +242,18 @@ export class WorkflowsState {
         const byId: Record<string, WorkflowRun> = {};
         for (const r of runs) byId[r.id] = r;
 
+        const s = ctx.getState();
+        const nextSelected =
+          runs.length === 0
+            ? null
+            : s.selectedRunId && byId[s.selectedRunId]
+              ? s.selectedRunId
+              : runs[0].id;
+
         ctx.patchState({
           runs,
           runsById: byId,
+          selectedRunId: nextSelected,
         });
       }),
       catchError((err) => {

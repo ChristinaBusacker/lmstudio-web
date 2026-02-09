@@ -31,7 +31,13 @@ export class WorkflowRunList {
   @Output() selectRun = new EventEmitter<string>();
   @Output() refresh = new EventEmitter<void>();
 
-  trackById = (_: number, r: WorkflowRun) => r.id;
+  trackById = (_: number, r: RunVm) => r.id;
+
+  percent(value: number): number {
+    const v = Number(value);
+    if (!Number.isFinite(v)) return 0;
+    return Math.max(0, Math.min(100, Math.round(v)));
+  }
 
   statusLabel(s: RunStatus): string {
     switch (s) {

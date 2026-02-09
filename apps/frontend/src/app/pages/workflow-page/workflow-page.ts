@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { CommonModule } from '@angular/common';
 import {
   Component,
@@ -5,6 +7,7 @@ import {
   effect,
   EnvironmentInjector,
   HostBinding,
+  HostListener,
   inject,
   runInInjectionContext,
 } from '@angular/core';
@@ -17,11 +20,13 @@ import {
   NgDiagramBackgroundComponent,
   NgDiagramComponent,
   NgDiagramConfig,
+  NgDiagramModelService,
   NgDiagramNodeTemplateMap,
+  NgDiagramSelectionService,
   provideNgDiagram,
   type EdgeDrawnEvent,
 } from 'ng-diagram';
-import { distinctUntilChanged, filter, map, tap } from 'rxjs';
+import { distinctUntilChanged, filter, map } from 'rxjs';
 
 import { SseService } from '../../core/sse/sse.service';
 import { SettingsState } from '../../core/state/settings/settings.state';
@@ -70,7 +75,7 @@ export class WorkflowPage {
   private readonly sse = inject(SseService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly envInjector = inject(EnvironmentInjector);
-
+  private readonly modelService = inject(NgDiagramModelService);
   readonly commands = inject(WorkflowDiagramCommandsService);
   readonly facade = inject(WorkflowDiagramFacade);
   private readonly editorState = inject(WorkflowEditorStateService);
@@ -83,7 +88,7 @@ export class WorkflowPage {
   readonly loading = this.store.select(WorkflowsState.loading);
   readonly error = this.store.select(WorkflowsState.error);
   readonly profiles$ = this.store.select(SettingsState.profiles);
-
+  private readonly selection = inject(NgDiagramSelectionService);
   readonly editorDirty = this.editorState.dirty;
 
   readonly nodeTemplateMap = new NgDiagramNodeTemplateMap([
@@ -120,24 +125,34 @@ export class WorkflowPage {
         map((pm) => pm.get('workflowId')),
         filter((id): id is string => !!id),
         distinctUntilChanged(),
-        tap((workflowId) => {
-          this.workflowId = workflowId;
-          this.sse.connectWorkflow(workflowId);
-          this.store.dispatch(new SetSelectedWorkflow(workflowId));
-        }),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe();
+      .subscribe((workflowId) => {
+        this.workflowId = workflowId;
+
+        this.sse.connectWorkflow(workflowId);
+        this.store.dispatch(new SetSelectedWorkflow(workflowId));
+      });
 
     this.destroyRef.onDestroy(() => {
       this.sse.disconnectWorkflow();
     });
 
-    this.workflow$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((wf) => {
-      runInInjectionContext(this.envInjector, () => {
-        this.model = this.facade.loadWorkflowGraph(wf).model;
+    this.workflow$
+      .pipe(
+        filter((wf): wf is any => !!wf),
+        filter((wf) => wf.id === this.workflowId),
+        distinctUntilChanged((a, b) => a.id === b.id && a.updatedAt === b.updatedAt),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((wf) => {
+        // Defer model update to avoid NG0100
+        queueMicrotask(() => {
+          runInInjectionContext(this.envInjector, () => {
+            this.model = this.facade.loadWorkflowGraph(wf).model;
+          });
+        });
       });
-    });
   }
 
   onDiagramInit(): void {
@@ -191,6 +206,7 @@ export class WorkflowPage {
     this.facade.resetToLastSaved();
   }
 
+  @HostListener('window:keydown', ['$event'])
   onKeyDown(e: KeyboardEvent): void {
     if (isEditableTarget(e.target)) return;
 
@@ -205,6 +221,18 @@ export class WorkflowPage {
     if (mod && key === 's') {
       stop();
       this.saveGraph();
+      return;
+    }
+
+    if (mod && key === 'a') {
+      stop();
+
+      const model = this.model as any;
+      const nodes = model.nodes().map((n) => n.id);
+      const edges = model.edges().map((e) => e.id);
+
+      this.selection.select(nodes, edges);
+
       return;
     }
 

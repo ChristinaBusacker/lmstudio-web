@@ -1,5 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  DestroyRef,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngxs/store';
@@ -30,10 +36,12 @@ type RunVm = WorkflowRun & {
   imports: [CommonModule, WorkflowRunList, WorkflowRunDetailsComponent, TabsModule],
   templateUrl: './workflow-run-list-container.html',
   styleUrl: './workflow-run-list-container.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkflowRunListContainer {
   private readonly store = inject(Store);
-  private readonly destroyRef = inject(DestroyRef);
+  private readonly destroyRef;
+  private cdr = inject(ChangeDetectorRef);
 
   vm: {
     runs: RunVm[];
@@ -87,6 +95,7 @@ export class WorkflowRunListContainer {
       )
       .subscribe((vm) => {
         this.vm = vm;
+        this.cdr.detectChanges();
       });
 
     selectedWorkflow$

@@ -2,6 +2,7 @@
   class="node"
   [ngClass]="{ preview: isPreview(), loop: isLoopStart() || isLoopEnd() }"
   [attr.data-node-type]="node().data.nodeType"
+  (pointerdown)="onNodePointerDown($event)"
 >
   @if (isMerge()) {
     @for (pid of mergePorts(); track pid; let i = $index) {
@@ -256,11 +257,16 @@
   </div>
 
   <div class="controls">
-    <button (click)="duplicateNode()">
-      <app-icon name="file-copy-line" title="duplicate" />
-    </button>
-    <button (click)="deleteNode()">
-      <app-icon name="delete-bin-line" title="delete" />
-    </button>
+    <div class="controls">
+      <button (click)="duplicateNode()">
+        <app-icon name="file-copy-line" title="duplicate" />
+      </button>
+      <button (click)="deleteNode()">
+        <app-icon name="delete-bin-line" title="delete" />
+      </button>
+      <button (click)="addLinkedNode()">
+        <app-icon name="add-line" title="add connected node" />
+      </button>
+    </div>
   </div>
 </div>

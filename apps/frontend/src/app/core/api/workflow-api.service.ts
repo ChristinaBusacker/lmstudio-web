@@ -39,6 +39,10 @@ export class WorkflowApiService {
     return this.http.delete<{ ok: boolean }>(`/api/workflows/${encodeURIComponent(id)}`);
   }
 
+  importWorkflowBundle(bundle: unknown, name?: string): Observable<Workflow> {
+    return this.http.post<Workflow>('/api/workflows/import', { bundle, name });
+  }
+
   // -----------------------
   // Workflow Runs
   // -----------------------

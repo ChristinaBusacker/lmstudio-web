@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { CommonModule } from '@angular/common';
@@ -11,6 +12,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SettingsState } from '@frontend/src/app/core/state/settings/settings.state';
+import type { WorkflowRunDetails } from '@frontend/src/app/core/state/workflows/workflow.models';
 import { WorkflowsState } from '@frontend/src/app/core/state/workflows/workflow.state';
 import { shortId } from '@frontend/src/app/core/utils/shortId.util';
 import { Icon } from '@frontend/src/app/ui/icon/icon';
@@ -18,9 +20,9 @@ import { Store } from '@ngxs/store';
 import {
   NgDiagramModelService,
   NgDiagramNodeResizeAdornmentComponent,
-  NgDiagramNodeRotateAdornmentComponent,
   NgDiagramNodeSelectedDirective,
   NgDiagramPortComponent,
+  NgDiagramSelectionService,
   type NgDiagramNodeTemplate,
   type Node,
 } from 'ng-diagram';
@@ -28,6 +30,8 @@ import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import {
   CONDITION_FALSE_PORT,
   CONDITION_TRUE_PORT,
+  DEFAULT_SOURCE_PORT,
+  DEFAULT_TARGET_PORT,
   DiagramNodeData,
   MERGE_IN_PREFIX,
   MERGE_OUT_PORT,
@@ -41,18 +45,11 @@ import {
   NODE_PREVIEW,
 } from '../../workflow-diagram.adapter';
 import { WorkflowEditorStateService } from '../../workflow-editor-state.service';
-import type { WorkflowRunDetails } from '@frontend/src/app/core/state/workflows/workflow.models';
 
 @Component({
   selector: 'app-workflow-node',
   standalone: true,
-  imports: [
-    CommonModule,
-    NgDiagramPortComponent,
-    NgDiagramNodeResizeAdornmentComponent,
-    NgDiagramNodeRotateAdornmentComponent,
-    Icon,
-  ],
+  imports: [CommonModule, NgDiagramPortComponent, NgDiagramNodeResizeAdornmentComponent, Icon],
   hostDirectives: [{ directive: NgDiagramNodeSelectedDirective, inputs: ['node'] }],
   templateUrl: './workflow-node.html',
   styleUrls: ['./workflow-node.scss'],
@@ -63,6 +60,8 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
   private readonly store = inject(Store);
   private readonly editorState = inject(WorkflowEditorStateService);
   private readonly destroyRef = inject(DestroyRef);
+
+  private readonly selection = inject(NgDiagramSelectionService);
 
   node = input.required<Node<DiagramNodeData>>();
 
@@ -305,6 +304,66 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     const lines = base.split('\n');
     const slice = lines.slice(0, maxLines).join('\n');
     return lines.length > maxLines ? `${slice}\n…` : slice;
+  }
+
+  addLinkedNode() {
+    const n = this.node();
+
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+
+    const newId = shortId();
+
+    const x = Number(n.position?.x ?? 0) + 360;
+    const y = Number(n.position?.y ?? 0) + 0;
+
+    this.model.addNodes([
+      {
+        id: newId,
+        type: 'workflowNode',
+        position: { x, y },
+        data: {
+          label: newId,
+          nodeType: NODE_LLM,
+          profileName: 'Default',
+          prompt: '',
+        },
+      },
+    ]);
+
+    // Prefer "true" branch for condition nodes by default.
+    const sourcePort =
+      n.data.nodeType === NODE_CONDITION
+        ? CONDITION_TRUE_PORT
+        : n.data.nodeType === NODE_MERGE
+          ? MERGE_OUT_PORT
+          : DEFAULT_SOURCE_PORT;
+
+    this.model.addEdges([
+      {
+        id: `${n.id}->${newId}-${shortId()}`,
+        source: n.id,
+        target: newId,
+        sourcePort,
+        targetPort: DEFAULT_TARGET_PORT,
+        data: {},
+      },
+    ]);
+  }
+
+  onNodePointerDown(e: PointerEvent): void {
+    if (e.button !== 0) return;
+    if (!e.shiftKey) return;
+
+    // Prevent default single-select behavior
+    e.preventDefault();
+    e.stopPropagation();
+
+    const id = this.node().id;
+
+    const cur = this.selection.selection();
+    const nodes = cur.nodes.map((n) => n.id);
+    this.selection.select([...nodes, id]);
   }
 
   private safeDiagramJson(): { nodes?: unknown[]; edges?: unknown[] } {
