@@ -361,6 +361,11 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     const nodeType = String(node.type ?? 'lmstudio.llm');
     const rawPrompt = String(node.prompt ?? '').trim();
 
+    const loopLast =
+      iteration > 0 && typeof ctx?.loop?.last === 'string' && ctx.loop.last.trim().length > 0
+        ? String(ctx.loop.last)
+        : null;
+
     const edgesInAll = (incoming.get(nodeId) ?? []).slice();
     const edgesIn = edgesInAll.filter((e) => {
       const srcNode = nodeById.get(e.source);
@@ -403,12 +408,14 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
     if (sourcesSorted.length === 1) {
       const src = sourcesSorted[0];
-      if (!(src in ctx.nodes)) throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
+      if (!(src in ctx.nodes))
+        throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
       ctx.input = ctx.nodes[src];
     } else if (sourcesSorted.length > 1) {
       const obj: Record<string, any> = {};
       for (const src of sourcesSorted) {
-        if (!(src in ctx.nodes)) throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
+        if (!(src in ctx.nodes))
+          throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
         obj[src] = ctx.nodes[src];
       }
       ctx.input = obj;
@@ -454,7 +461,8 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       const sources = edges.map((e) => e.source);
       const parts: string[] = [];
       for (const src of sources) {
-        if (!(src in ctx.nodes)) throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
+        if (!(src in ctx.nodes))
+          throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
         parts.push(this.toText(ctx.nodes[src]));
       }
 
@@ -489,10 +497,13 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       }
 
       const src = sourcesSorted[0];
-      if (!(src in ctx.nodes)) throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
+      if (!(src in ctx.nodes))
+        throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
 
       const text = this.toText(ctx.nodes[src]);
-      const filename = (node?.config?.export?.filename ?? node?.exportFilename ?? `export-${runId}-${nodeId}.txt`) as string;
+      const filename = (node?.config?.export?.filename ??
+        node?.exportFilename ??
+        `export-${runId}-${nodeId}.txt`) as string;
 
       const artifact = await this.workflows.createArtifact(runId, null, {
         kind: 'text',
@@ -509,7 +520,11 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         outputText: text,
         outputJson: null,
         primaryArtifactId: artifact.id,
-        inputSnapshot: { sources: sourcesSorted, filename: String(filename), note: 'workflow.export' },
+        inputSnapshot: {
+          sources: sourcesSorted,
+          filename: String(filename),
+          note: 'workflow.export',
+        },
         error: null,
       });
 
@@ -543,13 +558,20 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       const systemPrompt = String((profile as any).systemPrompt ?? '').trim();
 
       let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
+      const blocks: string[] = [];
+      if (loopLast) {
+        blocks.push(
+          `You are in a loop. The text below is the output from the previous iteration.\n` +
+            `---\nLAST_ITERATION_OUTPUT:\n${loopLast}\n---\n`,
+        );
+      }
       if (sourcesSorted.length > 0) {
         const inputText = this.toText(ctx.input);
-        renderedPrompt =
-          `You are given upstream context from previous workflow steps.\n` +
-          `---\nUPSTREAM_INPUT:\n${inputText}\n---\n\n` +
-          renderedPrompt;
+        blocks.push(
+          `You are given upstream context from previous workflow steps.\n---\nUPSTREAM_INPUT:\n${inputText}\n---\n`,
+        );
       }
+      if (blocks.length) renderedPrompt = `${blocks.join('\n')}\n\n${renderedPrompt}`;
 
       const finalPrompt =
         `Decide whether the condition is satisfied.\n` +
@@ -561,7 +583,12 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         iteration,
         status: 'running',
         startedAt: new Date(),
-        inputSnapshot: { sources: sourcesSorted, profileName, modelKey: params.modelKey, note: 'workflow.condition' },
+        inputSnapshot: {
+          sources: sourcesSorted,
+          profileName,
+          modelKey: params.modelKey,
+          note: 'workflow.condition',
+        },
         error: null,
       });
 
@@ -580,11 +607,14 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
       const parsed = this.safeJsonParse(full.trim());
       if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') {
-        throw new Error(`Condition did not return valid JSON: ${parsed.ok ? 'invalid object' : parsed.error}`);
+        throw new Error(
+          `Condition did not return valid JSON: ${parsed.ok ? 'invalid object' : parsed.error}`,
+        );
       }
 
       const result = (parsed.value as any).result;
-      if (typeof result !== 'boolean') throw new Error(`Condition JSON missing boolean field "result"`);
+      if (typeof result !== 'boolean')
+        throw new Error(`Condition JSON missing boolean field "result"`);
 
       const artifact = await this.workflows.createArtifact(runId, null, {
         kind: 'json',
@@ -616,12 +646,21 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     if (!rawPrompt) throw new Error(`Node ${nodeId} missing prompt`);
 
     let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
-    if (sourcesSorted.length > 0) {
-      const inputText = this.toText(ctx.input);
-      renderedPrompt =
-        `You are given upstream context from previous workflow steps.\n` +
-        `---\nUPSTREAM_INPUT:\n${inputText}\n---\n\n` +
-        renderedPrompt;
+    {
+      const blocks: string[] = [];
+      if (loopLast) {
+        blocks.push(
+          `You are in a loop. The text below is the output from the previous iteration.\n` +
+            `---\nLAST_ITERATION_OUTPUT:\n${loopLast}\n---\n`,
+        );
+      }
+      if (sourcesSorted.length > 0) {
+        const inputText = this.toText(ctx.input);
+        blocks.push(
+          `You are given upstream context from previous workflow steps.\n---\nUPSTREAM_INPUT:\n${inputText}\n---\n`,
+        );
+      }
+      if (blocks.length) renderedPrompt = `${blocks.join('\n')}\n\n${renderedPrompt}`;
     }
 
     const profile = await this.settings.getByName(this.ownerKey, profileName);
@@ -636,7 +675,12 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       iteration,
       status: 'running',
       startedAt: new Date(),
-      inputSnapshot: { sources: sourcesSorted, profileName, modelKey: params.modelKey, note: 'lmstudio.llm' },
+      inputSnapshot: {
+        sources: sourcesSorted,
+        profileName,
+        modelKey: params.modelKey,
+        note: 'lmstudio.llm',
+      },
       error: null,
     });
 
@@ -748,13 +792,17 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
       for (const nr of details.nodeRuns) {
         if (nr.status !== 'completed') continue;
-        const it = Number.isFinite(Number((nr as any).iteration)) ? Number((nr as any).iteration) : 0;
+        const it = Number.isFinite(Number((nr as any).iteration))
+          ? Number((nr as any).iteration)
+          : 0;
         const createdAt = String((nr as any).createdAt ?? '');
         const prev = bestKey.get(nr.nodeId);
         if (!prev || it > prev.iteration || (it === prev.iteration && createdAt > prev.createdAt)) {
           bestKey.set(nr.nodeId, { iteration: it, createdAt });
-          if (nr.outputJson !== null && nr.outputJson !== undefined) latestByNode.set(nr.nodeId, nr.outputJson);
-          else if (nr.outputText !== null && nr.outputText !== undefined) latestByNode.set(nr.nodeId, nr.outputText);
+          if (nr.outputJson !== null && nr.outputJson !== undefined)
+            latestByNode.set(nr.nodeId, nr.outputJson);
+          else if (nr.outputText !== null && nr.outputText !== undefined)
+            latestByNode.set(nr.nodeId, nr.outputText);
         }
       }
       for (const [k, v] of latestByNode) ctx.nodes[k] = v;
@@ -916,6 +964,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             ctx.loop = {
               index,
               iteration: index + 1,
+              last: items.length ? items[items.length - 1] : '',
               items: items.slice(),
               joined: items.join(joiner),
             };
@@ -926,7 +975,9 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
               if (!bodyNode) continue;
               const bodyType = String(bodyNode.type ?? 'lmstudio.llm');
               if (bodyType === LOOP_START || bodyType === LOOP_END) {
-                throw new Error(`Nested loops are not supported yet (found ${bodyType} inside loop body)`);
+                throw new Error(
+                  `Nested loops are not supported yet (found ${bodyType} inside loop body)`,
+                );
               }
 
               // Reuse the normal execution path by temporarily setting current node.
