@@ -6,10 +6,18 @@ import { Workflow } from '@frontend/src/app/core/state/workflows/workflow.models
 
 export const NODE_LLM = 'lmstudio.llm';
 export const NODE_CONDITION = 'workflow.condition';
+// Structural loop nodes (loop body is everything between start and end)
+export const NODE_LOOP_START = 'workflow.loopStart';
+export const NODE_LOOP_END = 'workflow.loopEnd';
+
+// Legacy loop node (kept for backward compatibility)
 export const NODE_LOOP = 'workflow.loop';
 export const NODE_MERGE = 'workflow.merge';
 export const NODE_EXPORT = 'workflow.export';
 export const NODE_PREVIEW = 'ui.preview';
+
+export const CONDITION_TRUE_PORT = 'cond-true';
+export const CONDITION_FALSE_PORT = 'cond-false';
 
 export type WorkflowGraph = {
   nodes: Array<{
@@ -19,6 +27,18 @@ export type WorkflowGraph = {
     prompt?: string;
     config?: any;
     position?: { x: number; y: number };
+
+    /**
+     * ngDiagram layout properties (optional).
+     *
+     * - size/autoSize are controlled by the resize adornment and allow persisting manual dimensions.
+     * - angle is controlled by the rotation adornment and allows persisting rotated nodes (e.g. diamonds).
+     *
+     * These fields are intentionally optional to remain backward compatible with existing graphs.
+     */
+    size?: { width: number; height: number };
+    autoSize?: boolean;
+    angle?: number;
 
     // legacy only (read-only for migration)
     inputFrom?: string | null;
@@ -48,7 +68,15 @@ export type DiagramNodeData = {
   mergeInputCount?: number;
 
   exportFilename?: string;
+  // Legacy loop fields
+  loopItemPath?: string;
+  loopJoiner?: string;
+  loopMaxItems?: number;
 
+  // Structural loopStart fields
+  loopMaxIterations?: number;
+  loopMode?: 'while' | 'until';
+  loopConditionPrompt?: string;
   previewMaxLines?: number;
 };
 
@@ -82,18 +110,43 @@ function normalizeNodes(input: any): WorkflowGraph['nodes'] {
 
   return raw
     .filter((n) => !!n?.id)
-    .map((n, idx) => ({
-      id: String(n.id),
-      type: String(n.type ?? NODE_LLM),
-      profileName: String(n.profileName ?? ''),
-      prompt: String(n.prompt ?? ''),
-      config: n.config ?? null,
-      inputFrom:
-        n.inputFrom === undefined ? null : n.inputFrom === null ? null : String(n.inputFrom),
-      position: n.position
-        ? { x: Number(n.position.x ?? 0), y: Number(n.position.y ?? 0) }
-        : { x: 40 + (idx % 2) * spacingX, y: 40 + Math.floor(idx / 2) * spacingY },
-    }))
+    .map((n, idx) => {
+      const size =
+        n?.size && typeof n.size === 'object'
+          ? {
+              width: Number(n.size.width ?? NaN),
+              height: Number(n.size.height ?? NaN),
+            }
+          : undefined;
+
+      const normalizedSize =
+        size && Number.isFinite(size.width) && Number.isFinite(size.height) ? size : undefined;
+
+      const angle =
+        n?.angle === null || n?.angle === undefined ? undefined : Number(n.angle ?? NaN);
+
+      const normalizedAngle = Number.isFinite(angle as number) ? (angle as number) : undefined;
+
+      const autoSize =
+        n?.autoSize === null || n?.autoSize === undefined ? undefined : Boolean(n.autoSize);
+
+      return {
+        id: String(n.id),
+        type: String(n.type ?? NODE_LLM),
+        profileName: String(n.profileName ?? ''),
+        prompt: String(n.prompt ?? ''),
+        config: n.config ?? null,
+        inputFrom:
+          n.inputFrom === undefined ? null : n.inputFrom === null ? null : String(n.inputFrom),
+        position: n.position
+          ? { x: Number(n.position.x ?? 0), y: Number(n.position.y ?? 0) }
+          : { x: 40 + (idx % 2) * spacingX, y: 40 + Math.floor(idx / 2) * spacingY },
+
+        size: normalizedSize,
+        autoSize,
+        angle: normalizedAngle,
+      };
+    })
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
@@ -166,6 +219,23 @@ export function normalizeWorkflowGraph(input: any): WorkflowGraph {
 }
 
 function nodeDefaultsByType(nodeType: string): Partial<DiagramNodeData> {
+  if (nodeType === NODE_LOOP_START) {
+    return {
+      loopMode: 'until',
+      loopConditionPrompt: 'Are we done?',
+      loopJoiner: '\n\n',
+      loopMaxIterations: 10,
+    };
+  }
+
+  // Legacy loop defaults
+  if (nodeType === NODE_LOOP) {
+    return {
+      loopItemPath: '',
+      loopJoiner: '\n\n',
+      loopMaxItems: 50,
+    };
+  }
   if (nodeType === NODE_MERGE) {
     return {
       mergeSeparator: '\n\n',
@@ -196,6 +266,11 @@ export function workflowToDiagramModel(workflow: Workflow) {
       return {
         id: n.id,
         position: n.position!,
+        // Persisted layout properties (optional).
+        size: n.size ?? undefined,
+        autoSize: n.autoSize ?? undefined,
+        angle: n.angle ?? undefined,
+
         type: WORKFLOW_NODE_TEMPLATE,
         data: {
           label: n.id,
@@ -207,6 +282,16 @@ export function workflowToDiagramModel(workflow: Workflow) {
           mergeInputCount: cfg?.merge?.inputCount ?? defaults.mergeInputCount,
 
           exportFilename: cfg?.export?.filename ?? defaults.exportFilename,
+          // LoopStart
+          loopMode: cfg?.loop?.mode ?? defaults.loopMode,
+          loopConditionPrompt: cfg?.loop?.conditionPrompt ?? defaults.loopConditionPrompt,
+          loopJoiner: cfg?.loop?.joiner ?? defaults.loopJoiner,
+          loopMaxIterations:
+            cfg?.loop?.maxIterations ?? cfg?.loop?.maxItems ?? defaults.loopMaxIterations,
+
+          // Legacy loop
+          loopItemPath: cfg?.loop?.itemPath ?? defaults.loopItemPath,
+          loopMaxItems: cfg?.loop?.maxItems ?? defaults.loopMaxItems,
 
           previewMaxLines: cfg?.preview?.maxLines ?? defaults.previewMaxLines,
         } satisfies DiagramNodeData,
@@ -260,6 +345,43 @@ export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
         };
       }
 
+      if (nodeType === NODE_LOOP_START) {
+        config.loop = {
+          mode: String(n.data?.loopMode ?? 'until'),
+          conditionPrompt: String(n.data?.loopConditionPrompt ?? ''),
+          joiner: String(n.data?.loopJoiner ?? '\n\n'),
+          maxIterations: Number(n.data?.loopMaxIterations ?? 10),
+        };
+      }
+
+      if (nodeType === NODE_LOOP) {
+        // Legacy loop support
+        config.loop = {
+          itemPath: String(n.data?.loopItemPath ?? ''),
+          joiner: String(n.data?.loopJoiner ?? '\n\n'),
+          maxItems: Number(n.data?.loopMaxItems ?? 50),
+        };
+      }
+
+      const size =
+        n?.size && typeof n.size === 'object'
+          ? {
+              width: Number(n.size.width ?? NaN),
+              height: Number(n.size.height ?? NaN),
+            }
+          : undefined;
+
+      const normalizedSize =
+        size && Number.isFinite(size.width) && Number.isFinite(size.height) ? size : undefined;
+
+      const angle =
+        n?.angle === null || n?.angle === undefined ? undefined : Number(n.angle ?? NaN);
+
+      const normalizedAngle = Number.isFinite(angle as number) ? (angle as number) : undefined;
+
+      const autoSize =
+        n?.autoSize === null || n?.autoSize === undefined ? undefined : Boolean(n.autoSize);
+
       return {
         id: String(n.id),
         type: nodeType,
@@ -267,6 +389,10 @@ export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
         prompt: String(n.data?.prompt ?? ''),
         config,
         position: n.position ? { x: Number(n.position.x), y: Number(n.position.y) } : undefined,
+
+        size: normalizedSize,
+        autoSize,
+        angle: normalizedAngle,
       };
     }),
     edges: edges.map((e: any) => ({ ...e })),

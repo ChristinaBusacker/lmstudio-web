@@ -26,6 +26,8 @@ import {
 } from 'ng-diagram';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import {
+  CONDITION_FALSE_PORT,
+  CONDITION_TRUE_PORT,
   DiagramNodeData,
   MERGE_IN_PREFIX,
   MERGE_OUT_PORT,
@@ -33,6 +35,8 @@ import {
   NODE_EXPORT,
   NODE_LLM,
   NODE_LOOP,
+  NODE_LOOP_END,
+  NODE_LOOP_START,
   NODE_MERGE,
   NODE_PREVIEW,
 } from '../../workflow-diagram.adapter';
@@ -69,9 +73,12 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
   nodeType = computed(() => this.node().data.nodeType);
 
   readonly isLlm = computed(() => this.nodeType() === NODE_LLM);
+  readonly isCondition = computed(() => this.nodeType() === NODE_CONDITION);
   readonly isMerge = computed(() => this.nodeType() === NODE_MERGE);
   readonly isExport = computed(() => this.nodeType() === NODE_EXPORT);
   readonly isPreview = computed(() => this.nodeType() === NODE_PREVIEW);
+  readonly isLoopStart = computed(() => this.nodeType() === NODE_LOOP_START);
+  readonly isLoopEnd = computed(() => this.nodeType() === NODE_LOOP_END);
 
   readonly promptInput$ = new Subject<string>();
 
@@ -108,6 +115,16 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     return 76; // aligns nicely with first/second ports visually
   }
 
+  // ---- Condition ports ----
+
+  conditionTruePortTop(): number {
+    return 72;
+  }
+
+  conditionFalsePortTop(): number {
+    return 108;
+  }
+
   // ---- Editing ----
 
   updateProfileName(value: string) {
@@ -137,6 +154,13 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
       patch.previewMaxLines = n.data.previewMaxLines ?? 10;
     }
 
+    if (value === NODE_LOOP_START) {
+      patch.loopMode = n.data.loopMode ?? 'until';
+      patch.loopConditionPrompt = n.data.loopConditionPrompt ?? 'Are we done?';
+      patch.loopJoiner = n.data.loopJoiner ?? '\n\n';
+      patch.loopMaxIterations = n.data.loopMaxIterations ?? 10;
+    }
+
     this.model.updateNodeData(n.id, { ...n.data, ...patch });
   }
 
@@ -159,6 +183,35 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     this.editorState.requestSnapshot();
     this.editorState.markDirty();
     this.model.updateNodeData(n.id, { ...n.data, previewMaxLines: value });
+  }
+
+  updateLoopMode(value: 'while' | 'until') {
+    const n = this.node();
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+    this.model.updateNodeData(n.id, { ...n.data, loopMode: value });
+  }
+
+  updateLoopConditionPrompt(value: string) {
+    const n = this.node();
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+    this.model.updateNodeData(n.id, { ...n.data, loopConditionPrompt: value });
+  }
+
+  updateLoopJoiner(value: string) {
+    const n = this.node();
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+    this.model.updateNodeData(n.id, { ...n.data, loopJoiner: value });
+  }
+
+  updateLoopMaxIterations(value: number) {
+    const n = this.node();
+    const v = Math.max(1, Math.min(1000, Number(value)));
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+    this.model.updateNodeData(n.id, { ...n.data, loopMaxIterations: v });
   }
 
   deleteNode() {
@@ -265,8 +318,12 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
   protected readonly NODE_LLM = NODE_LLM;
   protected readonly NODE_CONDITION = NODE_CONDITION;
   protected readonly NODE_LOOP = NODE_LOOP;
+  protected readonly NODE_LOOP_START = NODE_LOOP_START;
+  protected readonly NODE_LOOP_END = NODE_LOOP_END;
   protected readonly NODE_MERGE = NODE_MERGE;
   protected readonly NODE_EXPORT = NODE_EXPORT;
   protected readonly NODE_PREVIEW = NODE_PREVIEW;
   protected readonly MERGE_OUT_PORT = MERGE_OUT_PORT;
+  protected readonly CONDITION_TRUE_PORT = CONDITION_TRUE_PORT;
+  protected readonly CONDITION_FALSE_PORT = CONDITION_FALSE_PORT;
 }

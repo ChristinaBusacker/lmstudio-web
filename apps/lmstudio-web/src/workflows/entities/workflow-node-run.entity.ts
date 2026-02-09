@@ -5,7 +5,7 @@ export type WorkflowNodeRunStatus = 'pending' | 'running' | 'completed' | 'faile
 
 @Entity('workflow_node_run')
 @Index(['workflowRunId'])
-@Index(['workflowRunId', 'nodeId'])
+@Index(['workflowRunId', 'nodeId', 'iteration'], { unique: true })
 @Index(['status'])
 export class WorkflowNodeRunEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -16,6 +16,9 @@ export class WorkflowNodeRunEntity {
 
   @Column({ type: 'varchar', length: 128 })
   nodeId!: string;
+
+  @Column({ type: 'int', default: 0 })
+  iteration!: number;
 
   @Column({ type: 'varchar', length: 16 })
   status!: WorkflowNodeRunStatus;

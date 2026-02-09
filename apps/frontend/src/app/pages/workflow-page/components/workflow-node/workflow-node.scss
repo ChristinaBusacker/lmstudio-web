@@ -15,6 +15,10 @@
   &.preview {
     background: #343434;
   }
+
+  &.loop {
+    background: var(--color-primary-dark);
+  }
 }
 
 /* We still want clean rounded corners for the inner content */

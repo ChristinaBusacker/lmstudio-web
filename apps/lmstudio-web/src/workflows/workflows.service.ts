@@ -126,7 +126,7 @@ export class WorkflowsService {
 
     const nodeRuns = await this.nodeRuns.find({
       where: { workflowRunId: runId },
-      order: { createdAt: 'ASC' },
+      order: { iteration: 'ASC', createdAt: 'ASC' },
     });
 
     const artifacts = await this.artifacts.find({
@@ -239,6 +239,7 @@ export class WorkflowsService {
     runId: string,
     nodeId: string,
     patch: Partial<{
+      iteration: number;
       status: WorkflowNodeRunStatus;
       inputSnapshot: any;
       outputText: string | null;
@@ -249,11 +250,14 @@ export class WorkflowsService {
       finishedAt: Date | null;
     }>,
   ) {
-    let nr = await this.nodeRuns.findOne({ where: { workflowRunId: runId, nodeId } });
+    const iteration = Number.isFinite(Number(patch.iteration)) ? Number(patch.iteration) : 0;
+    let nr = await this.nodeRuns.findOne({ where: { workflowRunId: runId, nodeId, iteration } });
+
     if (!nr) {
       nr = this.nodeRuns.create({
         workflowRunId: runId,
         nodeId,
+        iteration,
         status: patch.status ?? 'pending',
         inputSnapshot: patch.inputSnapshot ?? null,
         outputText: patch.outputText ?? null,

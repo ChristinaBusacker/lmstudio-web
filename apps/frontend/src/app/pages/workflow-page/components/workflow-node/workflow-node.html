@@ -1,4 +1,8 @@
-<div class="node" [ngClass]="{ preview: isPreview() }">
+<div
+  class="node"
+  [ngClass]="{ preview: isPreview(), loop: isLoopStart() || isLoopEnd() }"
+  [attr.data-node-type]="node().data.nodeType"
+>
   @if (isMerge()) {
     @for (pid of mergePorts(); track pid; let i = $index) {
       <ng-diagram-port
@@ -29,8 +33,41 @@
         <div class="mergePortBadge">out</div>
       </div>
     </ng-diagram-port>
+  } @else if (isCondition()) {
+    <ng-diagram-port id="port-left" side="left" type="target"></ng-diagram-port>
+
+    <ng-diagram-port
+      class="condOutPort condTrue"
+      [id]="CONDITION_TRUE_PORT"
+      side="right"
+      type="source"
+      originPoint="rightMiddle"
+      [style.top.px]="conditionTruePortTop()"
+    >
+      <div class="condPortInner">
+        <div class="condPortDot" aria-hidden="true"></div>
+        <div class="condPortBadge">true</div>
+      </div>
+    </ng-diagram-port>
+
+    <ng-diagram-port
+      class="condOutPort condFalse"
+      [id]="CONDITION_FALSE_PORT"
+      side="right"
+      type="source"
+      originPoint="rightMiddle"
+      [style.top.px]="conditionFalsePortTop()"
+    >
+      <div class="condPortInner">
+        <div class="condPortDot" aria-hidden="true"></div>
+        <div class="condPortBadge">false</div>
+      </div>
+    </ng-diagram-port>
   } @else if (isExport() || isPreview()) {
     <ng-diagram-port id="port-left" side="left" type="target"></ng-diagram-port>
+  } @else if (isLoopStart() || isLoopEnd()) {
+    <ng-diagram-port id="port-left" side="left" type="target"></ng-diagram-port>
+    <ng-diagram-port id="port-right" side="right" type="source"></ng-diagram-port>
   } @else {
     <ng-diagram-port id="port-left" side="left" type="both"></ng-diagram-port>
     <ng-diagram-port id="port-right" side="right" type="both"></ng-diagram-port>
@@ -54,11 +91,12 @@
         <option [value]="NODE_EXPORT">workflow.export</option>
         <option [value]="NODE_PREVIEW">ui.preview</option>
         <option [value]="NODE_CONDITION">workflow.condition</option>
-        <option [value]="NODE_LOOP">workflow.loop</option>
+        <option [value]="NODE_LOOP_START">workflow.loopStart</option>
+        <option [value]="NODE_LOOP_END">workflow.loopEnd</option>
       </select>
     </label>
 
-    @if (isLlm()) {
+    @if (isLlm() || isCondition() || isLoopStart()) {
       <label class="field">
         <div class="label">Profile</div>
         <select
@@ -76,16 +114,18 @@
         </select>
       </label>
 
-      <label class="field">
-        <div class="label">Prompt</div>
-        <textarea
-          class="textarea"
-          rows="5"
-          [value]="node().data.prompt"
-          (input)="promptInput$.next($any($event.target).value)"
-          placeholder="Prompt für diesen Schritt..."
-        ></textarea>
-      </label>
+      @if (isLlm() || isCondition()) {
+        <label class="field">
+          <div class="label">Prompt</div>
+          <textarea
+            class="textarea"
+            rows="5"
+            [value]="node().data.prompt"
+            (input)="promptInput$.next($any($event.target).value)"
+            placeholder="Prompt for this step..."
+          ></textarea>
+        </label>
+      }
     }
 
     @if (isMerge()) {
@@ -141,8 +181,78 @@
       <div class="hint">Shows output of the connected upstream node for the selected run.</div>
     }
 
+    @if (isLoopStart()) {
+      <label class="field">
+        <div class="label">Profile</div>
+        <select
+          class="config input"
+          [value]="node().data.profileName"
+          (change)="updateProfileName($event.target.value)"
+          title="Visit settings to define presets"
+        >
+          <option value="">Default</option>
+          @for (profile of profiles$ | async; track $index) {
+            <option [value]="profile.name" [selected]="profile.name === node().data.profileName">
+              {{ profile.name }}
+            </option>
+          }
+        </select>
+      </label>
+
+      <label class="field">
+        <div class="label">Loop mode</div>
+        <select
+          class="config input"
+          [value]="node().data.loopMode ?? 'until'"
+          (change)="updateLoopMode($any($event.target).value)"
+        >
+          <option value="until">Until condition is true</option>
+          <option value="while">While condition is true</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <div class="label">Max iterations</div>
+        <input
+          class="input"
+          type="number"
+          min="1"
+          max="1000"
+          [value]="node().data.loopMaxIterations ?? 10"
+          (input)="updateLoopMaxIterations(Number($any($event.target).value))"
+        />
+      </label>
+
+      <label class="field">
+        <div class="label">Joiner</div>
+        <textarea
+          class="textarea"
+          rows="2"
+          [value]="node().data.loopJoiner ?? '\n\n'"
+          (input)="updateLoopJoiner($any($event.target).value)"
+          placeholder="\n\n"
+        ></textarea>
+      </label>
+
+      <label class="field">
+        <div class="label">Condition prompt</div>
+        <textarea
+          class="textarea"
+          rows="4"
+          [value]="node().data.loopConditionPrompt ?? ''"
+          (input)="updateLoopConditionPrompt($any($event.target).value)"
+          placeholder="E.g. Are all chapters fully written?"
+        ></textarea>
+      </label>
+
+      <div class="hint">
+        Inside loop body prompts you can use <code>{{ '{{loop.index}}' }}</code> (0-based) and
+        <code>{{ '{{loop.iteration}}' }}</code> (1-based). Short aliases
+        <code>{{ '{{index}}' }}</code> / <code>{{ '{{iteration}}' }}</code> work too.
+      </div>
+    }
+
     <ng-diagram-node-resize-adornment />
-    <ng-diagram-node-rotate-adornment />
   </div>
 
   <div class="controls">
