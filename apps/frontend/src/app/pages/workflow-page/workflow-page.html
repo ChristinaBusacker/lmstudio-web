@@ -16,25 +16,41 @@
       <ng-diagram-background />
     </ng-diagram>
 
-    <div class="controls">
-      <div>
+    <div class="lefttop">
+      <div class="title">
         <b>{{ wf.name }}</b>
       </div>
+    </div>
 
-      <button class="btn" (click)="addNode()"><app-icon name="add-line" /> Add</button>
+    <div class="controls">
+      <button class="btn" (click)="addNode()">
+        <app-icon name="add-line" />
+        <span>Add</span>
+      </button>
 
       <button class="btn btn-primary" (click)="saveGraph()" [disabled]="!editorDirty()">
-        <app-icon name="save-line" /> Save
+        <app-icon name="save-line" />
+        <span>Save</span>
       </button>
 
       <button class="btn btn-accent" (click)="startRun(wf.id)">
-        <app-icon name="play-line" /> Run
+        <app-icon name="play-line" />
+        <span>Run</span>
       </button>
 
-      <button type="button" class="btn" (click)="undo()">Undo</button>
-      <button type="button" class="btn" (click)="redo()">Redo</button>
+      <button type="button" class="btn" (click)="undo()">
+        <app-icon name="arrow-go-back-line" />
+        <span>Undo</span>
+      </button>
+      <button type="button" class="btn" (click)="redo()">
+        <app-icon name="arrow-go-forward-line" />
+        <span>Redo</span>
+      </button>
 
-      <button type="button" class="btn" (click)="resetToLastSaved()">Reset</button>
+      <button type="button" class="btn" (click)="resetToLastSaved()">
+        <app-icon name="reset-left-line" />
+        <span>Reset</span>
+      </button>
     </div>
   }
   <button class="runbar-toggle" (click)="runbarOpen = !runbarOpen" [class.open]="runbarOpen">

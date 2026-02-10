@@ -1,11 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import {
-  ChangeDetectionStrategy,
-  ChangeDetectorRef,
-  Component,
-  DestroyRef,
-  inject,
-} from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngxs/store';
@@ -25,6 +19,7 @@ import type {
   WorkflowNodeRun,
 } from '@frontend/src/app/core/state/workflows/workflow.models';
 import { TabsModule } from '@frontend/src/app/ui/tabs/tabs-module';
+import { SseService } from '@frontend/src/app/core/sse/sse.service';
 
 type RunVm = WorkflowRun & {
   progress: number | null;
@@ -40,8 +35,11 @@ type RunVm = WorkflowRun & {
 })
 export class WorkflowRunListContainer {
   private readonly store = inject(Store);
+  private readonly sse = inject(SseService);
   private readonly destroyRef;
   private cdr = inject(ChangeDetectorRef);
+
+  private lastSelectedRunId?: string;
 
   vm: {
     runs: RunVm[];
@@ -83,6 +81,14 @@ export class WorkflowRunListContainer {
 
             return { ...r, isActive, progress };
           });
+
+          if (selectedRun && wf) {
+            if (selectedRun.id !== this.lastSelectedRunId) {
+              this.sse.disconnectWorkflowRun();
+              this.lastSelectedRunId = selectedRun.id;
+              this.sse.connectWorkflowRun(selectedRun.id, wf.id);
+            }
+          }
 
           return {
             runs: withProgress,

@@ -3,6 +3,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  position: relative;
 
   .diagram-host {
     height: 100%;
@@ -17,17 +18,30 @@
     background: rgba(0, 0, 0, 0.12);
   }
 
+  .lefttop {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+  }
+
   .controls {
     position: absolute;
     top: 0;
+    right: 0;
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 5px 10px;
+    flex-wrap: wrap;
 
     button {
       display: flex;
       gap: 5px;
+      align-items: center;
+    }
+
+    @media (max-width: 768px) {
+      max-width: 100px;
     }
   }
 

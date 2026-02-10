@@ -12,6 +12,7 @@ import {
   ApplyWorkflowArtifactCreatedFromSse,
   ApplyWorkflowNodeRunUpsertFromSse,
   ApplyWorkflowRunStatusFromSse,
+  LoadWorkflowRunDetails,
 } from '../state/workflows/workflow.actions';
 
 @Injectable({ providedIn: 'root' })
@@ -143,6 +144,12 @@ export class SseService {
     if (e.type === 'models.changed') {
       this.store.dispatch(new ModelsChanged());
       return;
+    }
+
+    if (e.type === 'workflow.artifact.created') {
+      if (e.runId) {
+        this.store.dispatch(new LoadWorkflowRunDetails(e.runId));
+      }
     }
 
     if (e.type === 'run.status' && e.chatId && e.runId) {
