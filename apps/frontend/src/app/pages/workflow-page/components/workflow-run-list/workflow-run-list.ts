@@ -45,6 +45,8 @@ export class WorkflowRunList {
         return 'Queued';
       case 'running':
         return 'Running';
+      case 'paused':
+        return 'Paused';
       case 'completed':
         return 'Completed';
       case 'failed':
@@ -62,6 +64,8 @@ export class WorkflowRunList {
         return 'time-line';
       case 'running':
         return 'loader-4-line';
+      case 'paused':
+        return 'pause-circle-line';
       case 'completed':
         return 'checkbox-circle-line';
       case 'failed':

@@ -258,6 +258,11 @@
 
   <div class="controls">
     <div class="controls">
+      @if (canRerunFromHere()) {
+        <button (click)="rerunFromHere()">
+          <app-icon name="restart-line" title="rerun from here" />
+        </button>
+      }
       <button (click)="duplicateNode()">
         <app-icon name="file-copy-line" title="duplicate" />
       </button>

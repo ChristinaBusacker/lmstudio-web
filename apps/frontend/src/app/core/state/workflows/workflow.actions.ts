@@ -65,6 +65,21 @@ export class RerunWorkflowFromNode {
   ) {}
 }
 
+export class PauseWorkflowRun {
+  static readonly type = '[Workflows] Pause Workflow Run';
+  constructor(public readonly runId: string) {}
+}
+
+export class ResumeWorkflowRun {
+  static readonly type = '[Workflows] Resume Workflow Run';
+  constructor(public readonly runId: string) {}
+}
+
+export class CancelWorkflowRun {
+  static readonly type = '[Workflows] Cancel Workflow Run';
+  constructor(public readonly runId: string) {}
+}
+
 // --------------------
 // UI helpers
 // --------------------

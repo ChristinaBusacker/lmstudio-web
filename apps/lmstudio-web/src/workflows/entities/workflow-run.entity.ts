@@ -8,7 +8,13 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-export type WorkflowRunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
+export type WorkflowRunStatus =
+  | 'queued'
+  | 'running'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'canceled';
 
 @Entity('workflow_run')
 @Index(['workflowId'])

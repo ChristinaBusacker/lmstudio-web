@@ -45,6 +45,7 @@ import {
   NODE_PREVIEW,
 } from '../../workflow-diagram.adapter';
 import { WorkflowEditorStateService } from '../../workflow-editor-state.service';
+import { RerunWorkflowFromNode } from '@frontend/src/app/core/state/workflows/workflow.actions';
 
 @Component({
   selector: 'app-workflow-node',
@@ -67,6 +68,21 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
 
   readonly profiles$ = this.store.select(SettingsState.profiles);
   readonly selectedRunDetails$ = this.store.select(WorkflowsState.selectedRunDetails);
+
+  canRerunFromHere(): boolean {
+    const run = this.store.selectSnapshot(WorkflowsState.selectedRun);
+    if (!run) return false;
+    // Rerun-from invalidates downstream nodes and sets the run back to queued.
+    // To avoid mid-flight surprises, we only allow this when the run is not active.
+    return run.status !== 'queued' && run.status !== 'running' && run.status !== 'paused';
+  }
+
+  rerunFromHere() {
+    const run = this.store.selectSnapshot(WorkflowsState.selectedRun);
+    const node = this.node();
+    if (!run || !node?.id) return;
+    this.store.dispatch(new RerunWorkflowFromNode(run.id, node.id));
+  }
 
   title = computed(() => this.node().data.label || this.node().id);
   nodeType = computed(() => this.node().data.nodeType);

@@ -21,6 +21,9 @@ import {
   StartWorkflowRun,
   LoadWorkflowRunDetails,
   RerunWorkflowFromNode,
+  PauseWorkflowRun,
+  ResumeWorkflowRun,
+  CancelWorkflowRun,
   SetSelectedWorkflow,
   SetSelectedRun,
   ClearWorkflowErrors,
@@ -276,6 +279,78 @@ export class WorkflowsState {
           runsById: { ...s.runsById, [run.id]: run },
           runs: [run, ...s.runs.filter((x) => x.id !== run.id)],
           selectedRunId: run.id,
+        });
+
+        // Preload details so the UI can instantly show progress + node outputs.
+        ctx.dispatch(new LoadWorkflowRunDetails(run.id));
+      }),
+      catchError((err) => {
+        ctx.patchState({ error: this.toErrorMessage(err) });
+        return EMPTY;
+      }),
+    );
+  }
+
+  @Action(PauseWorkflowRun)
+  pauseWorkflowRun(ctx: StateContext<WorkflowsStateModel>, action: PauseWorkflowRun) {
+    ctx.patchState({ error: null });
+
+    return this.api.pauseRun(action.runId).pipe(
+      tap((run) => {
+        const s = ctx.getState();
+        const details = s.runDetailsById[run.id];
+        ctx.patchState({
+          runsById: { ...s.runsById, [run.id]: run },
+          runs: this.upsertListById(s.runs, run),
+          runDetailsById: details
+            ? { ...s.runDetailsById, [run.id]: { ...details, run } }
+            : s.runDetailsById,
+        });
+      }),
+      catchError((err) => {
+        ctx.patchState({ error: this.toErrorMessage(err) });
+        return EMPTY;
+      }),
+    );
+  }
+
+  @Action(ResumeWorkflowRun)
+  resumeWorkflowRun(ctx: StateContext<WorkflowsStateModel>, action: ResumeWorkflowRun) {
+    ctx.patchState({ error: null });
+
+    return this.api.resumeRun(action.runId).pipe(
+      tap((run) => {
+        const s = ctx.getState();
+        const details = s.runDetailsById[run.id];
+        ctx.patchState({
+          runsById: { ...s.runsById, [run.id]: run },
+          runs: this.upsertListById(s.runs, run),
+          runDetailsById: details
+            ? { ...s.runDetailsById, [run.id]: { ...details, run } }
+            : s.runDetailsById,
+        });
+      }),
+      catchError((err) => {
+        ctx.patchState({ error: this.toErrorMessage(err) });
+        return EMPTY;
+      }),
+    );
+  }
+
+  @Action(CancelWorkflowRun)
+  cancelWorkflowRun(ctx: StateContext<WorkflowsStateModel>, action: CancelWorkflowRun) {
+    ctx.patchState({ error: null });
+
+    return this.api.cancelRun(action.runId).pipe(
+      tap((run) => {
+        const s = ctx.getState();
+        const details = s.runDetailsById[run.id];
+        ctx.patchState({
+          runsById: { ...s.runsById, [run.id]: run },
+          runs: this.upsertListById(s.runs, run),
+          runDetailsById: details
+            ? { ...s.runDetailsById, [run.id]: { ...details, run } }
+            : s.runDetailsById,
         });
       }),
       catchError((err) => {

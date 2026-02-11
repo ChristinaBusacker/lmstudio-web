@@ -81,6 +81,24 @@ export class WorkflowsController {
     return this.workflows.rerunFrom(this.ownerKey, runId, nodeId);
   }
 
+  @Post('workflow-runs/:runId/pause')
+  @ApiOperation({ summary: 'Pause a workflow run (best-effort)' })
+  pauseRun(@Param('runId') runId: string) {
+    return this.workflows.pauseRun(this.ownerKey, runId);
+  }
+
+  @Post('workflow-runs/:runId/resume')
+  @ApiOperation({ summary: 'Resume a paused workflow run' })
+  resumeRun(@Param('runId') runId: string) {
+    return this.workflows.resumeRun(this.ownerKey, runId);
+  }
+
+  @Post('workflow-runs/:runId/cancel')
+  @ApiOperation({ summary: 'Cancel a workflow run (best-effort)' })
+  cancelRun(@Param('runId') runId: string) {
+    return this.workflows.cancelRun(this.ownerKey, runId);
+  }
+
   @Get()
   @ApiOperation({ summary: 'List workflows' })
   listWorkflows() {

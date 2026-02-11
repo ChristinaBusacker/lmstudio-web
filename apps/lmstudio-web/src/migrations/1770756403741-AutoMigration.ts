@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AutoMigration1770064664948 implements MigrationInterface {
-    name = 'AutoMigration1770064664948'
+export class AutoMigration1770756403741 implements MigrationInterface {
+    name = 'AutoMigration1770756403741'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`CREATE TABLE "workflow" ("id" varchar PRIMARY KEY NOT NULL, "ownerKey" varchar(64) NOT NULL DEFAULT ('default'), "name" varchar(200) NOT NULL, "description" text, "graph" text NOT NULL, "createdAt" datetime NOT NULL DEFAULT (datetime('now')), "updatedAt" datetime NOT NULL DEFAULT (datetime('now')))`);
@@ -12,16 +12,13 @@ export class AutoMigration1770064664948 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "IDX_07cc415c5ae6054d125d0acf8c" ON "workflow_run" ("ownerKey", "createdAt") `);
         await queryRunner.query(`CREATE INDEX "IDX_c5841acb771e3200d08dfbcfb3" ON "workflow_run" ("status", "updatedAt") `);
         await queryRunner.query(`CREATE INDEX "IDX_2f846be4f4c4086c9185fac166" ON "workflow_run" ("workflowId") `);
-        await queryRunner.query(`CREATE TABLE "workflow_node_run" ("id" varchar PRIMARY KEY NOT NULL, "workflowRunId" varchar NOT NULL, "nodeId" varchar(128) NOT NULL, "status" varchar(16) NOT NULL, "inputSnapshot" text, "outputText" text, "outputJson" text, "primaryArtifactId" varchar, "error" text, "startedAt" datetime, "finishedAt" datetime, "createdAt" datetime NOT NULL DEFAULT (datetime('now')))`);
+        await queryRunner.query(`CREATE TABLE "workflow_node_run" ("id" varchar PRIMARY KEY NOT NULL, "workflowRunId" varchar NOT NULL, "nodeId" varchar(128) NOT NULL, "iteration" integer NOT NULL DEFAULT (0), "status" varchar(16) NOT NULL, "inputSnapshot" text, "outputText" text, "outputJson" text, "primaryArtifactId" varchar, "error" text, "startedAt" datetime, "finishedAt" datetime, "createdAt" datetime NOT NULL DEFAULT (datetime('now')))`);
         await queryRunner.query(`CREATE INDEX "IDX_d56c6ff01ff288928a5e404a7f" ON "workflow_node_run" ("status") `);
-        await queryRunner.query(`CREATE INDEX "IDX_eb3ee88ba65d8f291292c0bb42" ON "workflow_node_run" ("workflowRunId", "nodeId") `);
+        await queryRunner.query(`CREATE UNIQUE INDEX "IDX_6a05084531188fd5bda926b6c4" ON "workflow_node_run" ("workflowRunId", "nodeId", "iteration") `);
         await queryRunner.query(`CREATE INDEX "IDX_43ceb61691b1826acb57071b18" ON "workflow_node_run" ("workflowRunId") `);
         await queryRunner.query(`CREATE TABLE "artifact" ("id" varchar PRIMARY KEY NOT NULL, "workflowRunId" varchar NOT NULL, "nodeRunId" varchar, "kind" varchar(16) NOT NULL, "mimeType" varchar(120), "filename" varchar(200), "contentText" text, "contentJson" text, "blobPath" varchar, "createdAt" datetime NOT NULL DEFAULT (datetime('now')))`);
         await queryRunner.query(`CREATE INDEX "IDX_43ac493962805a76850bae8a65" ON "artifact" ("nodeRunId") `);
         await queryRunner.query(`CREATE INDEX "IDX_7d0e4458034c3f2044e2c8fa53" ON "artifact" ("workflowRunId") `);
-        await queryRunner.query(`CREATE TABLE "generation_settings_profile" ("id" varchar PRIMARY KEY NOT NULL, "ownerKey" varchar(64) NOT NULL DEFAULT ('default'), "name" varchar(120) NOT NULL, "isDefault" boolean NOT NULL DEFAULT (0), "params" text NOT NULL, "createdAt" datetime NOT NULL DEFAULT (datetime('now')), "updatedAt" datetime NOT NULL DEFAULT (datetime('now')))`);
-        await queryRunner.query(`CREATE INDEX "IDX_b293b7e0feee988db5325477e9" ON "generation_settings_profile" ("ownerKey") `);
-        await queryRunner.query(`CREATE INDEX "IDX_22e3da7436a3f09752d0a974e9" ON "generation_settings_profile" ("ownerKey", "isDefault") `);
         await queryRunner.query(`CREATE TABLE "message_variant" ("id" varchar PRIMARY KEY NOT NULL, "messageId" varchar(36) NOT NULL, "variantIndex" integer NOT NULL, "isActive" boolean NOT NULL DEFAULT (0), "content" text NOT NULL, "reasoning" text, "stats" text, "createdAt" datetime NOT NULL DEFAULT (datetime('now')))`);
         await queryRunner.query(`CREATE INDEX "IDX_9a14a432495b500781007b4f4a" ON "message_variant" ("messageId") `);
         await queryRunner.query(`CREATE INDEX "IDX_71d64bd98498c69333adb2ee7e" ON "message_variant" ("messageId", "isActive") `);
@@ -55,6 +52,9 @@ export class AutoMigration1770064664948 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "IDX_4b043c0a4b7d22b49561ab5c5e" ON "run" ("status", "updatedAt") `);
         await queryRunner.query(`CREATE INDEX "IDX_ea8f234cac0aa04b9e7c62c5d7" ON "run" ("chatId", "createdAt") `);
         await queryRunner.query(`CREATE INDEX "IDX_0925d787d946441bcb260301ed" ON "run" ("queueKey", "status", "createdAt") `);
+        await queryRunner.query(`CREATE TABLE "generation_settings_profile" ("id" varchar PRIMARY KEY NOT NULL, "ownerKey" varchar(64) NOT NULL DEFAULT ('default'), "name" varchar(120) NOT NULL, "isDefault" boolean NOT NULL DEFAULT (0), "params" text NOT NULL, "createdAt" datetime NOT NULL DEFAULT (datetime('now')), "updatedAt" datetime NOT NULL DEFAULT (datetime('now')))`);
+        await queryRunner.query(`CREATE INDEX "IDX_b293b7e0feee988db5325477e9" ON "generation_settings_profile" ("ownerKey") `);
+        await queryRunner.query(`CREATE INDEX "IDX_22e3da7436a3f09752d0a974e9" ON "generation_settings_profile" ("ownerKey", "isDefault") `);
         await queryRunner.query(`DROP INDEX "IDX_9a14a432495b500781007b4f4a"`);
         await queryRunner.query(`DROP INDEX "IDX_71d64bd98498c69333adb2ee7e"`);
         await queryRunner.query(`DROP INDEX "IDX_88da9d1d5c8372563c5c999403"`);
@@ -194,6 +194,9 @@ export class AutoMigration1770064664948 implements MigrationInterface {
         await queryRunner.query(`CREATE UNIQUE INDEX "IDX_88da9d1d5c8372563c5c999403" ON "message_variant" ("messageId", "variantIndex") `);
         await queryRunner.query(`CREATE INDEX "IDX_71d64bd98498c69333adb2ee7e" ON "message_variant" ("messageId", "isActive") `);
         await queryRunner.query(`CREATE INDEX "IDX_9a14a432495b500781007b4f4a" ON "message_variant" ("messageId") `);
+        await queryRunner.query(`DROP INDEX "IDX_22e3da7436a3f09752d0a974e9"`);
+        await queryRunner.query(`DROP INDEX "IDX_b293b7e0feee988db5325477e9"`);
+        await queryRunner.query(`DROP TABLE "generation_settings_profile"`);
         await queryRunner.query(`DROP INDEX "IDX_0925d787d946441bcb260301ed"`);
         await queryRunner.query(`DROP INDEX "IDX_ea8f234cac0aa04b9e7c62c5d7"`);
         await queryRunner.query(`DROP INDEX "IDX_4b043c0a4b7d22b49561ab5c5e"`);
@@ -227,14 +230,11 @@ export class AutoMigration1770064664948 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX "IDX_71d64bd98498c69333adb2ee7e"`);
         await queryRunner.query(`DROP INDEX "IDX_9a14a432495b500781007b4f4a"`);
         await queryRunner.query(`DROP TABLE "message_variant"`);
-        await queryRunner.query(`DROP INDEX "IDX_22e3da7436a3f09752d0a974e9"`);
-        await queryRunner.query(`DROP INDEX "IDX_b293b7e0feee988db5325477e9"`);
-        await queryRunner.query(`DROP TABLE "generation_settings_profile"`);
         await queryRunner.query(`DROP INDEX "IDX_7d0e4458034c3f2044e2c8fa53"`);
         await queryRunner.query(`DROP INDEX "IDX_43ac493962805a76850bae8a65"`);
         await queryRunner.query(`DROP TABLE "artifact"`);
         await queryRunner.query(`DROP INDEX "IDX_43ceb61691b1826acb57071b18"`);
-        await queryRunner.query(`DROP INDEX "IDX_eb3ee88ba65d8f291292c0bb42"`);
+        await queryRunner.query(`DROP INDEX "IDX_6a05084531188fd5bda926b6c4"`);
         await queryRunner.query(`DROP INDEX "IDX_d56c6ff01ff288928a5e404a7f"`);
         await queryRunner.query(`DROP TABLE "workflow_node_run"`);
         await queryRunner.query(`DROP INDEX "IDX_2f846be4f4c4086c9185fac166"`);

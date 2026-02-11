@@ -29,6 +29,32 @@
   gap: 8px;
 }
 
+.details__runActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.details__runActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.details__runActionBtn:hover {
+  background: var(--panel-2);
+}
+
+.details__runActionBtn--danger {
+  border-color: rgba(255, 0, 0, 0.35);
+}
+
 .details__workflowExportBtn {
   display: inline-flex;
   align-items: center;

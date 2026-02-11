@@ -1,4 +1,10 @@
-export type WorkflowRunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
+export type WorkflowRunStatus =
+  | 'queued'
+  | 'running'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'canceled';
 export type WorkflowNodeRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'stale';
 
 /**

@@ -235,6 +235,121 @@ export class WorkflowsService {
     });
   }
 
+  async markRunCanceled(runId: string, reason: string | null = null) {
+    await this.runs.update(
+      { id: runId },
+      {
+        status: 'canceled',
+        error: reason,
+        finishedAt: new Date(),
+        lockedBy: null,
+        lockedAt: null,
+        currentNodeId: null,
+      },
+    );
+
+    const updated = await this.runs.findOne({ where: { id: runId } });
+    if (!updated) return;
+
+    this.sse.publish({
+      type: 'workflow.run.status',
+      workflowId: updated.workflowId,
+      runId: updated.id,
+      payload: {
+        status: updated.status,
+        currentNodeId: updated.currentNodeId,
+        error: updated.error,
+        stats: updated.stats ?? null,
+      },
+    });
+  }
+
+  async getRunStatus(ownerKey: string, runId: string): Promise<WorkflowRunStatus | null> {
+    const run = await this.runs.findOne({ where: { id: runId, ownerKey }, select: ['status'] });
+    return run?.status ?? null;
+  }
+
+  async pauseRun(ownerKey: string, runId: string) {
+    const run = await this.runs.findOne({ where: { id: runId, ownerKey } });
+    if (!run) throw new NotFoundException(`WorkflowRun not found: ${runId}`);
+
+    if (run.status === 'completed' || run.status === 'failed' || run.status === 'canceled') {
+      return run;
+    }
+
+    await this.runs.update(
+      { id: runId },
+      {
+        status: 'paused',
+        lockedBy: null,
+        lockedAt: null,
+      },
+    );
+
+    const updated = await this.runs.findOne({ where: { id: runId } });
+    if (!updated) return run;
+
+    this.sse.publish({
+      type: 'workflow.run.status',
+      workflowId: updated.workflowId,
+      runId: updated.id,
+      payload: {
+        status: updated.status,
+        currentNodeId: updated.currentNodeId,
+        error: updated.error,
+        stats: updated.stats ?? null,
+      },
+    });
+
+    return updated;
+  }
+
+  async resumeRun(ownerKey: string, runId: string) {
+    const run = await this.runs.findOne({ where: { id: runId, ownerKey } });
+    if (!run) throw new NotFoundException(`WorkflowRun not found: ${runId}`);
+
+    if (run.status !== 'paused') return run;
+
+    await this.runs.update(
+      { id: runId },
+      {
+        status: 'queued',
+        lockedBy: null,
+        lockedAt: null,
+      },
+    );
+
+    const updated = await this.runs.findOne({ where: { id: runId } });
+    if (!updated) return run;
+
+    this.sse.publish({
+      type: 'workflow.run.status',
+      workflowId: updated.workflowId,
+      runId: updated.id,
+      payload: {
+        status: updated.status,
+        currentNodeId: updated.currentNodeId,
+        error: updated.error,
+        stats: updated.stats ?? null,
+      },
+    });
+
+    return updated;
+  }
+
+  async cancelRun(ownerKey: string, runId: string, reason: string | null = 'canceled') {
+    const run = await this.runs.findOne({ where: { id: runId, ownerKey } });
+    if (!run) throw new NotFoundException(`WorkflowRun not found: ${runId}`);
+
+    if (run.status === 'completed' || run.status === 'failed' || run.status === 'canceled') {
+      return run;
+    }
+
+    await this.markRunCanceled(runId, reason);
+    const updated = await this.runs.findOne({ where: { id: runId } });
+    return updated ?? run;
+  }
+
   async upsertNodeRun(
     runId: string,
     nodeId: string,

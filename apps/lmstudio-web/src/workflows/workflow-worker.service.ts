@@ -82,6 +82,20 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private async shouldStopRun(runId: string): Promise<
+    | { stop: true; reason: 'paused' | 'canceled' | 'finished' }
+    | { stop: false }
+  > {
+    const status = await this.workflows.getRunStatus(this.ownerKey, runId);
+    if (!status) return { stop: false };
+
+    if (status === 'paused') return { stop: true, reason: 'paused' };
+    if (status === 'canceled') return { stop: true, reason: 'canceled' };
+    if (status === 'completed' || status === 'failed') return { stop: true, reason: 'finished' };
+
+    return { stop: false };
+  }
+
   // ----------------------------
   // Graph normalization (v2 + legacy)
   // ----------------------------
@@ -808,6 +822,12 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       for (const [k, v] of latestByNode) ctx.nodes[k] = v;
 
       for (const nodeId of nodeOrder) {
+        const stop = await this.shouldStopRun(runId);
+        if (stop.stop) {
+          this.logger.log(`Stopping run ${runId} (${stop.reason})`);
+          return;
+        }
+
         const node = nodeById.get(nodeId);
         if (!node) continue;
 
@@ -961,6 +981,12 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
           let index = 0;
           while (index < maxIterations) {
+            const stop = await this.shouldStopRun(runId);
+            if (stop.stop) {
+              this.logger.log(`Stopping run ${runId} (${stop.reason})`);
+              return;
+            }
+
             ctx.loop = {
               index,
               iteration: index + 1,

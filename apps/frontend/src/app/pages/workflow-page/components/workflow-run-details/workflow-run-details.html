@@ -4,7 +4,7 @@
   } @else {
     <div class="details__header">
       <div class="details__title">
-        <app-icon name="download-2-line" />
+        <app-icon name="download-line" />
         <span>Exports</span>
         <span class="details__count">({{ exports.length }})</span>
       </div>
@@ -27,6 +27,29 @@
           <span>Workflow + Runs</span>
         </a>
       </div>
+
+      <div class="details__runActions">
+        @if (canPause()) {
+          <button class="details__runActionBtn" (click)="pause()" title="Pause run">
+            <app-icon name="pause-line" />
+            <span>Pause</span>
+          </button>
+        }
+
+        @if (canResume()) {
+          <button class="details__runActionBtn" (click)="resume()" title="Resume run">
+            <app-icon name="play-line" />
+            <span>Resume</span>
+          </button>
+        }
+
+        @if (canCancel()) {
+          <button class="details__runActionBtn details__runActionBtn--danger" (click)="cancel()" title="Cancel run">
+            <app-icon name="stop-line" />
+            <span>Cancel</span>
+          </button>
+        }
+      </div>
     </div>
 
     @if (!exports.length) {
@@ -47,7 +70,7 @@
             </div>
 
             <a class="details__download" [href]="downloadUrl(a)">
-              <app-icon name="download-2-line" />
+              <app-icon name="download-line" />
               <span>Download</span>
             </a>
           </li>

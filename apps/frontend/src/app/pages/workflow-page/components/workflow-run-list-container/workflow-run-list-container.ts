@@ -75,8 +75,14 @@ export class WorkflowRunListContainer {
 
             let progress: number | null = null;
             if (details?.run?.id === r.id && totalExecutable > 0) {
-              const done = this.countProcessedNodeRuns(details.nodeRuns ?? []);
-              progress = Math.max(0, Math.min(1, done / totalExecutable));
+              const done = this.countProcessedNodes(details.nodeRuns ?? []);
+              const pct = (done / totalExecutable) * 100;
+              progress = Math.max(0, Math.min(100, pct));
+
+              // If the run is done, always show 100%.
+              if (r.status === 'completed' || r.status === 'failed' || r.status === 'canceled') {
+                progress = 100;
+              }
             }
 
             return { ...r, isActive, progress };
@@ -130,8 +136,16 @@ export class WorkflowRunListContainer {
     this.store.dispatch(new LoadWorkflowRuns({ workflowId: wf.id, limit: 50 }));
   }
 
-  private countProcessedNodeRuns(nodeRuns: WorkflowNodeRun[]): number {
-    return nodeRuns.filter((nr: any) => nr.status === 'completed' || nr.status === 'failed').length;
+  private countProcessedNodes(nodeRuns: WorkflowNodeRun[]): number {
+    const done = new Set<string>();
+    for (const nr of nodeRuns as any[]) {
+      const status = String(nr?.status ?? '');
+      if (status !== 'completed' && status !== 'failed') continue;
+      const nodeId = String(nr?.nodeId ?? '').trim();
+      if (!nodeId) continue;
+      done.add(nodeId);
+    }
+    return done.size;
   }
 
   private countExecutableNodes(graph: any): number {

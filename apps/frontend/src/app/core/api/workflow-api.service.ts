@@ -76,4 +76,25 @@ export class WorkflowApiService {
       {},
     );
   }
+
+  pauseRun(runId: string): Observable<WorkflowRun> {
+    return this.http.post<WorkflowRun>(
+      `/api/workflows/workflow-runs/${encodeURIComponent(runId)}/pause`,
+      {},
+    );
+  }
+
+  resumeRun(runId: string): Observable<WorkflowRun> {
+    return this.http.post<WorkflowRun>(
+      `/api/workflows/workflow-runs/${encodeURIComponent(runId)}/resume`,
+      {},
+    );
+  }
+
+  cancelRun(runId: string): Observable<WorkflowRun> {
+    return this.http.post<WorkflowRun>(
+      `/api/workflows/workflow-runs/${encodeURIComponent(runId)}/cancel`,
+      {},
+    );
+  }
 }
