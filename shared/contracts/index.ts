@@ -22,4 +22,4 @@ export * from './settings/settings.contract';
 export * from './sse/sse.contract';
 export * from './sse/sse-payloads.contract';
 
-export * from './workflows/workflows.contract';
+export * from './workflows/workflow.contract';
