@@ -5,7 +5,7 @@ class CancelRunSummaryDto {
   @ApiProperty()
   id!: string;
 
-  @ApiProperty({ enum: ['queued', 'running', 'completed', 'failed', 'cancelled'] })
+  @ApiProperty({ enum: ['queued', 'running', 'completed', 'failed', 'canceled'] })
   status!: RunState;
 
   @ApiProperty({ type: String, format: 'date-time' })
