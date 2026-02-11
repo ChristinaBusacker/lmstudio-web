@@ -1,13 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import type {
+  LmModelState,
+  LmModelListItem,
+  LmModelDetails,
+  LoadModelRequest,
+  UnloadModelRequest,
+  LoadedModelInstance,
+  LoadModelResponse,
+  UnloadModelResponse,
+} from '@shared/contracts';
 
-export type LmModelState = 'loaded' | 'not-loaded' | 'unknown';
-
-/**
- * Mirrors LM Studio REST model info (subset) + keeps it stable for your frontend.
- * Source: GET /api/v0/models
- */
-export class ModelListItemDto {
+export class ModelListItemDto implements LmModelListItem {
   @ApiProperty() id!: string;
 
   @ApiPropertyOptional({ description: 'Model type (llm, embeddings, vlm, ...)' })
@@ -24,18 +28,11 @@ export class ModelListItemDto {
   maxContextLength?: number;
 }
 
-/**
- * Response DTO for GET /models/:id
- */
-export class ModelDetailsDto extends ModelListItemDto {
+export class ModelDetailsDto extends ModelListItemDto implements LmModelDetails {
   @ApiPropertyOptional() compatibilityType?: string;
 }
 
-/**
- * Load config for LM Studio SDK.
- * Keep it minimal and extensible; UI can start simple.
- */
-export class LoadModelDto {
+export class LoadModelDto implements LoadModelRequest {
   @ApiPropertyOptional({
     description: 'Optional instance identifier (advanced). If omitted, LM Studio generates one.',
     example: 'chat-default',
@@ -63,9 +60,7 @@ export class LoadModelDto {
   contextLength?: number;
 
   @ApiPropertyOptional({
-    description:
-      'GPU offload setting. LM Studio CLI uses 0-1/off/max; SDK supports config too. ' +
-      'We keep it as string and pass through when supported.',
+    description: 'GPU offload setting. We keep it as string and pass through when supported.',
     example: 'max',
   })
   @IsOptional()
@@ -82,7 +77,7 @@ export class LoadModelDto {
   forceNewInstance?: boolean;
 }
 
-export class UnloadModelDto {
+export class UnloadModelDto implements UnloadModelRequest {
   @ApiPropertyOptional({
     description:
       'Optional instance identifier. If provided, unload exactly this instance. ' +
@@ -93,7 +88,7 @@ export class UnloadModelDto {
   identifier?: string;
 }
 
-export class LoadedModelInstanceDto {
+export class LoadedModelInstanceDto implements LoadedModelInstance {
   @ApiProperty({ description: 'Model id / key' })
   id!: string;
 
@@ -104,13 +99,13 @@ export class LoadedModelInstanceDto {
   type?: string;
 }
 
-export class LoadModelResponseDto {
+export class LoadModelResponseDto implements LoadModelResponse {
   @ApiProperty() id!: string;
   @ApiPropertyOptional() identifier?: string;
   @ApiProperty({ enum: ['loaded'] }) state!: 'loaded';
 }
 
-export class UnloadModelResponseDto {
+export class UnloadModelResponseDto implements UnloadModelResponse {
   @ApiProperty() id!: string;
   @ApiPropertyOptional() identifier?: string;
   @ApiProperty({ enum: ['not-loaded'] }) state!: 'not-loaded';

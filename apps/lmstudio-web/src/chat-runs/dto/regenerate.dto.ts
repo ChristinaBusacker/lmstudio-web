@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { RegenerateRequest } from '@shared/contracts';
 import { IsOptional, IsUUID } from 'class-validator';
 
-export class RegenerateDto {
+export class RegenerateDto implements RegenerateRequest {
   @ApiProperty({
     description: 'Client-generated UUID for idempotency',
     example: 'c2b5c5b6-8b28-4c36-8c67-0c9e0d9a9f1b',

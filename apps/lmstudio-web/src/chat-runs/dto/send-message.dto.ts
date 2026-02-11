@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsObject, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import type { ChatRunSendMessageRequest } from '@shared/contracts';
 
-export class SendMessageDto {
+export class SendMessageDto implements ChatRunSendMessageRequest {
   @ApiProperty({ example: 'Explain NestJS modules briefly.' })
   @IsString()
   @MinLength(1)

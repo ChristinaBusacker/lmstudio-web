@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsUUID } from 'class-validator';
+import type { MoveChatRequest } from '@shared/contracts';
 
-export class MoveChatDto {
+export class MoveChatDto implements MoveChatRequest {
   @ApiPropertyOptional({
     type: String,
     nullable: true,

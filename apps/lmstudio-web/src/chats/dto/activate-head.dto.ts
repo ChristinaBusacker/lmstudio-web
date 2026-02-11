@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
+import type { ActivateHeadRequest } from '@shared/contracts';
 
-export class ActivateHeadDto {
+export class ActivateHeadDto implements ActivateHeadRequest {
   @ApiPropertyOptional({
     type: String,
     nullable: true,

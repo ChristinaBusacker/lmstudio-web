@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
+import type { DeleteChatFolderResponse } from '@shared/contracts';
 
-export class DeleteChatFolderResponseDto {
+export class DeleteChatFolderResponseDto implements DeleteChatFolderResponse {
   @ApiProperty() folderId!: string;
 
   @ApiProperty({ type: String, format: 'date-time' })

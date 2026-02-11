@@ -1,20 +1,21 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { CancelRunResponse, RunState } from '@shared/contracts';
 
-export class CancelRunResponseDto {
+class CancelRunSummaryDto {
   @ApiProperty()
-  runId!: string;
+  id!: string;
 
-  @ApiProperty({
-    enum: ['canceled', 'completed', 'failed', 'running', 'queued'],
-    description:
-      'Resulting status after cancel attempt. If already finished, status stays unchanged.',
-  })
-  status!: 'canceled' | 'completed' | 'failed' | 'running' | 'queued';
+  @ApiProperty({ enum: ['queued', 'running', 'completed', 'failed', 'cancelled'] })
+  status!: RunState;
 
-  @ApiPropertyOptional({
-    type: String,
-    nullable: true,
-    description: 'Optional info message (e.g. already finished).',
-  })
-  message!: string | null;
+  @ApiProperty({ type: String, format: 'date-time' })
+  updatedAt!: string;
+}
+
+export class CancelRunResponseDto implements CancelRunResponse {
+  @ApiProperty({ type: CancelRunSummaryDto })
+  run!: CancelRunSummaryDto;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  message?: string | null;
 }

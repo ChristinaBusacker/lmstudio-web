@@ -1,21 +1,26 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, MinLength } from 'class-validator';
+import type {
+  CreateVariantRequest,
+  ActivateVariantRequest,
+  MessageVariant,
+} from '@shared/contracts';
 
-export class CreateVariantDto {
+export class CreateVariantDto implements CreateVariantRequest {
   @ApiProperty({ description: 'User-visible content for the new variant' })
   @IsString()
   @MinLength(1)
   content!: string;
 }
 
-export class ActivateVariantDto {
+export class ActivateVariantDto implements ActivateVariantRequest {
   @ApiProperty({ description: 'Variant id to activate for the message' })
   @IsString()
   @MinLength(1)
   variantId!: string;
 }
 
-export class MessageVariantDto {
+export class MessageVariantDto implements MessageVariant {
   @ApiProperty({ type: String })
   id!: string;
 

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { ChatListItem } from '@shared/contracts';
 
-export class ChatListItemDto {
+export class ChatListItemDto implements ChatListItem {
   @ApiProperty()
   id!: string;
 

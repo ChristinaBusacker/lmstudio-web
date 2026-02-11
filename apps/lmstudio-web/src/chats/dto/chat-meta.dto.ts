@@ -1,10 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { ChatMeta, ActivateHeadResponse, SoftDeleteChatResponse } from '@shared/contracts';
 
-/**
- * Chat meta as exposed via the API.
- * (No messages included.)
- */
-export class ChatMetaDto {
+export class ChatMetaDto implements ChatMeta {
   @ApiProperty() id!: string;
 
   @ApiPropertyOptional({ type: String, nullable: true })
@@ -20,20 +17,14 @@ export class ChatMetaDto {
   deletedAt!: string | null;
 }
 
-/**
- * Response for activate-head.
- */
-export class ActivateHeadResponseDto {
+export class ActivateHeadResponseDto implements ActivateHeadResponse {
   @ApiProperty() chatId!: string;
 
   @ApiPropertyOptional({ type: String, nullable: true })
   activeHeadMessageId!: string | null;
 }
 
-/**
- * Response for chat soft delete.
- */
-export class SoftDeleteChatResponseDto {
+export class SoftDeleteChatResponseDto implements SoftDeleteChatResponse {
   @ApiProperty() chatId!: string;
 
   @ApiProperty({ type: String, format: 'date-time' })

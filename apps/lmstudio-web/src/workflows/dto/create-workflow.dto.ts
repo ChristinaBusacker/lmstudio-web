@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
+import type { CreateWorkflowRequest } from '@shared/contracts';
 
-export class CreateWorkflowDto {
+export class CreateWorkflowDto implements CreateWorkflowRequest {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()

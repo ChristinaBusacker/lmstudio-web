@@ -1,8 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import type { ListChatsQuery } from '@shared/contracts';
 
-export class ListChatsQueryDto {
+export class ListChatsQueryDto implements ListChatsQuery {
   @ApiPropertyOptional({ description: 'Max number of chats', default: 50, maximum: 200 })
   @IsOptional()
   @Type(() => Number)

@@ -1,27 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
-/**
- * Event types emitted via SSE.
- * Keep this stable; add new types over time without breaking old clients.
- */
-export type SseEventType =
-  | 'run.status'
-  | 'variant.snapshot'
-  | 'chat.meta.changed'
-  | 'chat.thread.changed'
-  | 'sidebar.changed'
-  | 'models.changed'
-  | 'heartbeat'
-  // Workflows
-  | 'workflow.run.status'
-  | 'workflow.node-run.upsert'
-  | 'workflow.artifact.created';
+import type {
+  HeartbeatPayload,
+  RunState,
+  RunStatusEventPayload,
+  SseEnvelope,
+  SseEventType,
+  VariantSnapshotEventPayload,
+  WorkflowRunStatusPayload,
+} from '@shared/contracts';
 
 /**
  * Envelope used for all SSE events.
  * This is what the frontend will parse from `event.data`.
  */
-export class SseEnvelopeDto<TPayload = any> {
+export class SseEnvelopeDto<
+  TType extends SseEventType = SseEventType,
+  TPayload = unknown,
+> implements SseEnvelope<TType, TPayload> {
   @ApiProperty({
     description: 'Monotonically increasing event id (used for replay via Last-Event-ID).',
     example: 123,
@@ -30,20 +25,8 @@ export class SseEnvelopeDto<TPayload = any> {
 
   @ApiProperty({
     description: 'Event type.',
-    enum: [
-      'run.status',
-      'variant.snapshot',
-      'chat.meta.changed',
-      'chat.thread.changed',
-      'sidebar.changed',
-      'models.changed',
-      'heartbeat',
-      'workflow.run.status',
-      'workflow.node-run.upsert',
-      'workflow.artifact.created',
-    ],
   })
-  type!: SseEventType;
+  type!: TType;
 
   @ApiPropertyOptional({ description: 'Chat id (if the event is scoped to a chat).' })
   chatId?: string;
@@ -79,15 +62,12 @@ export class SseEnvelopeDto<TPayload = any> {
   payload!: TPayload;
 }
 
-/**
- * Payload for run status events (chat runs).
- */
-export class RunStatusEventPayloadDto {
+export class RunStatusEventPayloadDto implements RunStatusEventPayload {
   @ApiProperty({
     enum: ['queued', 'running', 'completed', 'failed', 'canceled'],
     description: 'Current run status.',
   })
-  status!: 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
+  status!: RunState;
 
   @ApiPropertyOptional({ description: 'Error message if status=failed.', nullable: true })
   error?: string | null;
@@ -101,14 +81,11 @@ export class RunStatusEventPayloadDto {
   stats?: Record<string, any> | null;
 }
 
-/**
- * Workflow run status payload.
- */
-export class WorkflowRunStatusPayloadDto {
+export class WorkflowRunStatusPayloadDto implements WorkflowRunStatusPayload {
   @ApiProperty({
     enum: ['queued', 'running', 'completed', 'failed', 'canceled'],
   })
-  status!: 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
+  status!: RunState;
 
   @ApiPropertyOptional({ nullable: true })
   currentNodeId?: string | null;
@@ -124,11 +101,7 @@ export class WorkflowRunStatusPayloadDto {
   stats?: Record<string, any> | null;
 }
 
-/**
- * Payload for variant snapshot events.
- * We send "content so far" for a single assistant message's active variant.
- */
-export class VariantSnapshotEventPayloadDto {
+export class VariantSnapshotEventPayloadDto implements VariantSnapshotEventPayload {
   @ApiProperty({ description: 'Active content for the target assistant message (content so far).' })
   content!: string;
 
@@ -139,10 +112,7 @@ export class VariantSnapshotEventPayloadDto {
   reasoning?: string | null;
 }
 
-/**
- * Payload for heartbeat events.
- */
-export class HeartbeatPayloadDto {
+export class HeartbeatPayloadDto implements HeartbeatPayload {
   @ApiProperty({ example: true })
   ok!: boolean;
 }

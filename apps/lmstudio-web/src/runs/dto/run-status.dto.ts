@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { RunStatus, RunState } from '@shared/contracts';
 
-export class RunStatusDto {
+export class RunStatusDto implements RunStatus {
   @ApiProperty() id!: string;
 
   @ApiProperty() chatId!: string;
@@ -12,7 +13,7 @@ export class RunStatusDto {
   @ApiProperty({
     enum: ['queued', 'running', 'completed', 'failed', 'canceled'],
   })
-  status!: 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
+  status!: RunState;
 
   @ApiPropertyOptional({ type: String, nullable: true })
   clientRequestId!: string | null;

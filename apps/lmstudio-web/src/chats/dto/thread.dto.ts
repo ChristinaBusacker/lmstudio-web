@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { ThreadVariant, ThreadMessage, ChatThreadResponse } from '@shared/contracts';
 
-export class ThreadVariantDto {
+export class ThreadVariantDto implements ThreadVariant {
   @ApiProperty({ type: String }) id!: string;
   @ApiProperty({ type: Number }) variantIndex!: number;
   @ApiProperty({ type: Boolean }) isActive!: boolean;
@@ -25,7 +26,7 @@ export class ThreadVariantDto {
   createdAt!: string;
 }
 
-export class ThreadMessageDto {
+export class ThreadMessageDto implements ThreadMessage {
   @ApiProperty({ type: String }) id!: string;
   @ApiProperty({ type: String }) chatId!: string;
 
@@ -51,7 +52,7 @@ export class ThreadMessageDto {
   activeVariant!: ThreadVariantDto;
 }
 
-export class ChatThreadResponseDto {
+export class ChatThreadResponseDto implements ChatThreadResponse {
   @ApiProperty({ type: String })
   chatId!: string;
 

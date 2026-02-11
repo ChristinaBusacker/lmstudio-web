@@ -1,10 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { EnqueueRunResponse, RunState } from '@shared/contracts';
 
-/**
- * Minimal run summary returned after enqueuing.
- * Keep this stable: it becomes the contract for the UI.
- */
-export class EnqueueRunResponseDto {
+export class EnqueueRunResponseDto implements EnqueueRunResponse {
   @ApiProperty({ description: 'Run id (queued)' })
   runId!: string;
 
@@ -39,7 +36,7 @@ export class EnqueueRunResponseDto {
     enum: ['queued', 'running', 'completed', 'failed', 'canceled'],
     description: 'Initial status after enqueuing',
   })
-  status!: 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
+  status!: RunState;
 
   @ApiProperty({ type: String, format: 'date-time' })
   createdAt!: string;

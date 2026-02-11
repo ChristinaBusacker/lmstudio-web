@@ -1,6 +1,7 @@
 import { IsOptional, IsUUID } from 'class-validator';
+import type { ReorderChatRequest } from '@shared/contracts';
 
-export class ReorderChatDto {
+export class ReorderChatDto implements ReorderChatRequest {
   @IsOptional()
   @IsUUID()
   beforeId?: string | null;
