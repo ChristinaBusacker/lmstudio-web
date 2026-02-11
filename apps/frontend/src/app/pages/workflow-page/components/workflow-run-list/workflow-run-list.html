@@ -1,9 +1,4 @@
 <div class="runs">
-  <div class="runs__header">
-    <button class="runs__refresh" (click)="refresh.emit()" [disabled]="isLoading">
-      <app-icon name="refresh-line" />
-    </button>
-  </div>
 
   @if (isLoading) {
     <div class="runs__empty">Loading…</div>

@@ -17,15 +17,6 @@
   font-weight: 700;
 }
 
-.runs__refresh {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: inherit;
-}
-
 .runs__refresh:hover {
   background: rgba(255, 255, 255, 0.07);
 }
@@ -57,7 +48,7 @@
 }
 
 .runs__item.selected {
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: white;
 }
 
 .runs__top {

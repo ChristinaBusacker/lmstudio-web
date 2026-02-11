@@ -5,7 +5,6 @@
       [selectedRunId]="vm.selectedRunId"
       [isLoading]="vm.isLoading"
       (selectRun)="onSelectRun($event)"
-      (refresh)="onRefresh()"
     />
   </app-tab>
   @if (vm.details) {
@@ -14,3 +13,6 @@
     </app-tab>
   }
 </app-tabs>
+    <button class="refreshBtn" (click)="refresh()">
+      <app-icon name="refresh-line" />
+    </button>

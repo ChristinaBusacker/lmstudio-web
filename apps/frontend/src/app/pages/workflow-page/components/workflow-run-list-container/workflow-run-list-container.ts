@@ -20,6 +20,7 @@ import type {
 } from '@frontend/src/app/core/state/workflows/workflow.models';
 import { TabsModule } from '@frontend/src/app/ui/tabs/tabs-module';
 import { SseService } from '@frontend/src/app/core/sse/sse.service';
+import { Icon } from '@frontend/src/app/ui/icon/icon';
 
 type RunVm = WorkflowRun & {
   progress: number | null;
@@ -28,7 +29,7 @@ type RunVm = WorkflowRun & {
 
 @Component({
   selector: 'app-workflow-run-list-container',
-  imports: [CommonModule, WorkflowRunList, WorkflowRunDetailsComponent, TabsModule],
+  imports: [CommonModule, WorkflowRunList, WorkflowRunDetailsComponent, TabsModule, Icon],
   templateUrl: './workflow-run-list-container.html',
   styleUrl: './workflow-run-list-container.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -129,7 +130,7 @@ export class WorkflowRunListContainer {
     this.store.dispatch([new SetSelectedRun(runId), new LoadWorkflowRunDetails(runId)]);
   }
 
-  onRefresh() {
+  refresh() {
     const wf = this.store.selectSnapshot(WorkflowsState.selectedWorkflow);
     if (!wf) return;
 
