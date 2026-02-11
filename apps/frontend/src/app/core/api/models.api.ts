@@ -1,50 +1,30 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import type {
+  LmModelListItem,
+  LoadedModelInstance,
+  LoadModelRequest,
+  LoadModelResponse,
+  UnloadModelRequest,
+  UnloadModelResponse,
+} from '@shared/contracts';
 
 /**
  * Mirrors the server-side OpenAPI model DTOs.
  * Keep these minimal and stable; the server is the source of truth.
  */
-export interface ModelListItemDto {
-  id: string;
-  type?: string;
-  publisher?: string;
-  arch?: string;
-  quantization?: string;
-  state: 'loaded' | 'not-loaded' | 'unknown';
-  maxContextLength?: number;
-}
+export type ModelListItemDto = LmModelListItem;
 
-export interface LoadedModelInstanceDto {
-  id: string;
-  identifier?: string;
-  type?: string;
-}
+export type LoadedModelInstanceDto = LoadedModelInstance;
 
-export interface LoadModelDto {
-  identifier?: string;
-  ttl?: number;
-  contextLength?: number;
-  gpu?: string;
-  forceNewInstance?: boolean;
-}
+export type LoadModelDto = LoadModelRequest;
 
-export interface LoadModelResponseDto {
-  id: string;
-  identifier?: string;
-  state: 'loaded';
-}
+export type LoadModelResponseDto = LoadModelResponse;
 
-export interface UnloadModelDto {
-  identifier?: string;
-}
+export type UnloadModelDto = UnloadModelRequest;
 
-export interface UnloadModelResponseDto {
-  id: string;
-  identifier?: string;
-  state: 'not-loaded';
-}
+export type UnloadModelResponseDto = UnloadModelResponse;
 
 @Injectable({ providedIn: 'root' })
 export class ModelsApi {

@@ -1,4 +1,4 @@
-import type { ThreadMessageDto } from '../../api/chat-thread.api';
+import type { RunState, ThreadMessage } from '@shared/contracts';
 
 export interface ChatDetailStateModel {
   chatId: string | null;
@@ -16,15 +16,15 @@ export interface ChatDetailStateModel {
    * We store messages as array for easy rendering, and a map for fast patching.
    * Keep them consistent.
    */
-  messages: ThreadMessageDto[];
-  messageById: Record<string, ThreadMessageDto>;
+  messages: ThreadMessage[];
+  messageById: Record<string, ThreadMessage>;
 
   /** last run status we saw for this chat (optional but handy for UI) */
   runs: Record<
     string,
     {
       runId: string;
-      status: 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
+      status: RunState;
       stats?: any;
       error?: string | null;
       updatedAt: string;

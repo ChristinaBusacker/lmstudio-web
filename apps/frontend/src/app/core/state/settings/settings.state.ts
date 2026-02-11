@@ -4,7 +4,8 @@ import { Injectable } from '@angular/core';
 import { Action, Selector, State, StateContext } from '@ngxs/store';
 import { tap, catchError } from 'rxjs/operators';
 import { EMPTY } from 'rxjs';
-import { SettingsApiService, SettingsProfile } from '../../api/settings.api';
+import { SettingsApiService } from '../../api/settings.api';
+import type { SettingsProfile } from '@shared/contracts';
 import {
   ClearError,
   CreateProfile,

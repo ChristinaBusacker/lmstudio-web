@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { Action, createSelector, Selector, State } from '@ngxs/store';
 import { catchError, of, switchMap, tap } from 'rxjs';
-import { ChatsApi, type ChatListItemDto } from '../../api/chats.api';
+import { ChatsApi } from '../../api/chats.api';
+import type { ChatListItem } from '@shared/contracts';
 import {
   CreateChat,
   DeleteChat,
@@ -45,12 +46,12 @@ export class ChatsState {
   }
 
   @Selector()
-  static items(s: ChatsStateModel): ChatListItemDto[] {
+  static items(s: ChatsStateModel): ChatListItem[] {
     return s.items;
   }
 
   static byFolder(folderId: string | null | undefined) {
-    return createSelector([ChatsState.items], (items: ChatListItemDto[]) =>
+    return createSelector([ChatsState.items], (items: ChatListItem[]) =>
       items.filter((c) => c.folderId === folderId),
     );
   }
@@ -58,7 +59,7 @@ export class ChatsState {
   static byId(chatId: string) {
     return createSelector(
       [ChatsState.items],
-      (items: ChatListItemDto[]) => items.find((c) => c.id === chatId) ?? null,
+      (items: ChatListItem[]) => items.find((c) => c.id === chatId) ?? null,
     );
   }
 

@@ -1,37 +1,24 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import type {
+  ChatListItem,
+  ChatMeta,
+  CreateChatRequest,
+  MoveChatRequest,
+  RenameChatRequest,
+  SoftDeleteChatResponse,
+} from '@shared/contracts';
 import { Observable } from 'rxjs';
 
-export interface ChatListItemDto {
-  id: string;
-  title: string | null;
-  folderId: string | null;
-  activeHeadMessageId: string | null;
-  defaultSettingsProfileId: string | null;
-  deletedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+export type ChatListItemDto = ChatListItem;
 
-export interface CreateChatDto {
-  title?: string;
-}
+export type CreateChatDto = CreateChatRequest;
 
-export interface ChatMetaDto {
-  id: string;
-  title: string | null;
-  folderId: string | null;
-  activeHeadMessageId: string | null;
-  deletedAt: string | null;
-}
+export type ChatMetaDto = ChatMeta;
 
-export interface RenameChatDto {
-  title: string;
-}
+export type RenameChatDto = RenameChatRequest;
 
-export interface MoveChatDto {
-  folderId: string | null;
-}
+export type MoveChatDto = MoveChatRequest;
 
 @Injectable({ providedIn: 'root' })
 export class ChatsApi {
@@ -69,9 +56,7 @@ export class ChatsApi {
     return this.http.patch<void>(`/api/chats/${encodeURIComponent(id)}/move`, dto);
   }
 
-  softDelete(id: string): Observable<{ chatId: string; deletedAt: string }> {
-    return this.http.delete<{ chatId: string; deletedAt: string }>(
-      `/api/chats/${encodeURIComponent(id)}`,
-    );
+  softDelete(id: string): Observable<SoftDeleteChatResponse> {
+    return this.http.delete<SoftDeleteChatResponse>(`/api/chats/${encodeURIComponent(id)}`);
   }
 }

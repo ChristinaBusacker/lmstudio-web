@@ -1,33 +1,20 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import type {
+  EnqueueRunResponse,
+  ChatSendMessageRequest,
+  RegenerateRequest,
+  ActivateHeadRequest,
+} from '@shared/contracts';
 
-export interface EnqueueRunResponseDto {
-  runId: string;
-  chatId: string;
-  sourceMessageId?: string | null;
-  targetMessageId?: string | null;
-  headMessageIdAtStart?: string | null;
-  queueKey: string;
-  status: 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
-  createdAt: string;
-}
+export type EnqueueRunResponseDto = EnqueueRunResponse;
 
-export interface SendMessageDto {
-  content: string;
-  clientRequestId: string;
-  settingsProfileId?: string;
-  settingsSnapshot?: Record<string, any>;
-}
+export type SendMessageDto = ChatSendMessageRequest;
 
-export interface RegenerateDto {
-  clientRequestId: string;
-  settingsProfileId?: string;
-}
+export type RegenerateDto = RegenerateRequest;
 
-export interface ActivateHeadDto {
-  messageId?: string | null;
-}
+export type ActivateHeadDto = ActivateHeadRequest;
 
 @Injectable({ providedIn: 'root' })
 export class ChatRunsApi {

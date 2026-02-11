@@ -1,30 +1,17 @@
-// Comments in English as requested.
-
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import type {
+  SettingsProfile as SettingsProfileContract,
+  CreateSettingsProfileRequest,
+  UpdateSettingsProfileRequest,
+} from '@shared/contracts';
 
-export interface SettingsProfile {
-  id: string;
-  ownerKey: string;
-  name: string;
-  params: Record<string, any>;
-  isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+export type SettingsProfile = SettingsProfileContract;
 
-export interface CreateSettingsProfilePayload {
-  name: string;
-  params?: Record<string, any>;
-  isDefault?: boolean;
-}
+export type CreateSettingsProfilePayload = CreateSettingsProfileRequest;
 
-export interface UpdateSettingsProfilePayload {
-  name?: string;
-  params?: Record<string, any>;
-  isDefault?: boolean;
-}
+export type UpdateSettingsProfilePayload = UpdateSettingsProfileRequest;
 
 @Injectable({ providedIn: 'root' })
 export class SettingsApiService {

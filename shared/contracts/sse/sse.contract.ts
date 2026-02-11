@@ -8,6 +8,7 @@ import type { WorkflowStatus, WorkflowStep } from '../workflows/workflow.contrac
  * Keep names stable; adding is cheap, renaming is expensive.
  */
 export type SseEventType =
+  // Canonical server events
   | 'chat.created'
   | 'chat.updated'
   | 'chat.message.created'
@@ -16,7 +17,17 @@ export type SseEventType =
   | 'run.progress'
   | 'workflow.created'
   | 'workflow.updated'
-  | 'workflow.step.updated';
+  | 'workflow.step.updated'
+  | 'heartbeat'
+  | 'run.status'
+  | 'variant.snapshot'
+  | 'sidebar.changed'
+  | 'models.changed'
+  | 'folders.changed'
+  | 'chats.changed'
+  | 'workflow.run.status'
+  | 'workflow.node-run.upsert'
+  | 'workflow.artifact.created';
 
 export interface SseEnvelope<TType extends SseEventType = SseEventType, TPayload = unknown> {
   id: number;
@@ -29,6 +40,8 @@ export interface SseEnvelope<TType extends SseEventType = SseEventType, TPayload
   artifactId?: string;
   messageId?: string;
   payload: TPayload;
+  /** Optional server-created timestamp (ISO). */
+  createdAt?: string;
 }
 
 /* Payloads */
@@ -101,3 +114,6 @@ export type SseEvent =
   | SseEnvelope<'workflow.created', WorkflowCreatedPayload>
   | SseEnvelope<'workflow.updated', WorkflowUpdatedPayload>
   | SseEnvelope<'workflow.step.updated', WorkflowStepUpdatedPayload>;
+
+// Legacy name used in the frontend codebase.
+export type SseEnvelopeDto<TPayload = any> = SseEnvelope<SseEventType, TPayload>;

@@ -11,7 +11,8 @@ import {
 } from '@ngxs/store';
 import { catchError, filter, map, of, Subscription, tap } from 'rxjs';
 
-import { ChatSearchApiService, SearchChatResultDto } from '../../api/search.api';
+import { ChatSearchApiService } from '../../api/search.api';
+import type { SearchChatResult } from '@shared/contracts';
 import { ClearSearchResults, ExecuteSearch, SearchTermChanged } from './chat-search.actions';
 
 export interface ChatSearchStateModel {
@@ -22,7 +23,7 @@ export interface ChatSearchStateModel {
 
   loading: boolean;
   error: string | null;
-  results: SearchChatResultDto[];
+  results: SearchChatResult[];
 
   // Helpful to avoid repeated requests for same inputs
   lastExecutedKey: string | null;
@@ -95,7 +96,7 @@ export class ChatSearchState implements OnDestroy {
   }
 
   @Selector()
-  static results(state: ChatSearchStateModel): SearchChatResultDto[] {
+  static results(state: ChatSearchStateModel): SearchChatResult[] {
     return state.results;
   }
 

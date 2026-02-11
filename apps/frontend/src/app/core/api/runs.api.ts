@@ -1,14 +1,10 @@
-// src/app/core/api/runs-api.service.ts
-import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import type { CancelRunResponse } from '@shared/contracts';
 import { Observable } from 'rxjs';
 import type { RunStatusDto } from '../state/runs/runs.model';
 
-export interface CancelRunResponseDto {
-  runId: string;
-  status: 'canceled' | 'completed' | 'failed' | 'running' | 'queued';
-  message: string | null;
-}
+export type CancelRunResponseDto = CancelRunResponse;
 
 @Injectable({ providedIn: 'root' })
 export class RunsApiService {

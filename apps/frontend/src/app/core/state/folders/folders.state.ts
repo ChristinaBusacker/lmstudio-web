@@ -2,7 +2,8 @@ import { Injectable } from '@angular/core';
 import { Action, createSelector, Selector, State } from '@ngxs/store';
 import { catchError, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
-import { ChatFolderDto, FoldersApi } from '../../api/folders.api';
+import { FoldersApi } from '../../api/folders.api';
+import type { ChatFolder } from '@shared/contracts';
 import {
   CreateFolder,
   DeleteFolder,
@@ -40,7 +41,7 @@ export class FoldersState {
   static byId(folderId: string) {
     return createSelector(
       [FoldersState.items],
-      (items: ChatFolderDto[]) => items.find((f) => f.id === folderId) ?? null,
+      (items: ChatFolder[]) => items.find((f) => f.id === folderId) ?? null,
     );
   }
 

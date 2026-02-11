@@ -1,16 +1,11 @@
-import type { ChatListItemDto } from '../../api/chats.api';
+import type { ChatListItem, ListChatsQuery } from '@shared/contracts';
 
 export interface ChatsStateModel {
-  items: ChatListItemDto[];
+  items: ChatListItem[];
   loading: boolean;
 
   // last query for reload / SSE reactions
-  lastQuery: {
-    limit: number;
-    cursor?: string;
-    folderId?: string | null;
-    includeDeleted: boolean;
-  };
+  lastQuery: ListChatsQuery;
 
   lastSyncAt: string | null;
 }

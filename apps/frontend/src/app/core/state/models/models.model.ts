@@ -1,8 +1,8 @@
-import type { LoadedModelInstanceDto, ModelListItemDto } from '../../api/models.api';
+import type { LmModelListItem, LoadedModelInstance } from '@shared/contracts';
 
 export interface ModelsStateModel {
-  models: Record<string, ModelListItemDto>;
-  loadedInstances: LoadedModelInstanceDto[];
+  models: Record<string, LmModelListItem>;
+  loadedInstances: LoadedModelInstance[];
 
   /** Busy flags for UI button disabling and progress indicators */
   busy: Record<string, boolean>;

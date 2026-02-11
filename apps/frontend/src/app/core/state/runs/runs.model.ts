@@ -1,36 +1,13 @@
 // src/app/core/state/runs/runs.model.ts
 
-export type RunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
+import type { RunState as SharedRunState, RunStatus as SharedRunStatus } from '@shared/contracts';
 
-export interface RunStatusDto {
-  id: string;
-  chatId: string;
-
-  queueKey: string;
-  status: RunStatus;
-
-  clientRequestId: string | null;
-
-  settingsProfileId: string | null;
-  settingsSnapshot: Record<string, any>;
-
-  sourceMessageId: string | null;
-  targetMessageId: string | null;
-  headMessageIdAtStart: string | null;
-
-  lockedBy: string | null;
-  lockedAt: string | null;
-  startedAt: string | null;
-  finishedAt: string | null;
-
-  error: string | null;
-  stats: Record<string, any> | null;
-
-  createdVariantId: string | null;
-
-  createdAt: string;
-  updatedAt: string;
-}
+/**
+ * Legacy exports kept for backward compatibility within the frontend codebase.
+ * The source of truth lives in @shared/contracts.
+ */
+export type RunStatus = SharedRunState;
+export type RunStatusDto = SharedRunStatus;
 
 export interface RunsStateModel {
   /** keyed by runId */

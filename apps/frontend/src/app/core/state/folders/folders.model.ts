@@ -1,7 +1,7 @@
-import type { ChatFolderDto } from '../../api/folders.api';
+import type { ChatFolder } from '@shared/contracts';
 
 export interface FoldersStateModel {
-  items: ChatFolderDto[];
+  items: ChatFolder[];
   isLoading: boolean;
   error: string | null;
   /** Used to debounce refreshes triggered by SSE "folders.changed" */

@@ -21,3 +21,19 @@ export interface VariantSnapshotEventPayload {
 export interface HeartbeatPayload {
   ok: boolean;
 }
+
+export interface WorkflowNodeRunUpsertPayload {
+  nodeId: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'stale';
+  error?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+}
+
+export interface WorkflowArtifactCreatedPayload {
+  artifactId: string;
+  nodeId?: string | null;
+  kind: 'json' | 'text' | 'image' | 'binary';
+  mimeType?: string | null;
+  filename?: string | null;
+}

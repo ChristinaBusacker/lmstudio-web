@@ -1,22 +1,18 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import type {
+  ChatFolder,
+  CreateChatFolderRequest,
+  UpdateChatFolderRequest,
+  DeleteChatFolderResponse,
+} from '@shared/contracts';
 
-export interface ChatFolderDto {
-  id: string;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt?: string | null;
-}
+export type ChatFolderDto = ChatFolder;
 
-export interface CreateChatFolderDto {
-  name: string;
-}
+export type CreateChatFolderDto = CreateChatFolderRequest;
 
-export interface UpdateChatFolderDto {
-  name?: string;
-}
+export type UpdateChatFolderDto = UpdateChatFolderRequest;
 
 @Injectable({ providedIn: 'root' })
 export class FoldersApi {
@@ -34,9 +30,7 @@ export class FoldersApi {
     return this.http.patch<ChatFolderDto>(`/api/folders/${id}`, dto);
   }
 
-  delete(id: string): Observable<{ folderId: string; deletedAt: string; affectedChats: number }> {
-    return this.http.delete<{ folderId: string; deletedAt: string; affectedChats: number }>(
-      `/api/folders/${id}`,
-    );
+  delete(id: string): Observable<DeleteChatFolderResponse> {
+    return this.http.delete<DeleteChatFolderResponse>(`/api/folders/${id}`);
   }
 }

@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { Action, Selector, State } from '@ngxs/store';
 import { catchError, of, tap } from 'rxjs';
-import { ChatThreadApi, type ThreadMessageDto } from '../../api/chat-thread.api';
+import { ChatThreadApi } from '../../api/chat-thread.api';
+import type { ThreadMessage } from '@shared/contracts';
 import { ChatRunsApi } from '../../api/chat-runs.api';
 import {
   ActivateHead,
@@ -56,7 +57,7 @@ export class ChatDetailState {
   }
 
   @Selector()
-  static messages(s: ChatDetailStateModel): ThreadMessageDto[] {
+  static messages(s: ChatDetailStateModel): ThreadMessage[] {
     return s.messages;
   }
 
@@ -195,7 +196,7 @@ export class ChatDetailState {
       return;
     }
 
-    const patched: ThreadMessageDto = {
+    const patched: ThreadMessage = {
       ...msg,
       activeVariant: {
         ...msg.activeVariant,
@@ -255,13 +256,13 @@ export class ChatDetailState {
     });
   }
 
-  private indexMessages(messages: ThreadMessageDto[]) {
-    const messageById: Record<string, ThreadMessageDto> = {};
+  private indexMessages(messages: ThreadMessage[]) {
+    const messageById: Record<string, ThreadMessage> = {};
     for (const m of messages) messageById[m.id] = m;
     return { messages, messageById };
   }
 
-  private patchMessage(state: ChatDetailStateModel, patched: ThreadMessageDto) {
+  private patchMessage(state: ChatDetailStateModel, patched: ThreadMessage) {
     const nextById = { ...state.messageById, [patched.id]: patched };
     const nextArr = state.messages.map((m) => (m.id === patched.id ? patched : m));
     return { messageById: nextById, messages: nextArr };

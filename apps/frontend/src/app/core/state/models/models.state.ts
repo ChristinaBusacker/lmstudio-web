@@ -1,11 +1,8 @@
 import { Injectable } from '@angular/core';
 import { Action, createSelector, Selector, State } from '@ngxs/store';
 import { catchError, forkJoin, of, tap } from 'rxjs';
-import {
-  ModelsApi,
-  type LoadedModelInstanceDto,
-  type ModelListItemDto,
-} from '../../api/models.api';
+import { ModelsApi } from '../../api/models.api';
+import type { LmModelListItem, LoadedModelInstance, LoadModelResponse, UnloadModelResponse } from '@shared/contracts';
 import {
   LoadLoadedModels,
   LoadModel,
@@ -38,12 +35,12 @@ export class ModelsState {
   }
 
   @Selector()
-  static all(s: ModelsStateModel): ModelListItemDto[] {
+  static all(s: ModelsStateModel): LmModelListItem[] {
     return Object.values(s.models);
   }
 
   @Selector()
-  static allSorted(s: ModelsStateModel): ModelListItemDto[] {
+  static allSorted(s: ModelsStateModel): LmModelListItem[] {
     const all = Object.values(s.models);
     return all.sort((a, b) => {
       // loaded first, then by id
@@ -55,7 +52,7 @@ export class ModelsState {
   }
 
   @Selector()
-  static loadedInstances(s: ModelsStateModel): LoadedModelInstanceDto[] {
+  static loadedInstances(s: ModelsStateModel): LoadedModelInstance[] {
     return s.loadedInstances;
   }
 
@@ -81,7 +78,7 @@ export class ModelsState {
 
     return this.api.list().pipe(
       tap((list) => {
-        const next: Record<string, ModelListItemDto> = {};
+        const next: Record<string, LmModelListItem> = {};
         for (const m of list) next[m.id] = m;
 
         ctx.patchState({
@@ -152,7 +149,7 @@ export class ModelsState {
     // ForkJoin keeps this clean and deterministic.
     return forkJoin([this.api.list(), this.api.loaded()]).pipe(
       tap(([list, loaded]) => {
-        const next: Record<string, ModelListItemDto> = {};
+        const next: Record<string, LmModelListItem> = {};
         for (const m of list) next[m.id] = m;
 
         ctx.patchState({
