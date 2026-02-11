@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable } from '@nestjs/common';
 import { Observable, Subject } from 'rxjs';
 import { filter } from 'rxjs/operators';
-import type { SseEnvelopeDto } from './dto/sse-events.dto';
+import type { SseEnvelope, SseEventType } from '@shared/contracts';
 
-type AnyEnvelope = SseEnvelopeDto<Record<string, any>>;
+type AnyEnvelope = SseEnvelope<SseEventType, Record<string, any>>;
 
 @Injectable()
 export class SseBusService {

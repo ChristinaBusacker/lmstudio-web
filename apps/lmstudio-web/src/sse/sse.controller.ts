@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Controller, MessageEvent, Param, Query, Req, Sse } from '@nestjs/common';
 import {
   ApiOkResponse,
@@ -12,7 +13,8 @@ import { Observable, merge, interval, from } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 import { SseBusService } from './sse-bus.service';
 import type { Request } from 'express';
-import { SseEnvelopeDto } from './dto/sse-events.dto';
+import { SseEnvelopeApiDto } from './dto/sse-events.dto';
+import type { SseEnvelope } from '@shared/contracts';
 
 @ApiTags('SSE')
 @Controller('sse')
@@ -36,7 +38,7 @@ export class SseController {
     description: 'SSE stream (text/event-stream). Use EventSource.',
     content: {
       'text/event-stream': {
-        schema: { $ref: getSchemaPath(SseEnvelopeDto) },
+        schema: { $ref: getSchemaPath(SseEnvelopeApiDto) },
       },
     },
   })
@@ -113,7 +115,7 @@ export class SseController {
     description: 'SSE stream (text/event-stream). Use EventSource.',
     content: {
       'text/event-stream': {
-        schema: { $ref: getSchemaPath(SseEnvelopeDto) },
+        schema: { $ref: getSchemaPath(SseEnvelopeApiDto) },
       },
     },
   })
@@ -242,7 +244,7 @@ export class SseController {
     return merge(replay$, live$, heartbeat$);
   }
 
-  private toMessageEvent(e: SseEnvelopeDto): MessageEvent {
+  private toMessageEvent(e: SseEnvelope): MessageEvent {
     return {
       id: String(e.id),
       type: e.type,

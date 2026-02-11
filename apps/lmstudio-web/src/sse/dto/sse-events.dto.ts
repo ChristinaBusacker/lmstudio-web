@@ -13,7 +13,13 @@ import type {
  * Envelope used for all SSE events.
  * This is what the frontend will parse from `event.data`.
  */
-export class SseEnvelopeDto<
+/**
+ * Swagger/OpenAPI DTO for SSE envelopes.
+ *
+ * Important: The canonical (shared) typing lives in `@shared/contracts` as `SseEnvelope`.
+ * This class only exists so Nest Swagger can reflect a concrete class.
+ */
+export class SseEnvelopeApiDto<
   TType extends SseEventType = SseEventType,
   TPayload = unknown,
 > implements SseEnvelope<TType, TPayload> {
@@ -116,3 +122,12 @@ export class HeartbeatPayloadDto implements HeartbeatPayload {
   @ApiProperty({ example: true })
   ok!: boolean;
 }
+
+/**
+ * Backwards-compat type alias.
+ * Prefer importing `SseEnvelope` / `SseEventType` directly from `@shared/contracts`.
+ */
+export type SseEnvelopeDto<
+  TType extends SseEventType = SseEventType,
+  TPayload = unknown,
+> = SseEnvelope<TType, TPayload>;
