@@ -12,6 +12,8 @@ export type SseEventType =
   | 'chat.created'
   | 'chat.updated'
   | 'chat.message.created'
+  | 'chat.meta.changed'
+  | 'chat.thread.changed'
   | 'run.created'
   | 'run.updated'
   | 'run.progress'

@@ -159,8 +159,12 @@ export class RunsController {
     // If already finished, do nothing but return status.
     if (run.status === 'completed' || run.status === 'failed' || run.status === 'canceled') {
       return {
-        runId,
-        status: run.status as any,
+        run: {
+          id: run.id,
+          status: run.status,
+          updatedAt: run.updatedAt.toISOString(),
+        },
+
         message: 'Run already finished',
       };
     }
@@ -172,8 +176,11 @@ export class RunsController {
     await this.runs.markCanceled(runId);
 
     return {
-      runId,
-      status: 'canceled',
+      run: {
+        id: run.id,
+        status: run.status,
+        updatedAt: run.updatedAt.toISOString(),
+      },
       message: null,
     };
   }

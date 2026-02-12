@@ -27,7 +27,7 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "apps/frontend/public"
+                "input": "apps/frontend/public",
               }
             ],
             "styles": [
@@ -50,6 +50,8 @@
           },
           "configurations": {
             "production": {
+              "outputPath": "dist/ui",
+              "baseHref": "/ui/",
               "budgets": [
                 {
                   "type": "initial",
@@ -75,6 +77,9 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": {
+            "host": "0.0.0.0",
+            "port": 4200,
+            "ssl": true,
             "proxyConfig": "apps/frontend/proxy.conf.json"
           },
           "configurations": {

@@ -1,21 +1,26 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { mkdirSync } from 'fs';
+import { join } from 'path';
+import express from 'express';
 
 async function bootstrap() {
+  mkdirSync(join(__dirname, 'data'), { recursive: true });
   const app = await NestFactory.create(AppModule);
 
-  // optional but recommended:
-  app.setGlobalPrefix('api');
+  const distRoot = join(__dirname);
+
+  app.setGlobalPrefix('api', {
+    exclude: ['ui', 'ui/*'],
+  });
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('LM Studio WebUI API')
     .setDescription('Server-centric API for a custom LM Studio WebUI (REST + SSE).')
     .setVersion('1.0.0')
-    // later: cookie/session auth or bearer
-    // .addCookieAuth("session", { type: "apiKey", in: "cookie", name: "sessionId" })
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
@@ -30,9 +35,15 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
 
-  // Expose raw OpenAPI JSON explicitly
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return
+  // Expose OpenAPI JSON explicitly
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
   app.use('/api/openapi.json', (_req, res) => res.json(document));
+
+  app.use('/ui', express.static(join(distRoot, 'ui', 'browser')));
+
+  app.use(/^\/ui(\/.*)?$/, (req, res) => {
+    res.sendFile(join(distRoot, 'ui', 'browser', 'index.html'));
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
