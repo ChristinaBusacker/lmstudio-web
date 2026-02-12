@@ -1,6 +1,7 @@
 <div
   class="node"
-  [ngClass]="{ preview: isPreview(), loop: isLoopStart() || isLoopEnd() }"
+  [class.preview]="isPreview()"
+  [class.loop]="isLoopStart() || isLoopEnd()"
   [attr.data-node-type]="node().data.nodeType"
   (pointerdown)="onNodePointerDown($event)"
 >

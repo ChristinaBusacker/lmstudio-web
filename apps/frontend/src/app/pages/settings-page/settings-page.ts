@@ -159,11 +159,11 @@ export class SettingsPage implements OnInit, OnDestroy {
     this.store.dispatch(new UnloadModel(modelId, {} as any));
   }
 
-  isModelBusy(id: string) {
+  isModelBusy(id: string): Observable<boolean> {
     return this.store.select(ModelsState.isBusy(id));
   }
 
-  isModelLoaded(id: string) {
+  isModelLoaded(id: string): Observable<boolean> {
     return this.store.select(ModelsState.isLoaded(id));
   }
 }

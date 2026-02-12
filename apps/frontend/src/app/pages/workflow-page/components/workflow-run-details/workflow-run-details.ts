@@ -1,18 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { ChangeDetectionStrategy, Component, Input, OnChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Icon } from '@frontend/src/app/ui/icon/icon';
-import type {
-  Artifact,
-  WorkflowRunDetails,
-  WorkflowNodeRun,
-} from '@frontend/src/app/core/state/workflows/workflow.models';
-import { Store } from '@ngxs/store';
+import { Component, Input, OnChanges, inject } from '@angular/core';
 import {
   CancelWorkflowRun,
   PauseWorkflowRun,
   ResumeWorkflowRun,
 } from '@frontend/src/app/core/state/workflows/workflow.actions';
+import type {
+  Artifact,
+  WorkflowNodeRun,
+  WorkflowRunDetails,
+} from '@frontend/src/app/core/state/workflows/workflow.models';
+import { Icon } from '@frontend/src/app/ui/icon/icon';
+import { Store } from '@ngxs/store';
 
 @Component({
   selector: 'app-workflow-run-details',
@@ -50,19 +50,19 @@ export class WorkflowRunDetailsComponent implements OnChanges {
     return !!st && st !== 'completed' && st !== 'failed' && st !== 'canceled';
   }
 
-  pause() {
+  pause(): void {
     const runId = this.details?.run?.id;
     if (!runId) return;
     this.store.dispatch(new PauseWorkflowRun(runId));
   }
 
-  resume() {
+  resume(): void {
     const runId = this.details?.run?.id;
     if (!runId) return;
     this.store.dispatch(new ResumeWorkflowRun(runId));
   }
 
-  cancel() {
+  cancel(): void {
     const runId = this.details?.run?.id;
     if (!runId) return;
     this.store.dispatch(new CancelWorkflowRun(runId));

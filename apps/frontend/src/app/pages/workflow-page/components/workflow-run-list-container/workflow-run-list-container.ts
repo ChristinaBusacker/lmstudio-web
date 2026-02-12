@@ -126,11 +126,11 @@ export class WorkflowRunListContainer {
       .subscribe();
   }
 
-  onSelectRun(runId: string) {
+  onSelectRun(runId: string): void {
     this.store.dispatch([new SetSelectedRun(runId), new LoadWorkflowRunDetails(runId)]);
   }
 
-  refresh() {
+  refresh(): void {
     const wf = this.store.selectSnapshot(WorkflowsState.selectedWorkflow);
     if (!wf) return;
 

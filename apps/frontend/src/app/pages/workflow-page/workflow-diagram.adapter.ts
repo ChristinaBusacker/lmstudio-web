@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Workflow } from '@frontend/src/app/core/state/workflows/workflow.models';
 
@@ -87,7 +86,7 @@ export const DEFAULT_TARGET_PORT = 'port-left';
 export const MERGE_OUT_PORT = 'out';
 export const MERGE_IN_PREFIX = 'in-';
 
-type DiagramEdge = {
+export type DiagramEdge = {
   id: string;
   source: string;
   target: string;
@@ -96,6 +95,19 @@ type DiagramEdge = {
   type?: string;
   data?: any;
   [key: string]: any;
+};
+
+export type DiagramModel = {
+  nodes: Array<{
+    id: string;
+    position: { x: number; y: number };
+    size?: { width: number; height: number };
+    autoSize?: boolean;
+    angle?: number;
+    type: string;
+    data: DiagramNodeData;
+  }>;
+  edges: DiagramEdge[];
 };
 
 function sortById<T extends { id: string }>(items: T[]): T[] {
@@ -255,7 +267,7 @@ function nodeDefaultsByType(nodeType: string): Partial<DiagramNodeData> {
   return {};
 }
 
-export function workflowToDiagramModel(workflow: Workflow) {
+export function workflowToDiagramModel(workflow: Workflow): DiagramModel {
   const graph = normalizeWorkflowGraph(workflow.graph);
 
   return {

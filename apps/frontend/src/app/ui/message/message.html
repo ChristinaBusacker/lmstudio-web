@@ -1,4 +1,4 @@
-<div class="message" [ngClass]="message.role">
+<div [class]="'message ' + message.role">
   <span class="role">{{ message.role }}</span>
 
   @if (message.activeVariant.reasoning && message.activeVariant.reasoning.trim().length > 0) {

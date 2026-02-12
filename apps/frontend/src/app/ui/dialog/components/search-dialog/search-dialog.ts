@@ -6,7 +6,10 @@ import { debounceTime, distinctUntilChanged, Observable, tap } from 'rxjs';
 
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { SearchChatResultDto } from '@frontend/src/app/core/api/search.api';
+import {
+  SearchChatResultDto,
+  type SearchChatMatchDto,
+} from '@frontend/src/app/core/api/search.api';
 import {
   ClearSearchResults,
   ExecuteSearch,
@@ -48,18 +51,18 @@ export class SearchDialog implements OnInit {
       .subscribe((value) => this.ctx.setResult(value));
   }
 
-  async navigateToResult(result: SearchChatResultDto) {
+  async navigateToResult(result: SearchChatResultDto): Promise<void> {
     this.store.dispatch(new ClearSearchResults());
     await this.router.navigate(['/', 'chat', result.chatId]);
     this.dialog.close();
   }
 
-  hasMatchingTitle(result: SearchChatResultDto) {
-    result.matches.some((m) => m.type === 'title');
+  hasMatchingTitle(result: SearchChatResultDto): boolean {
+    return result.matches.some((m) => m.type === 'title');
   }
 
-  getMatch(result: SearchChatResultDto) {
-    return result.matches.find((m) => m.type !== 'title');
+  getMatch(result: SearchChatResultDto): SearchChatMatchDto | null {
+    return result.matches.find((m) => m.type !== 'title') ?? null;
   }
 
   ngOnInit(): void {

@@ -2,6 +2,8 @@ import { CommonModule } from '@angular/common';
 import {
   AfterViewInit,
   Component,
+  OnDestroy,
+  OnInit,
   DestroyRef,
   ElementRef,
   ViewChild,
@@ -31,7 +33,7 @@ import { Message } from '../../ui/message/message';
   templateUrl: './chat-page.html',
   styleUrl: './chat-page.scss',
 })
-export class ChatPage implements AfterViewInit {
+export class ChatPage implements AfterViewInit, OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly store = inject(Store);
   private readonly sse = inject(SseService);
@@ -92,7 +94,7 @@ export class ChatPage implements AfterViewInit {
     return `${last.id}:${content.length}`;
   });
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.route.paramMap
       .pipe(
         map((pm) => pm.get('chatId')),
@@ -115,26 +117,26 @@ export class ChatPage implements AfterViewInit {
 
   ngAfterViewInit(): void {}
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.sse.disconnectChat();
     this.store.dispatch(new CloseChat());
   }
 
-  onScroll() {
+  onScroll(): void {
     const el = this.scrollContainer.nativeElement;
     const thresholdPx = 160;
     const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
     this.shouldAutoScroll.set(distanceFromBottom < thresholdPx);
   }
 
-  private scrollToBottom(force: boolean) {
+  private scrollToBottom(force: boolean): void {
     const el = this.scrollContainer?.nativeElement;
     if (!el) return;
     if (!force && !this.shouldAutoScroll()) return;
     el.scrollTop = el.scrollHeight;
   }
 
-  trackById(_: number, m: { id: string }) {
+  trackById(_: number, m: { id: string }): string {
     return m.id;
   }
 }

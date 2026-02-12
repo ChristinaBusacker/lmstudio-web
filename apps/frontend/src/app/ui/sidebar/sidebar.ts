@@ -254,11 +254,11 @@ export class Sidebar {
 
   @HostBinding('class.closed') @Input() closed = false;
 
-  createNewChat() {
+  createNewChat(): void {
     this.store.dispatch(new CreateChat({ title: 'Untitled' }));
   }
 
-  createNewWorkflow() {
+  createNewWorkflow(): void {
     this.dialog
       .prompt({
         title: 'Workflow name',
@@ -278,7 +278,7 @@ export class Sidebar {
       });
   }
 
-  createNewFolder() {
+  createNewFolder(): void {
     this.dialog
       .prompt({
         title: 'Folder name',
@@ -298,14 +298,14 @@ export class Sidebar {
       });
   }
 
-  onChatDroppedIntoFolder(a: DropOnTargetResult<ChatListItemDto, ChatFolderDto>) {
+  onChatDroppedIntoFolder(a: DropOnTargetResult<ChatListItemDto, ChatFolderDto>): void {
     const chat = a.item;
     const folder = a.target.data;
 
     this.store.dispatch(new MoveChat(chat.id, folder.id));
   }
 
-  onChatReorder(a: any) {
+  onChatReorder(a: unknown): void {
     //
   }
 
@@ -356,7 +356,7 @@ export class Sidebar {
     });
   }
 
-  openSearch() {
+  openSearch(): void {
     this.dialogService.search({
       placeholder: 'Search for chats',
     });

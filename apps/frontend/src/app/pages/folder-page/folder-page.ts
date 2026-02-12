@@ -117,7 +117,7 @@ export class FolderPage implements OnInit {
     },
   ];
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.route.paramMap
       .pipe(
         map((pm) => pm.get('folderId')),

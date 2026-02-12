@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SettingsState } from '@frontend/src/app/core/state/settings/settings.state';
+import { RerunWorkflowFromNode } from '@frontend/src/app/core/state/workflows/workflow.actions';
 import type { WorkflowRunDetails } from '@frontend/src/app/core/state/workflows/workflow.models';
 import { WorkflowsState } from '@frontend/src/app/core/state/workflows/workflow.state';
 import { shortId } from '@frontend/src/app/core/utils/shortId.util';
@@ -45,7 +46,6 @@ import {
   NODE_PREVIEW,
 } from '../../workflow-diagram.adapter';
 import { WorkflowEditorStateService } from '../../workflow-editor-state.service';
-import { RerunWorkflowFromNode } from '@frontend/src/app/core/state/workflows/workflow.actions';
 
 @Component({
   selector: 'app-workflow-node',
@@ -77,7 +77,7 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     return run.status !== 'queued' && run.status !== 'running' && run.status !== 'paused';
   }
 
-  rerunFromHere() {
+  rerunFromHere(): void {
     const run = this.store.selectSnapshot(WorkflowsState.selectedRun);
     const node = this.node();
     if (!run || !node?.id) return;
@@ -142,14 +142,14 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
 
   // ---- Editing ----
 
-  updateProfileName(value: string) {
+  updateProfileName(value: string): void {
     this.editorState.requestSnapshot();
     this.editorState.markDirty();
     const n = this.node();
     this.model.updateNodeData(n.id, { ...n.data, profileName: value });
   }
 
-  updateNodeType(value: string) {
+  updateNodeType(value: string): void {
     this.editorState.requestSnapshot();
     this.editorState.markDirty();
 
@@ -179,49 +179,49 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     this.model.updateNodeData(n.id, { ...n.data, ...patch });
   }
 
-  updateMergeSeparator(value: string) {
+  updateMergeSeparator(value: string): void {
     const n = this.node();
     this.editorState.requestSnapshot();
     this.editorState.markDirty();
     this.model.updateNodeData(n.id, { ...n.data, mergeSeparator: value });
   }
 
-  updateExportFilename(value: string) {
+  updateExportFilename(value: string): void {
     const n = this.node();
     this.editorState.requestSnapshot();
     this.editorState.markDirty();
     this.model.updateNodeData(n.id, { ...n.data, exportFilename: value });
   }
 
-  updatePreviewMaxLines(value: number) {
+  updatePreviewMaxLines(value: number): void {
     const n = this.node();
     this.editorState.requestSnapshot();
     this.editorState.markDirty();
     this.model.updateNodeData(n.id, { ...n.data, previewMaxLines: value });
   }
 
-  updateLoopMode(value: 'while' | 'until') {
+  updateLoopMode(value: 'while' | 'until'): void {
     const n = this.node();
     this.editorState.requestSnapshot();
     this.editorState.markDirty();
     this.model.updateNodeData(n.id, { ...n.data, loopMode: value });
   }
 
-  updateLoopConditionPrompt(value: string) {
+  updateLoopConditionPrompt(value: string): void {
     const n = this.node();
     this.editorState.requestSnapshot();
     this.editorState.markDirty();
     this.model.updateNodeData(n.id, { ...n.data, loopConditionPrompt: value });
   }
 
-  updateLoopJoiner(value: string) {
+  updateLoopJoiner(value: string): void {
     const n = this.node();
     this.editorState.requestSnapshot();
     this.editorState.markDirty();
     this.model.updateNodeData(n.id, { ...n.data, loopJoiner: value });
   }
 
-  updateLoopMaxIterations(value: number) {
+  updateLoopMaxIterations(value: number): void {
     const n = this.node();
     const v = Math.max(1, Math.min(1000, Number(value)));
     this.editorState.requestSnapshot();
@@ -229,14 +229,14 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     this.model.updateNodeData(n.id, { ...n.data, loopMaxIterations: v });
   }
 
-  deleteNode() {
+  deleteNode(): void {
     const n = this.node();
     this.editorState.requestSnapshot();
     this.editorState.markDirty();
     this.model.deleteNodes([n.id]);
   }
 
-  duplicateNode() {
+  duplicateNode(): void {
     const n = this.node();
     this.editorState.requestSnapshot();
     this.editorState.markDirty();
@@ -322,7 +322,7 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     return lines.length > maxLines ? `${slice}\n…` : slice;
   }
 
-  addLinkedNode() {
+  addLinkedNode(): void {
     const n = this.node();
 
     this.editorState.requestSnapshot();

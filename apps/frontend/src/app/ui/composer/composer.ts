@@ -14,7 +14,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Store } from '@ngxs/store';
 import { catchError, map, Observable, of, tap } from 'rxjs';
-import { ChatsApi } from '../../core/api/chats.api';
+import { ChatsApi, type ChatMetaDto } from '../../core/api/chats.api';
 import { OpenChat, SendMessage } from '../../core/state/chat-detail/chat-detail.actions';
 import { ChatDetailState } from '../../core/state/chat-detail/chat-detail.state';
 import { MoveChat, ReloadChats } from '../../core/state/chats/chats.actions';
@@ -56,7 +56,7 @@ export class Composer implements AfterViewInit {
 
   isStreaming$: Observable<boolean> = this.chatId
     ? this.store.select(RunsState.activeByChat(this.chatId)).pipe(
-        map((runIds) => {
+        map(() => {
           return false;
         }),
       )
@@ -88,7 +88,7 @@ export class Composer implements AfterViewInit {
     this.syncViewFromValue();
   }
 
-  selectProfile() {
+  selectProfile(): void {
     const value = this.configSelect?.nativeElement.value;
 
     if (value) {
@@ -202,7 +202,7 @@ export class Composer implements AfterViewInit {
     el.innerText = this.value;
   }
 
-  private createChat() {
+  private createChat(): Observable<ChatMetaDto | null> {
     return this.api.create({}).pipe(
       tap((created) => {
         this.store.dispatch(new OpenChat(created.id));
@@ -254,7 +254,7 @@ export class Composer implements AfterViewInit {
     this.store.dispatch(new SendMessage(chatId, options));
   }
 
-  abort() {
+  abort(): void {
     if (!this.chatId) return;
 
     const run = this.store.selectSnapshot(RunsState.activeByChat(this.chatId))[0];

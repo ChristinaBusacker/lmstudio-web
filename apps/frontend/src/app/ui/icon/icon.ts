@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { Observable } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { IconRegistryService } from '../../core/services/icons/icon-registry-service';
@@ -10,7 +10,7 @@ import { IconRegistryService } from '../../core/services/icons/icon-registry-ser
   templateUrl: './icon.html',
   styleUrl: './icon.scss',
 })
-export class Icon {
+export class Icon implements OnInit {
   @Input() name!: string;
   svg$!: Observable<string>;
 
@@ -18,7 +18,7 @@ export class Icon {
 
   constructor(private icons: IconRegistryService) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.svg$ = this.icons.load(this.name);
   }
 }

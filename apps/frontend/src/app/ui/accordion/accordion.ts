@@ -2,11 +2,12 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
+  AfterViewInit,
+  OnDestroy,
   Component,
   computed,
   effect,
   ElementRef,
-  inject,
   input,
   model,
   signal,
@@ -21,11 +22,11 @@ import {
   styleUrls: ['./accordion.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Accordion {
+export class Accordion implements AfterViewInit, OnDestroy {
   readonly title = input<string>('Details');
   readonly id = input<string>('collapsible');
   readonly open = model<boolean>(true);
-  private readonly cdr = inject(ChangeDetectorRef);
+
   @ViewChild('inner', { static: true })
   private readonly innerEl!: ElementRef<HTMLElement>;
 
@@ -42,7 +43,7 @@ export class Accordion {
   private raf2 = 0;
   private pending = false;
 
-  constructor() {
+  constructor(private readonly cdr: ChangeDetectorRef) {
     effect(() => {
       this.open();
       this.scheduleMeasure();

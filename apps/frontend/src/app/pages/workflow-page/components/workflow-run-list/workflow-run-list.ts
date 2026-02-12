@@ -1,8 +1,7 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { TabsModule } from '@frontend/src/app/ui/tabs/tabs-module';
-import type { WorkflowRun } from '../../../../core/state/workflows/workflow.models';
-import { Icon } from '../../../../ui/icon/icon';
+import type { WorkflowRun } from '@frontend/src/app/core/state/workflows/workflow.models';
 
 type RunStatus = WorkflowRun['status'];
 type RunVm = {
@@ -19,7 +18,7 @@ type RunVm = {
 @Component({
   selector: 'app-workflow-run-list',
   standalone: true,
-  imports: [CommonModule, DatePipe, Icon, TabsModule],
+  imports: [CommonModule, DatePipe, TabsModule],
   templateUrl: './workflow-run-list.html',
   styleUrls: ['./workflow-run-list.scss'],
 })
