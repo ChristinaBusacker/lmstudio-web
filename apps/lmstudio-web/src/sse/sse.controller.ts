@@ -10,7 +10,7 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 import { Observable, merge, interval, from } from 'rxjs';
-import { filter, map } from 'rxjs/operators';
+import { filter, map, share } from 'rxjs/operators';
 import { SseBusService } from './sse-bus.service';
 import type { Request } from 'express';
 import { SseEnvelopeApiDto } from './dto/sse-events.dto';
@@ -19,15 +19,14 @@ import type { SseEnvelope } from '@shared/contracts';
 @ApiTags('SSE')
 @Controller('sse')
 export class SseController {
-  private heartbeat$ = interval(30_000).pipe(
-    map(() =>
-      this.toMessageEvent(
-        this.bus.publishEphemeral({
-          type: 'heartbeat',
-          payload: { ok: true },
-        }),
-      ),
+  private readonly heartbeat$ = interval(30_000).pipe(
+    map(
+      (): MessageEvent => ({
+        type: 'heartbeat',
+        data: { ok: true },
+      }),
     ),
+    share(),
   );
 
   constructor(private readonly bus: SseBusService) {}
@@ -121,7 +120,7 @@ export class SseController {
     const replay$ = from(replay).pipe(map((e) => this.toMessageEvent(e)));
 
     const live$ = this.bus.observeAll().pipe(
-      filter((e) => !e.chatId), // global events only
+      filter((e) => !e.chatId),
       filter(
         (e) =>
           e.type === 'run.status' || e.type === 'sidebar.changed' || e.type === 'models.changed',
@@ -129,18 +128,7 @@ export class SseController {
       map((e) => this.toMessageEvent(e)),
     );
 
-    const heartbeat$ = interval(15_000).pipe(
-      map(() =>
-        this.toMessageEvent(
-          this.bus.publish({
-            type: 'heartbeat',
-            payload: { ok: true },
-          }),
-        ),
-      ),
-    );
-
-    return merge(replay$, live$, heartbeat$);
+    return merge(replay$, live$, this.heartbeat$);
   }
 
   @Sse('workflows/:workflowId')

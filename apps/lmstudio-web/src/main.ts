@@ -28,6 +28,8 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
 
+  app.enableShutdownHooks();
+
   // Expose raw OpenAPI JSON explicitly
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return
   app.use('/api/openapi.json', (_req, res) => res.json(document));

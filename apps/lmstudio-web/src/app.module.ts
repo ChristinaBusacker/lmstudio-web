@@ -21,10 +21,6 @@ import { WorkflowRunEntity } from './workflows/entities/workflow-run.entity';
 import { ArtifactEntity } from './workflows/entities/artifact.entity';
 import { WorkflowNodeRunEntity } from './workflows/entities/workflow-node-run.entity';
 
-const dbPath = process.env.DB_PATH
-  ? process.env.DB_PATH
-  : path.join(process.cwd(), 'data', 'app.sqlite');
-
 const uiOptions: ServeStaticModuleOptions = {
   rootPath: join(__dirname, '..', 'ui'),
   serveRoot: '/ui',
@@ -36,9 +32,9 @@ const uiOptions: ServeStaticModuleOptions = {
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: () => ({
+      useFactory: (config: ConfigService) => ({
         type: 'sqlite',
-        database: dbPath,
+        database: config.get('DB_PATH', join(process.cwd(), 'data', 'app.sqlite')),
         synchronize: false,
         migrationsRun: false,
         autoLoadEntities: true,
@@ -52,6 +48,7 @@ const uiOptions: ServeStaticModuleOptions = {
           ArtifactEntity,
           WorkflowNodeRunEntity,
         ],
+
         migrations: [__dirname + '/migrations/*.{ts,js}'],
         logging: ['error', 'warn'],
       }),

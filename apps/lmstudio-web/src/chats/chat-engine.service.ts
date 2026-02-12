@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import type { LmMessage, RunParams, StreamDelta } from '../common/types/llm.types';
 import { ConfigService } from '@nestjs/config';
 
@@ -11,7 +11,7 @@ interface StreamResult {
 type AnyJson = Record<string, any>;
 
 @Injectable()
-export class ChatEngineService {
+export class ChatEngineService implements OnModuleDestroy {
   private readonly controllers = new Map<string, AbortController>();
   private baseUrl = 'http://127.0.0.1:1234';
 
@@ -256,5 +256,9 @@ export class ChatEngineService {
     }
 
     return { content: full, stats };
+  }
+
+  onModuleDestroy() {
+    this.controllers.forEach((c) => c.abort());
   }
 }
