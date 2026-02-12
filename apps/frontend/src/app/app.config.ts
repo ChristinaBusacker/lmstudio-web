@@ -1,9 +1,14 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig,
+  provideAppInitializer,
+  inject,
+  provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
 import { withNgxsReduxDevtoolsPlugin } from '@ngxs/devtools-plugin';
-import { provideStore } from '@ngxs/store';
+import { provideStore, Store } from '@ngxs/store';
 import { provideHttpClient } from '@angular/common/http';
 import { ChatsApi } from './core/api/chats.api';
 import { FoldersApi } from './core/api/folders.api';
@@ -23,11 +28,19 @@ import { ChatSearchApiService } from './core/api/search.api';
 import { ChatSearchState } from './core/state/chat-search/chat-search.state';
 import { WorkflowsState } from './core/state/workflows/workflow.state';
 import { WorkflowApiService } from './core/api/workflow-api.service';
+import { SseService } from './core/sse/sse.service';
+import { startUpApplication } from './core/utils/startup.util';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
+    provideAppInitializer(() => {
+      const store = inject(Store);
+      const sse = inject(SseService);
+      startUpApplication(store, sse);
+    }),
+
     provideStore(
       [
         ChatsState,

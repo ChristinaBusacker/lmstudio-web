@@ -1,6 +1,6 @@
 // Comments in English as requested.
 
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ModelListItemDto } from '@frontend/src/app/core/api/models.api';
@@ -11,6 +11,7 @@ import { ModelListItemDto } from '@frontend/src/app/core/api/models.api';
   imports: [CommonModule, FormsModule],
   templateUrl: './models-panel.html',
   styleUrl: './models-panel.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ModelsPanel {
   @Input() models: ModelListItemDto[] | null = null;

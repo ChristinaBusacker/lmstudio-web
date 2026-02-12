@@ -10,6 +10,7 @@ import {
   HostListener,
   inject,
   runInInjectionContext,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
@@ -68,6 +69,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
   ],
   templateUrl: './workflow-page.html',
   styleUrl: './workflow-page.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkflowPage {
   private readonly route = inject(ActivatedRoute);

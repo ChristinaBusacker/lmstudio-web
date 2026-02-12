@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { TabsModule } from '@frontend/src/app/ui/tabs/tabs-module';
 import type { WorkflowRun } from '@frontend/src/app/core/state/workflows/workflow.models';
 
@@ -21,6 +21,7 @@ type RunVm = {
   imports: [CommonModule, DatePipe, TabsModule],
   templateUrl: './workflow-run-list.html',
   styleUrls: ['./workflow-run-list.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkflowRunList {
   @Input({ required: true }) runs: RunVm[] = [];

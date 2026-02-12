@@ -1,6 +1,6 @@
 // Comments in English as requested.
 
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -12,6 +12,7 @@ type LanguageCode = 'de' | 'en';
   imports: [CommonModule, FormsModule],
   templateUrl: './user-preferences.html',
   styleUrl: './user-preferences.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserPreferences {
   // TODO: Replace with NGXS state + backend persistence.

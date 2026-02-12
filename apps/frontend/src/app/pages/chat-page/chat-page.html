@@ -1,10 +1,10 @@
 <div class="page">
   <header class="header">
     <div class="title">
-      @if (folder) {
-        {{ folder.name }} /
+      @if (folder()) {
+        {{ folder()!.name }} /
       }
-      {{ (meta | async)?.title || 'Chat' }}
+      {{ meta()?.title || 'Chat' }}
     </div>
   </header>
 

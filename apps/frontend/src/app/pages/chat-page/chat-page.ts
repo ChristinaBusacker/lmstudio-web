@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import {
   AfterViewInit,
+  ChangeDetectionStrategy,
   Component,
   OnDestroy,
   OnInit,
@@ -21,7 +22,6 @@ import { CloseChat, OpenChat } from '../../core/state/chat-detail/chat-detail.ac
 import { ChatDetailState } from '../../core/state/chat-detail/chat-detail.state';
 
 import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs';
-import { ChatFolderDto } from '../../core/api/folders.api';
 import { FoldersState } from '../../core/state/folders/folders.state';
 import { Composer } from '../../ui/composer/composer';
 import { Message } from '../../ui/message/message';
@@ -32,6 +32,7 @@ import { Message } from '../../ui/message/message';
   imports: [CommonModule, Composer, Message],
   templateUrl: './chat-page.html',
   styleUrl: './chat-page.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatPage implements AfterViewInit, OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
@@ -49,20 +50,15 @@ export class ChatPage implements AfterViewInit, OnInit, OnDestroy {
 
   /** Store signals */
   readonly loading = this.store.selectSignal(ChatDetailState.loading);
-  readonly meta = this.store.select(ChatDetailState.meta).pipe(
-    map((meta) => {
-      const folderId = meta?.folderId ?? null;
-      if (folderId) {
-        this.folder = this.store.selectSnapshot(FoldersState.byId(folderId));
-      } else {
-        this.folder = null;
-      }
-      return meta;
-    }),
-  );
+  readonly meta = this.store.selectSignal(ChatDetailState.meta);
+
+  readonly folder = computed(() => {
+    const folderId = this.meta()?.folderId ?? null;
+    return folderId ? this.store.selectSnapshot(FoldersState.byId(folderId)) : null;
+  });
+
   readonly messages = this.store.selectSignal(ChatDetailState.messages);
   readonly runsMap = this.store.selectSignal(ChatDetailState.runs);
-  folder: ChatFolderDto | null = null;
 
   constructor() {
     effect(() => {

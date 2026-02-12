@@ -1,4 +1,11 @@
-import { Component, DestroyRef, inject, OnInit, ViewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  inject,
+  OnInit,
+  ViewChild,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Store } from '@ngxs/store';
@@ -26,6 +33,7 @@ import { DIALOG_DATA } from '../../dialog.tokens';
   imports: [CommonModule, ReactiveFormsModule, Dialog],
   templateUrl: './search-dialog.html',
   styleUrls: ['./search-dialog.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SearchDialog implements OnInit {
   private readonly ctx = inject<DialogContext<string>>(DialogContext);

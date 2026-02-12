@@ -7,7 +7,7 @@ import { LoadActiveRuns } from '../state/runs/runs.actions';
 import { LoadWorkflows } from '../state/workflows/workflow.actions';
 import { LoadProfiles } from '../state/settings/settings.actions';
 
-export function startUpApplication(store: Store, sse: SseService) {
+export function startUpApplication(store: Store, sse: SseService): void {
   sse.connectGlobal();
 
   store.dispatch([

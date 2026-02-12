@@ -1,4 +1,5 @@
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngxs/store';
 import { map } from 'rxjs';
@@ -21,6 +22,7 @@ import { DialogService } from '../../ui/dialog/dialog.service';
   imports: [CommonModule, Composer, ChatCard, ContextMenu, LocalizedTimeDirective, Icon],
   templateUrl: './overview-page.html',
   styleUrl: './overview-page.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OverviewPage {
   private readonly route = inject(ActivatedRoute);
@@ -71,6 +73,7 @@ export class OverviewPage {
                 declineLabel: 'Cancel',
               })
               .afterClosed()
+              .pipe(takeUntilDestroyed(this.destroyRef))
               .subscribe((result) => {
                 if (result.action === 'confirm' && result.data) {
                   this.store.dispatch(new RenameChat(id, result.data));
@@ -101,6 +104,7 @@ export class OverviewPage {
             closeLabel: null, // optional: keinen extra Close-Button
           })
           .afterClosed()
+          .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe((result) => {
             if (result.action === 'confirm') {
               this.store.dispatch(new DeleteChat(id));
@@ -154,6 +158,7 @@ export class OverviewPage {
             closeLabel: null,
           })
           .afterClosed()
+          .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe((result) => {
             if (result.action === 'confirm') {
               this.store.dispatch(new DeleteFolder(id));

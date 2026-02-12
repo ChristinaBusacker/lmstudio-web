@@ -1,5 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  inject,
+  OnInit,
+  signal,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngxs/store';
@@ -21,6 +28,7 @@ import { DialogService } from '../../ui/dialog/dialog.service';
   imports: [CommonModule, ChatCard, Composer, ContextMenu],
   templateUrl: './folder-page.html',
   styleUrl: './folder-page.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FolderPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
@@ -74,6 +82,7 @@ export class FolderPage implements OnInit {
                 declineLabel: 'Cancel',
               })
               .afterClosed()
+              .pipe(takeUntilDestroyed(this.destroyRef))
               .subscribe((result) => {
                 if (result.action === 'confirm' && result.data) {
                   console.log('New title:', result.data);
@@ -107,6 +116,7 @@ export class FolderPage implements OnInit {
             closeLabel: null,
           })
           .afterClosed()
+          .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe((result) => {
             if (result.action === 'confirm') {
               this.store.dispatch(new DeleteChat(id));

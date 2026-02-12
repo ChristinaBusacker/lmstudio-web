@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, inject } from '@angular/core';
+import { Component, Input, OnChanges, inject, ChangeDetectionStrategy } from '@angular/core';
 import {
   CancelWorkflowRun,
   PauseWorkflowRun,
@@ -20,6 +20,7 @@ import { Store } from '@ngxs/store';
   imports: [CommonModule, Icon],
   templateUrl: './workflow-run-details.html',
   styleUrl: './workflow-run-details.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkflowRunDetailsComponent implements OnChanges {
   private readonly store = inject(Store);

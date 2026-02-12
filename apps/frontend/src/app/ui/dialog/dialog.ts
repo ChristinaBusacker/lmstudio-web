@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { DIALOG_DATA } from './dialog.tokens';
 import { DialogRef } from './dialog-ref';
 import { DialogData, DialogResult } from './dialog.types';
@@ -9,6 +9,7 @@ import { DialogContext } from './dialog.context';
   standalone: true,
   templateUrl: './dialog.html',
   styleUrls: ['./dialog.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Dialog<T = unknown> {
   private readonly dialogRef = inject<DialogRef<T>>(DialogRef);

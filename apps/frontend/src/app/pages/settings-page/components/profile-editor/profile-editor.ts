@@ -1,7 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  OnChanges,
+  Output,
+  SimpleChanges,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ModelListItemDto } from '@frontend/src/app/core/api/models.api';
@@ -25,6 +33,7 @@ import { AutoResizeDirective } from '@frontend/src/app/core/directives/textarea/
   imports: [CommonModule, FormsModule, AutoResizeDirective],
   templateUrl: './profile-editor.html',
   styleUrl: './profile-editor.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProfileEditor implements OnChanges {
   @Input() profile: SettingsProfile | null = null;

@@ -14,6 +14,7 @@ import {
   signal,
   untracked,
   ViewChildren,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { Tab } from './tab';
 
@@ -23,6 +24,7 @@ export type HeaderPosition = 'above' | 'below';
   selector: 'app-tabs',
   templateUrl: './tabs.html',
   styleUrl: './tabs.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: false,
 })
 export class Tabs implements AfterContentInit, AfterViewInit {

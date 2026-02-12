@@ -1,5 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostBinding, inject, Input, signal } from '@angular/core';
+import {
+  Component,
+  HostBinding,
+  inject,
+  Input,
+  signal,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngxs/store';
 import { map } from 'rxjs';
@@ -28,6 +35,7 @@ import {
   imports: [CommonModule, Accordion, Icon, RouterLink, ContextMenu, DragDropModule],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Sidebar {
   store = inject(Store);

@@ -1,9 +1,10 @@
 // Comments in English as requested.
 
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngxs/store';
-import { Observable, Subject, takeUntil } from 'rxjs';
+import { Observable } from 'rxjs';
 
 import {
   ClearError,
@@ -44,10 +45,13 @@ type SettingsTab = 'profiles' | 'models' | 'user';
   imports: [CommonModule, ProfilesSidebar, ProfileEditor, UserPreferences, ModelsPanel],
   templateUrl: './settings-page.html',
   styleUrl: './settings-page.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SettingsPage implements OnInit, OnDestroy {
-  private readonly destroy$ = new Subject<void>();
+export class SettingsPage implements OnInit {
+  private readonly store = inject(Store);
   private readonly dialog = inject(DialogService);
+  private readonly destroyRef = inject(DestroyRef);
+
   tab: SettingsTab = 'profiles';
 
   // Store streams (settings)
@@ -63,8 +67,6 @@ export class SettingsPage implements OnInit, OnDestroy {
 
   selectedId: string | null = null;
 
-  constructor(private readonly store: Store) {}
-
   ngOnInit(): void {
     this.profiles$ = this.store.select(SettingsState.profiles);
     this.selected$ = this.store.select(SettingsState.selectedProfile);
@@ -79,14 +81,9 @@ export class SettingsPage implements OnInit, OnDestroy {
     this.store.dispatch([new LoadModels(), new LoadLoadedModels()]);
 
     // Keep selectedId in sync so sidebar can highlight it.
-    this.selected$.pipe(takeUntil(this.destroy$)).subscribe((p) => {
-      this.selectedId = p?.id ?? null;
-    });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+    this.selected$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((p) => (this.selectedId = p?.id ?? null));
   }
 
   // -----------------------
@@ -140,6 +137,7 @@ export class SettingsPage implements OnInit, OnDestroy {
         closeLabel: null,
       })
       .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((result) => {
         if (result.action === 'confirm') {
           this.store.dispatch(new DeleteProfile(profileId));

@@ -1,4 +1,11 @@
-import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  inject,
+  Input,
+  Output,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -16,6 +23,7 @@ import { Icon } from '@frontend/src/app/ui/icon/icon';
   imports: [CommonModule, FormsModule, Icon],
   templateUrl: './profiles-sidebar.html',
   styleUrl: './profiles-sidebar.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProfilesSidebar {
   dialog = inject(DialogService);

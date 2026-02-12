@@ -9,6 +9,7 @@ import {
   Input,
   PLATFORM_ID,
   ViewChild,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -29,6 +30,7 @@ import { Icon } from '../icon/icon';
   imports: [CommonModule, FormsModule, ReactiveFormsModule, Icon],
   templateUrl: './composer.html',
   styleUrl: './composer.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Composer implements AfterViewInit {
   @Input() placeholder = 'Schreibe etwas...';
