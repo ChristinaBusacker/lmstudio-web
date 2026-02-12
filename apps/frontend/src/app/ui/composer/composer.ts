@@ -57,7 +57,6 @@ export class Composer implements AfterViewInit {
   isStreaming$: Observable<boolean> = this.chatId
     ? this.store.select(RunsState.activeByChat(this.chatId)).pipe(
         map((runIds) => {
-          debugger;
           return false;
         }),
       )

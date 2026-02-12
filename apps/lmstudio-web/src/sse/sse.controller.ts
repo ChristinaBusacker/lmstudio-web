@@ -19,6 +19,17 @@ import type { SseEnvelope } from '@shared/contracts';
 @ApiTags('SSE')
 @Controller('sse')
 export class SseController {
+  private heartbeat$ = interval(30_000).pipe(
+    map(() =>
+      this.toMessageEvent(
+        this.bus.publishEphemeral({
+          type: 'heartbeat',
+          payload: { ok: true },
+        }),
+      ),
+    ),
+  );
+
   constructor(private readonly bus: SseBusService) {}
 
   @Sse('chats/:chatId')
@@ -32,8 +43,6 @@ export class SseController {
       '- heartbeat\n\n' +
       'Replay: Uses Last-Event-ID to replay buffered events. Clients should resync via REST on reconnect.',
   })
-  @Sse('chats/:chatId')
-  @ApiProduces('text/event-stream')
   @ApiOkResponse({
     description: 'SSE stream (text/event-stream). Use EventSource.',
     content: {
@@ -82,19 +91,7 @@ export class SseController {
       map((e) => this.toMessageEvent(e)),
     );
 
-    const heartbeat$ = interval(15_000).pipe(
-      map(() =>
-        this.toMessageEvent(
-          this.bus.publish({
-            type: 'heartbeat',
-            chatId,
-            payload: { ok: true },
-          }),
-        ),
-      ),
-    );
-
-    return merge(replay$, live$, heartbeat$);
+    return merge(replay$, live$, this.heartbeat$);
   }
 
   @Sse('global')
@@ -109,8 +106,6 @@ export class SseController {
       '- heartbeat\n\n' +
       'Replay: uses Last-Event-ID with an in-memory ring buffer.',
   })
-  @Sse('global')
-  @ApiProduces('text/event-stream')
   @ApiOkResponse({
     description: 'SSE stream (text/event-stream). Use EventSource.',
     content: {
@@ -180,19 +175,7 @@ export class SseController {
       map((e) => this.toMessageEvent(e)),
     );
 
-    const heartbeat$ = interval(15_000).pipe(
-      map(() =>
-        this.toMessageEvent(
-          this.bus.publish({
-            type: 'heartbeat',
-            workflowId,
-            payload: { ok: true },
-          }),
-        ),
-      ),
-    );
-
-    return merge(replay$, live$, heartbeat$);
+    return merge(replay$, live$, this.heartbeat$);
   }
 
   @Sse('workflow-runs/:runId')
@@ -207,11 +190,7 @@ export class SseController {
       '- heartbeat\n\n' +
       'Replay: Uses Last-Event-ID to replay buffered events. Clients should resync via REST on reconnect.',
   })
-  streamWorkflowRun(
-    @Req() req: Request,
-    @Param('runId') runId: string,
-    @Query('workflowId') workflowId?: string,
-  ): Observable<MessageEvent> {
+  streamWorkflowRun(@Req() req: Request, @Param('runId') runId: string): Observable<MessageEvent> {
     const lastId = this.parseLastEventId(req);
 
     const replay$ = from(this.bus.getWorkflowRunReplay(runId, lastId)).pipe(
@@ -228,20 +207,7 @@ export class SseController {
       map((e) => this.toMessageEvent(e)),
     );
 
-    const heartbeat$ = interval(15_000).pipe(
-      map(() =>
-        this.toMessageEvent(
-          this.bus.publish({
-            type: 'heartbeat',
-            workflowId,
-            runId,
-            payload: { ok: true },
-          }),
-        ),
-      ),
-    );
-
-    return merge(replay$, live$, heartbeat$);
+    return merge(replay$, live$, this.heartbeat$);
   }
 
   private toMessageEvent(e: SseEnvelope): MessageEvent {

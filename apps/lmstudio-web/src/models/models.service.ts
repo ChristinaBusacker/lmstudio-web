@@ -11,6 +11,7 @@ import {
   UnloadModelResponseDto,
 } from './dto/model.dto';
 import { SseBusService } from '../sse/sse-bus.service';
+import { ConfigService } from '@nestjs/config';
 
 /**
  * Integrates with LM Studio:
@@ -22,8 +23,13 @@ export class ModelsService {
   private readonly baseUrl: string;
   private readonly client: LMStudioClient;
 
-  constructor(private sse: SseBusService) {
-    this.baseUrl = (process.env.LMSTUDIO_BASE_URL ?? 'http://localhost:1234').replace(/\/+$/, '');
+  constructor(
+    private sse: SseBusService,
+    private readonly config: ConfigService,
+  ) {
+    this.baseUrl = this.config
+      .get<string>('LMSTUDIO_BASE_URL', 'http://127.0.0.1:1234')
+      .replace(/\/+$/, '');
     this.client = new LMStudioClient(); // uses local LM Studio default connection
   }
 

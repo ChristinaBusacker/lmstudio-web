@@ -5,6 +5,7 @@ import { RunsService } from '../runs/runs.service';
 import { SettingsService } from '../settings/settings.service';
 import { MessageVariantsService } from '../chats/message-variants.service';
 import { MessagesService } from '../chats/messages.service';
+import { ConfigService } from '@nestjs/config';
 
 /**
  * Orchestrates "chat actions" that span multiple domains:
@@ -28,6 +29,7 @@ export class ChatRunsService {
     private readonly settings: SettingsService,
     private readonly variants: MessageVariantsService,
     private readonly messages: MessagesService,
+    private readonly config: ConfigService,
   ) {}
 
   /**
@@ -42,7 +44,7 @@ export class ChatRunsService {
       temperature: 0.7,
       maxTokens: 800,
       topP: 0.9,
-      modelKey: process.env.LMSTUDIO_DEFAULT_MODEL ?? undefined,
+      modelKey: this.config.get<string>('LMSTUDIO_DEFAULT_MODEL') ?? undefined,
     };
   }
 

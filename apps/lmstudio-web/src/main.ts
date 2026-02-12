@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -25,6 +26,8 @@ async function bootstrap() {
     },
   });
 
+  const configService = app.get(ConfigService);
+
   // Expose raw OpenAPI JSON explicitly
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return
   app.use('/api/openapi.json', (_req, res) => res.json(document));
@@ -37,7 +40,7 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(process.env.PORT ? Number(process.env.PORT) : 3000);
+  await app.listen(configService.get<number>('PORT', 3000));
 
   console.log(`LMStudio WebUI listening at http://localhost:3000`);
   console.log(`OpenAPI listening at http://localhost:3000/api/openapi.json`);

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable } from '@nestjs/common';
 import type { LmMessage, RunParams, StreamDelta } from '../common/types/llm.types';
+import { ConfigService } from '@nestjs/config';
 
 interface StreamResult {
   content: string;
@@ -12,7 +13,11 @@ type AnyJson = Record<string, any>;
 @Injectable()
 export class ChatEngineService {
   private readonly controllers = new Map<string, AbortController>();
-  private readonly baseUrl = process.env.LMSTUDIO_BASE_URL ?? 'http://127.0.0.1:1234';
+  private baseUrl = 'http://127.0.0.1:1234';
+
+  constructor(private readonly config: ConfigService) {
+    this.baseUrl = this.config.get<string>('LMSTUDIO_BASE_URL', 'http://127.0.0.1:1234');
+  }
 
   cancel(runId: string) {
     this.controllers.get(runId)?.abort();

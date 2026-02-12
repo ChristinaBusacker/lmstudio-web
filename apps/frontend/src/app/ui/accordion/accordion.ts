@@ -6,6 +6,7 @@ import {
   computed,
   effect,
   ElementRef,
+  inject,
   input,
   model,
   signal,
@@ -24,7 +25,7 @@ export class Accordion {
   readonly title = input<string>('Details');
   readonly id = input<string>('collapsible');
   readonly open = model<boolean>(true);
-
+  private readonly cdr = inject(ChangeDetectorRef);
   @ViewChild('inner', { static: true })
   private readonly innerEl!: ElementRef<HTMLElement>;
 
@@ -41,7 +42,7 @@ export class Accordion {
   private raf2 = 0;
   private pending = false;
 
-  constructor(private readonly cdr: ChangeDetectorRef) {
+  constructor() {
     effect(() => {
       this.open();
       this.scheduleMeasure();
