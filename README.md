@@ -1,158 +1,273 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# LM Studio Web UI
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A local-network–first web application that exposes **LM Studio** through a browser-based UI.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This project bundles a **NestJS backend** and an **Angular single-page application (SPA)** into a single runnable server. The backend provides a REST/SSE API under `/api`, while the Angular UI is served under `/ui`. Data is stored locally using **SQLite**, and database schema changes are handled via **TypeORM migrations** that run automatically on startup.
 
-## Description
+The primary goal of this application is to **make LM Studio accessible over the local network** through a clean web interface, without requiring cloud services or external infrastructure.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## Features
 
-```bash
-$ npm install
+- Angular SPA served under `/ui` (with proper deep-link reload support)
+- NestJS API served under `/api`
+- Local SQLite database (file-based)
+- Automatic database initialization via TypeORM migrations on startup
+- LM Studio integration via its local HTTP API
+- Single-process deployment (one Node.js server)
+- Production-ready `dist/` distribution folder
+
+---
+
+## Architecture Overview
+
+- **Backend:** NestJS (Express)
+- **Frontend:** Angular (SPA, no SSR)
+- **Routing:**
+  - Backend API: `/api/*`
+  - Frontend UI: `/ui/*`
+- **Database:** SQLite (`app.sqlite`)
+- **ORM:** TypeORM
+- **LLM Runtime:** LM Studio (local HTTP server)
+
+The Angular application handles all client-side routing. On page reloads of deep links (e.g. `/ui/chat/<id>`), the NestJS server falls back to serving the Angular `index.html`.
+
+---
+
+## Requirements
+
+### Mandatory
+
+- **Node.js** (recommended: Node.js 22 LTS, Node 20+ should work)
+- **npm** (comes with Node.js)
+- **LM Studio**
+  - Must be installed locally
+  - The LM Studio HTTP server must be running
+  - Default URL: `http://127.0.0.1:1234`
+
+> This application is explicitly built **on top of LM Studio** and does not support other LLM backends.
+
+### Network
+
+- One free TCP port for the application (default: `3000`)
+- Local network access if you want to expose the UI to other devices
+
+---
+
+## Environment Configuration
+
+Configuration is done via environment variables.
+
+A production-ready template is provided as `.env.prod`. For development, copy it to `.env`.
+
+### Example `.env`
+
+```
+PORT=3000
+HOST=0.0.0.0
+
+DB_PATH=./data/app.sqlite
+
+LMSTUDIO_BASE_URL=http://127.0.0.1:1234
+LMSTUDIO_DEFAULT_MODEL=openai/gpt-oss-20b
+
+NODE_ENV=production
 ```
 
-## Compile and run the project
+### Variable Explanation
 
-```bash
-# development
-$ npm run start
+| Variable | Description |
+|--------|------------|
+| `PORT` | Port on which the NestJS server listens |
+| `HOST` | Bind address (use `0.0.0.0` for LAN access) |
+| `DB_PATH` | Path to the SQLite database file |
+| `LMSTUDIO_BASE_URL` | Base URL of the LM Studio HTTP API |
+| `LMSTUDIO_DEFAULT_MODEL` | Default model identifier |
+| `NODE_ENV` | Runtime environment |
 
-# watch mode
-$ npm run start:dev
+---
 
-# production mode
-$ npm run start:prod
+## Development Setup
+
+### 1. Install Dependencies
+
+```
+npm install
 ```
 
-## Run tests
+### 2. Prepare Environment
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```
+cp .env.prod .env
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+(Windows PowerShell)
+```
+Copy-Item .env.prod .env
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 3. Start LM Studio
 
-## Resources
+- Open LM Studio
+- Start the local HTTP server
+- Verify it is reachable at `LMSTUDIO_BASE_URL`
 
-Check out a few resources that may come in handy when working with NestJS:
+### 4. Start Development Mode
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```
+npm run dev
+```
 
-## Support
+This starts:
+- NestJS backend (watch mode)
+- Angular dev server with proxy configuration
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+---
 
-## Stay in touch
+## Build & Production Distribution
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### Build
+
+```
+npm run build
+```
+
+This will:
+
+1. Build the NestJS backend
+2. Build the Angular frontend
+3. Finalize the `dist/` folder
+   - Copy backend entry file
+   - Include frontend assets
+   - Include migration files
+   - Create `data/` directory
+   - Copy `.env.prod` to `dist/.env`
+
+### Resulting `dist/` Layout
+
+```
+dist/
+  main.js
+  .env
+  data/
+    app.sqlite      (created on first start)
+  migrations/
+  ui/
+    browser/
+      index.html
+      *.js
+      *.css
+```
+
+---
+
+## Running in Production
+
+From the project root:
+
+```
+npm start
+```
+
+This runs:
+
+```
+node dist/main.js
+```
+
+### Available Endpoints
+
+- **Web UI:** `http://localhost:3000/ui`
+- **API:** `http://localhost:3000/api`
+- **Swagger UI:** `http://localhost:3000/api/docs`
+- **OpenAPI JSON:** `http://localhost:3000/api/openapi.json`
+
+---
+
+## Running on a Different Machine
+
+### Option A: Run from Source
+
+1. Install Node.js
+2. Install LM Studio and start its HTTP server
+3. Copy the repository
+4. Install dependencies
+
+```
+npm install
+```
+
+5. Configure `.env`
+6. Build and start
+
+```
+npm run build
+npm start
+```
+
+---
+
+### Option B: Distribute Only `dist/`
+
+If you want to distribute only the compiled application:
+
+Requirements on the target machine:
+- Node.js installed
+- LM Studio running
+
+Steps:
+
+1. Copy the entire `dist/` folder
+2. Adjust `dist/.env` if necessary
+3. Start the server:
+
+```
+node main.js
+```
+
+(from inside the `dist/` directory)
+
+---
+
+## Database & Migrations
+
+- The SQLite database file is created automatically on first start
+- TypeORM migrations are executed automatically (`migrationsRun: true`)
+- If the database becomes inconsistent during development:
+  - Stop the app
+  - Delete `data/app.sqlite`
+  - Restart the app
+
+---
+
+## Troubleshooting
+
+### UI reload returns 404
+
+Ensure you are running the production server (`node dist/main.js`). The SPA fallback is only active in the NestJS production setup.
+
+### JavaScript/CSS not loading
+
+This indicates that the SPA fallback is intercepting asset requests. Ensure static file serving is registered before the fallback middleware.
+
+### `SQLITE_ERROR: no such table`
+
+The database exists but migrations were not applied. Delete the database file and restart the application.
+
+### Cannot connect to LM Studio
+
+- Verify LM Studio is running
+- Verify `LMSTUDIO_BASE_URL`
+- Check firewall or network settings
+
+---
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED
 
-# Frontend
+---
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.0.3.
+This project is designed as a **local-first, network-accessible interface for LM Studio**, focusing on simplicity, portability, and control over your local LLM runtime.
 
-## Development server
-
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
