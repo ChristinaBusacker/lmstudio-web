@@ -43,6 +43,21 @@ export class WorkflowApiService {
     return this.http.post<Workflow>('/api/workflows/import', { bundle, name });
   }
 
+  exportWorkflowBundle(
+    workflowId: string,
+    opts: { includeRuns?: boolean; limitRuns?: number } = {},
+  ): Observable<Blob> {
+    let params = new HttpParams();
+    if (opts.includeRuns) params = params.set('includeRuns', 'true');
+    if (typeof opts.limitRuns === 'number')
+      params = params.set('limitRuns', String(opts.limitRuns));
+
+    return this.http.get(`/api/workflows/${encodeURIComponent(workflowId)}/export`, {
+      params,
+      responseType: 'blob',
+    });
+  }
+
   // -----------------------
   // Workflow Runs
   // -----------------------

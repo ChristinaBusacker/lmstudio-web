@@ -2,6 +2,7 @@
   class="diagram-host"
   (mousemove)="onDiagramMouseMove($event)"
   (pointerdown)="onDiagramPointerDown($event)"
+  (wheel)="onDiagramWheel($event)"
 >
   @if (workflow$ | async; as wf) {
     <ng-diagram
@@ -50,6 +51,25 @@
       <button type="button" class="btn" (click)="resetToLastSaved()">
         <app-icon name="reset-left-line" />
         <span>Reset</span>
+      </button>
+
+      <div class="spacer"></div>
+
+      <button type="button" class="btn" (click)="exportWorkflow()" title="Export workflow">
+        <app-icon name="download-line" />
+        <span>Export</span>
+      </button>
+
+      <input
+        #importInput
+        type="file"
+        accept="application/json"
+        hidden
+        (change)="importWorkflow(importInput.files?.item(0) ?? null)"
+      />
+      <button type="button" class="btn" (click)="importInput.click()" title="Import workflow">
+        <app-icon name="file-text-line" />
+        <span>Import</span>
       </button>
     </div>
   }

@@ -86,6 +86,8 @@
       <select
         class="config input"
         [value]="node().data.nodeType"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
         (change)="updateNodeType($event.target.value)"
       >
         <option [value]="NODE_LLM">lmstudio.llm</option>
@@ -104,6 +106,8 @@
         <select
           class="config input"
           [value]="node().data.profileName"
+          (pointerdown)="$event.stopPropagation()"
+          (wheel)="$event.stopPropagation()"
           (change)="updateProfileName($event.target.value)"
           title="Visit settings to define presets"
         >
@@ -123,6 +127,8 @@
             class="textarea"
             rows="5"
             [value]="node().data.prompt"
+            (pointerdown)="$event.stopPropagation()"
+            (wheel)="$event.stopPropagation()"
             (input)="promptInput$.next($any($event.target).value)"
             placeholder="Prompt for this step..."
           ></textarea>
@@ -137,6 +143,8 @@
           class="textarea"
           rows="2"
           [value]="node().data.mergeSeparator ?? '\n\n'"
+          (pointerdown)="$event.stopPropagation()"
+          (wheel)="$event.stopPropagation()"
           (input)="updateMergeSeparator($any($event.target).value)"
           placeholder="\n\n"
         ></textarea>
@@ -154,6 +162,8 @@
           class="input"
           type="text"
           [value]="node().data.exportFilename ?? 'export.txt'"
+          (pointerdown)="$event.stopPropagation()"
+          (wheel)="$event.stopPropagation()"
           (input)="updateExportFilename($any($event.target).value)"
           placeholder="export.txt"
         />
@@ -171,6 +181,8 @@
           min="3"
           max="50"
           [value]="node().data.previewMaxLines ?? 10"
+          (pointerdown)="$event.stopPropagation()"
+          (wheel)="$event.stopPropagation()"
           (input)="updatePreviewMaxLines(Number($any($event.target).value))"
         />
       </label>
@@ -189,6 +201,8 @@
         <select
           class="config input"
           [value]="node().data.profileName"
+          (pointerdown)="$event.stopPropagation()"
+          (wheel)="$event.stopPropagation()"
           (change)="updateProfileName($event.target.value)"
           title="Visit settings to define presets"
         >
@@ -206,6 +220,8 @@
         <select
           class="config input"
           [value]="node().data.loopMode ?? 'until'"
+          (pointerdown)="$event.stopPropagation()"
+          (wheel)="$event.stopPropagation()"
           (change)="updateLoopMode($any($event.target).value)"
         >
           <option value="until">Until condition is true</option>
@@ -221,6 +237,8 @@
           min="1"
           max="1000"
           [value]="node().data.loopMaxIterations ?? 10"
+          (pointerdown)="$event.stopPropagation()"
+          (wheel)="$event.stopPropagation()"
           (input)="updateLoopMaxIterations(Number($any($event.target).value))"
         />
       </label>
@@ -231,6 +249,8 @@
           class="textarea"
           rows="2"
           [value]="node().data.loopJoiner ?? '\n\n'"
+          (pointerdown)="$event.stopPropagation()"
+          (wheel)="$event.stopPropagation()"
           (input)="updateLoopJoiner($any($event.target).value)"
           placeholder="\n\n"
         ></textarea>
@@ -242,6 +262,8 @@
           class="textarea"
           rows="4"
           [value]="node().data.loopConditionPrompt ?? ''"
+          (pointerdown)="$event.stopPropagation()"
+          (wheel)="$event.stopPropagation()"
           (input)="updateLoopConditionPrompt($any($event.target).value)"
           placeholder="E.g. Are all chapters fully written?"
         ></textarea>
@@ -260,17 +282,17 @@
   <div class="controls">
     <div class="controls">
       @if (canRerunFromHere()) {
-        <button (click)="rerunFromHere()">
+        <button (pointerdown)="$event.stopPropagation()" (click)="rerunFromHere()">
           <app-icon name="restart-line" title="rerun from here" />
         </button>
       }
-      <button (click)="duplicateNode()">
+      <button (pointerdown)="$event.stopPropagation()" (click)="duplicateNode()">
         <app-icon name="file-copy-line" title="duplicate" />
       </button>
-      <button (click)="deleteNode()">
+      <button (pointerdown)="$event.stopPropagation()" (click)="deleteNode()">
         <app-icon name="delete-bin-line" title="delete" />
       </button>
-      <button (click)="addLinkedNode()">
+      <button (pointerdown)="$event.stopPropagation()" (click)="addLinkedNode()">
         <app-icon name="add-line" title="add connected node" />
       </button>
     </div>

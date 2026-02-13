@@ -15,6 +15,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { Router } from '@angular/router';
 import { Store } from '@ngxs/store';
 import {
   configureShortcuts,
@@ -30,6 +31,7 @@ import {
 import { distinctUntilChanged, filter, map } from 'rxjs';
 
 import { SseService } from '../../core/sse/sse.service';
+import { WorkflowApiService } from '../../core/api/workflow-api.service';
 import { SettingsState } from '../../core/state/settings/settings.state';
 import { SetSelectedWorkflow, StartWorkflowRun } from '../../core/state/workflows/workflow.actions';
 import { WorkflowsState } from '../../core/state/workflows/workflow.state';
@@ -46,7 +48,10 @@ function isEditableTarget(target: EventTarget | null): boolean {
   if (!el) return false;
 
   const tag = el.tagName?.toLowerCase();
-  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'option') return true;
+
+  // Any element inside an input/textarea/select should be treated as editable.
+  if (el.closest('input, textarea, select, option')) return true;
 
   return el.isContentEditable === true;
 }
@@ -73,11 +78,13 @@ function isEditableTarget(target: EventTarget | null): boolean {
 })
 export class WorkflowPage {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly store = inject(Store);
   private readonly sse = inject(SseService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly envInjector = inject(EnvironmentInjector);
   private readonly modelService = inject(NgDiagramModelService);
+  private readonly workflowApi = inject(WorkflowApiService);
   readonly commands = inject(WorkflowDiagramCommandsService);
   readonly facade = inject(WorkflowDiagramFacade);
   private readonly editorState = inject(WorkflowEditorStateService);
@@ -172,7 +179,18 @@ export class WorkflowPage {
     this.facade.onPointerDownStartTracking();
   }
 
+  onDiagramWheel(e: WheelEvent): void {
+    // When scrolling inside inputs/textareas (esp. on touchpads) we must not
+    // trigger diagram zoom/pan handlers.
+    if (!isEditableTarget(e.target)) return;
+    e.stopPropagation();
+  }
+
+  @HostListener('window:pointerup')
+  @HostListener('window:pointercancel')
+  @HostListener('window:blur')
   onPointerUp(): void {
+    // Make sure dragging/tracking can't get stuck (touchpads, dropdowns, etc.)
     this.facade.onPointerUpFinishTracking();
   }
 
@@ -206,6 +224,47 @@ export class WorkflowPage {
 
   resetToLastSaved(): void {
     this.facade.resetToLastSaved();
+  }
+
+  exportWorkflow(): void {
+    const workflowId = this.workflowId;
+    if (!workflowId) return;
+
+    const wf = this.store.selectSnapshot(WorkflowsState.selectedWorkflow) as any;
+    const baseName = (wf?.name ? String(wf.name) : `workflow-${workflowId}`)
+      .replace(/[^\w\-]+/g, '_')
+      .trim();
+    const filename = `${baseName}.json`;
+
+    this.workflowApi.exportWorkflowBundle(workflowId, { includeRuns: false }).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: (err) => console.error('[WorkflowPage] exportWorkflow failed', err),
+    });
+  }
+
+  async importWorkflow(file: File | null): Promise<void> {
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const bundle = JSON.parse(text);
+
+      this.workflowApi.importWorkflowBundle(bundle).subscribe({
+        next: (wf) => {
+          void this.router.navigate(['/workflow', wf.id]);
+        },
+        error: (err) => console.error('[WorkflowPage] importWorkflow failed', err),
+      });
+    } catch (err) {
+      console.error('[WorkflowPage] importWorkflow parse failed', err);
+    }
   }
 
   @HostListener('window:keydown', ['$event'])
