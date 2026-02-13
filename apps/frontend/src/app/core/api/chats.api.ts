@@ -10,6 +10,32 @@ import type {
 } from '@shared/contracts';
 import { Observable } from 'rxjs';
 
+export interface ChatExportBundleDto {
+  version: number;
+  title: string | null;
+  defaultSettingsProfileId: string | null;
+  activeHeadMessageId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messages: Array<{
+    id: string;
+    role: 'system' | 'user' | 'assistant';
+    parentMessageId: string | null;
+    deletedAt: string | null;
+    editedAt: string | null;
+    createdAt: string;
+    variants: Array<{
+      id: string;
+      variantIndex: number;
+      isActive: boolean;
+      content: string;
+      reasoning: string | null;
+      stats: any;
+      createdAt: string;
+    }>;
+  }>;
+}
+
 export type ChatListItemDto = ChatListItem;
 
 export type CreateChatDto = CreateChatRequest;
@@ -58,5 +84,13 @@ export class ChatsApi {
 
   softDelete(id: string): Observable<SoftDeleteChatResponse> {
     return this.http.delete<SoftDeleteChatResponse>(`/api/chats/${encodeURIComponent(id)}`);
+  }
+
+  exportChat(id: string): Observable<ChatExportBundleDto> {
+    return this.http.get<ChatExportBundleDto>(`/api/chats/${encodeURIComponent(id)}/export`);
+  }
+
+  importChat(bundle: ChatExportBundleDto): Observable<ChatMetaDto> {
+    return this.http.post<ChatMetaDto>(`/api/chats/import`, bundle);
   }
 }

@@ -1,5 +1,25 @@
-<div [class]="'message ' + message.role">
-  <span class="role">{{ message.role }}</span>
+<div [class]="'message ' + message.role" (contextmenu)="openMenu($event)">
+  <div class="topbar">
+    <span class="role">{{ message.role }}</span>
+
+    <div class="spacer"></div>
+
+    @if (message.deletedAt) {
+      <span class="badge deleted">deleted</span>
+    }
+
+    @if (hasMultipleVariants()) {
+      <div class="variants">
+        <button type="button" class="variant-btn" (click)="prevVariant()" title="Previous variant">‹</button>
+        <span class="variant-label">{{ activeVariantIndex() + 1 }}/{{ message.variantsCount }}</span>
+        <button type="button" class="variant-btn" (click)="nextVariant()" title="Next variant">›</button>
+      </div>
+    }
+
+    <button type="button" class="menu-btn" (click)="openMenu($event)" title="Actions">
+      <app-icon name="settings-2-line" [size]="18"></app-icon>
+    </button>
+  </div>
 
   @if (message.activeVariant.reasoning && message.activeVariant.reasoning.trim().length > 0) {
     <details class="reasoning">
@@ -10,6 +30,23 @@
   }
 
   <div class="content">
-    <markdown lineNumbers [start]="5" [data]="message.activeVariant.content" clipboard></markdown>
+    @if (isEditing()) {
+      <textarea class="editor" [(ngModel)]="editContent" rows="6"></textarea>
+      <div class="edit-actions">
+        <button type="button" class="btn" (click)="saveEdit()">Save</button>
+        <button type="button" class="btn secondary" (click)="cancelEdit()">Cancel</button>
+      </div>
+    } @else {
+      <markdown lineNumbers [start]="5" [data]="message.activeVariant.content" clipboard></markdown>
+    }
   </div>
+
+  @if (menu().open) {
+    <app-context-menu
+      [position]="menu().pos"
+      [items]="menuItems"
+      [context]="message"
+      (close)="closeMenu()"
+    />
+  }
 </div>

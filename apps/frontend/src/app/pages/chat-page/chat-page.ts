@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
+import { Router } from '@angular/router';
 import { Store } from '@ngxs/store';
 
 import { SseService } from '../../core/sse/sse.service';
@@ -23,22 +24,26 @@ import { ChatDetailState } from '../../core/state/chat-detail/chat-detail.state'
 
 import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs';
 import { FoldersState } from '../../core/state/folders/folders.state';
+import { ChatsApi } from '../../core/api/chats.api';
 import { Composer } from '../../ui/composer/composer';
 import { Message } from '../../ui/message/message';
+import { Icon } from '../../ui/icon/icon';
 
 @Component({
   selector: 'app-chat-page',
   standalone: true,
-  imports: [CommonModule, Composer, Message],
+  imports: [CommonModule, Composer, Message, Icon],
   templateUrl: './chat-page.html',
   styleUrl: './chat-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatPage implements AfterViewInit, OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly store = inject(Store);
   private readonly sse = inject(SseService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly chatsApi = inject(ChatsApi);
 
   public chatId = '';
 
@@ -134,5 +139,39 @@ export class ChatPage implements AfterViewInit, OnInit, OnDestroy {
 
   trackById(_: number, m: { id: string }): string {
     return m.id;
+  }
+
+  exportChat(): void {
+    const id = this.chatId;
+    if (!id) return;
+
+    this.chatsApi.exportChat(id).subscribe({
+      next: (bundle) => {
+        const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chat-${id}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: (err) => console.error('[ChatPage] exportChat failed', err),
+    });
+  }
+
+  async importChat(file: File | null): Promise<void> {
+    if (!file) return;
+    try {
+      const txt = await file.text();
+      const bundle = JSON.parse(txt);
+      this.chatsApi.importChat(bundle).subscribe({
+        next: (meta) => {
+          this.router.navigate(['/', 'chat', meta.id]);
+        },
+        error: (err) => console.error('[ChatPage] importChat failed', err),
+      });
+    } catch (err) {
+      console.error('[ChatPage] importChat parse failed', err);
+    }
   }
 }

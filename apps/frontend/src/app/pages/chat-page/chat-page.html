@@ -6,6 +6,23 @@
       }
       {{ meta()?.title || 'Chat' }}
     </div>
+
+    <div class="actions">
+      <button type="button" class="action" (click)="exportChat()" title="Export chat">
+        <app-icon name="download-line" [size]="18"></app-icon>
+      </button>
+
+      <input
+        #importInput
+        type="file"
+        accept="application/json"
+        hidden
+        (change)="importChat(importInput.files?.item(0) ?? null)"
+      />
+      <button type="button" class="action" (click)="importInput.click()" title="Import chat">
+        <app-icon name="file-text-line" [size]="18"></app-icon>
+      </button>
+    </div>
   </header>
 
   <section #scrollContainer class="messages" (scroll)="onScroll()">

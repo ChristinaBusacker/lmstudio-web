@@ -10,10 +10,105 @@
     border-radius: 8px;
     width: 90%;
 
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
     & .role {
       text-transform: uppercase;
       font-weight: bold;
       font-size: 1.2rem;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .badge.deleted {
+      opacity: 0.8;
+    }
+
+    .variants {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .variant-btn {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 6px;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+    }
+
+    .variant-label {
+      font-size: 0.8rem;
+      opacity: 0.9;
+    }
+
+    .menu-btn {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 6px;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+    }
+
+    .editor {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.1);
+      padding: 10px;
+      color: inherit;
+      font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+        monospace;
+    }
+
+    .edit-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .btn {
+      border: none;
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.14);
+      color: inherit;
+    }
+
+    .btn.secondary {
+      background: rgba(255, 255, 255, 0.08);
     }
 
     &.user {

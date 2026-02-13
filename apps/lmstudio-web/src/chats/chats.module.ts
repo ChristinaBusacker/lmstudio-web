@@ -16,6 +16,8 @@ import { ChatBranchingService } from './chat-branching.service';
 import { ChatFoldersService } from './chat-folders.service';
 import { FoldersController } from './chat-folders.controller';
 import { SseModule } from '../sse/sse.module';
+import { ChatImportExportService } from './chat-import-export.service';
+import { ChatImportExportController } from './chat-import-export.controller';
 
 @Module({
   imports: [
@@ -31,8 +33,9 @@ import { SseModule } from '../sse/sse.module';
     ChatThreadQueryService,
     ChatBranchingService,
     ChatFoldersService,
+    ChatImportExportService,
   ],
-  controllers: [ChatsController, MessagesController, FoldersController],
+  controllers: [ChatsController, MessagesController, FoldersController, ChatImportExportController],
   exports: [
     ChatsService,
     ChatContextBuilder,
@@ -41,6 +44,7 @@ import { SseModule } from '../sse/sse.module';
     ChatThreadQueryService,
     ChatBranchingService,
     ChatFoldersService,
+    ChatImportExportService,
   ],
 })
 export class ChatsModule {}

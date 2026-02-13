@@ -5,13 +5,7 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "webpack": true,
-    "tsConfigPath": "apps/lmstudio-web/tsconfig.app.json",
-    "assets": [
-      {
-        "include": "migrations/**/*",
-        "outDir": "dist/migrations"
-      }
-    ]
+    "tsConfigPath": "apps/lmstudio-web/tsconfig.app.json"
   },
   "monorepo": true,
   "root": "apps/lmstudio-web",
@@ -23,7 +17,7 @@
       "sourceRoot": "apps/lmstudio-web/src",
       "compilerOptions": {
         "tsConfigPath": "apps/lmstudio-web/tsconfig.app.json",
-        "outputPath": "dist"
+        "outputPath": "dist/apps/lmstudio-web"
       }
     }
   }

@@ -12,7 +12,7 @@ if (!fs.existsSync(nestMainSrc)) {
 }
 
 fs.copyFileSync(nestMainSrc, nestMainDst);
-fs.rmdirSync(path.join(dist, 'apps'), { recursive: true, force: true })
+//fs.rmdirSync(path.join(dist, 'apps'), { recursive: true, force: true })
 
 // optional: copy sourcemap if present
 const mapSrc = nestMainSrc + '.map';
