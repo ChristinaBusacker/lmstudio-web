@@ -16,6 +16,7 @@ import { ContextMenu } from '../context-menu/context-menu';
 import type { ContextMenuItem } from '../context-menu/context-menu.types';
 import { DialogService } from '../dialog/dialog.service';
 import { Icon } from '../icon/icon';
+import { v4 as uuidv4 } from 'uuid';
 
 @Component({
   selector: 'app-message',
@@ -34,9 +35,10 @@ export class Message {
   @Input() message!: ThreadMessageDto;
 
   /** Context menu state */
-  readonly menu = signal<{ open: boolean; pos: { x: number; y: number } }>(
-    { open: false, pos: { x: 0, y: 0 } },
-  );
+  readonly menu = signal<{ open: boolean; pos: { x: number; y: number } }>({
+    open: false,
+    pos: { x: 0, y: 0 },
+  });
 
   /** Variants cache for this message (loaded lazily) */
   readonly variants = signal<MessageVariantDto[] | null>(null);
@@ -142,7 +144,7 @@ export class Message {
   }
 
   private regenerate(m: ThreadMessageDto): void {
-    const clientRequestId = crypto.randomUUID();
+    const clientRequestId = uuidv4();
     this.store.dispatch(new RegenerateAssistantMessage(m.id, { clientRequestId }));
   }
 

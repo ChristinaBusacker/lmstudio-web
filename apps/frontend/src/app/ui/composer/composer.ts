@@ -24,6 +24,7 @@ import { RunsState } from '../../core/state/runs/runs.state';
 import { LoadProfiles } from '../../core/state/settings/settings.actions';
 import { SettingsState } from '../../core/state/settings/settings.state';
 import { Icon } from '../icon/icon';
+import { v4 as uuidv4 } from 'uuid';
 
 @Component({
   selector: 'app-composer',
@@ -239,7 +240,7 @@ export class Composer implements AfterViewInit {
     const chatId = this.store.selectSnapshot(ChatDetailState.chatId);
     if (!chatId) return;
 
-    const clientRequestId = crypto.randomUUID();
+    const clientRequestId = uuidv4();
 
     // Wichtig: clear + DOM wirklich leeren
     this.clearEditorAndRefocus();
@@ -268,6 +269,6 @@ export class Composer implements AfterViewInit {
   }
 
   private fallbackClientRequestId(): string {
-    return crypto.randomUUID();
+    return uuidv4();
   }
 }

@@ -57,7 +57,8 @@
     "sqlite3": "^5.1.7",
     "swagger-ui-express": "^5.0.1",
     "tslib": "^2.3.0",
-    "typeorm": "^0.3.28"
+    "typeorm": "^0.3.28",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@angular/animations": "^21.1.0",
