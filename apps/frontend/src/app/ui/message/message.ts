@@ -2,12 +2,13 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, Input, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Store } from '@ngxs/store';
+import { Router } from '@angular/router';
 import { MarkdownModule } from 'ngx-markdown';
 
 import { ThreadMessageDto } from '../../core/api/chat-thread.api';
 import { MessagesApi, MessageVariantDto } from '../../core/api/messages.api';
+import { ChatsApi } from '../../core/api/chats.api';
 import {
-  ActivateHead,
   LoadThread,
   RegenerateAssistantMessage,
 } from '../../core/state/chat-detail/chat-detail.actions';
@@ -26,7 +27,9 @@ import { Icon } from '../icon/icon';
 export class Message {
   private readonly store = inject(Store);
   private readonly messagesApi = inject(MessagesApi);
+  private readonly chatsApi = inject(ChatsApi);
   private readonly dialog = inject(DialogService);
+  private readonly router = inject(Router);
 
   @Input() message!: ThreadMessageDto;
 
@@ -144,7 +147,12 @@ export class Message {
   }
 
   private branchFrom(m: ThreadMessageDto): void {
-    this.store.dispatch(new ActivateHead(m.chatId, m.id));
+    this.chatsApi.branchChat(m.chatId, m.id).subscribe({
+      next: (res) => {
+        void this.router.navigate(['/chat', res.chatId]);
+      },
+      error: (err) => console.error('[Message] branchChat failed', err),
+    });
   }
 
   private startEdit(m: ThreadMessageDto): void {

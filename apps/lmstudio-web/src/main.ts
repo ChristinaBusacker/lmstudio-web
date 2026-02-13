@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { mkdirSync } from 'fs';
 import { join } from 'path';
 import express from 'express';
+import { getNetworkAddresses } from './utils/getNetworkAdress';
 
 async function bootstrap() {
   mkdirSync(join(__dirname, 'data'), { recursive: true });
@@ -53,12 +54,31 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(configService.get<number>('PORT', 3000));
+  const port = configService.get<number>('PORT', 3000);
+  const host = configService.get<string>('HOST', '0.0.0.0');
 
-  console.log(`LMStudio WebUI listening at http://localhost:3000`);
-  console.log(`OpenAPI listening at http://localhost:3000/api/openapi.json`);
-  console.log(`Swagger UI listening at http://localhost:3000/api/docs`);
-  console.log(`Web UI listening at http://localhost:3000/ui`);
+  await app.listen(port, host);
+
+  const isLan = host === '0.0.0.0' || host === '::';
+  const localUrl = `http://localhost:${port}`;
+
+  console.log('');
+  console.log('🚀 LMStudio WebUI started');
+  console.log('────────────────────────────');
+  console.log(`Local:       ${localUrl}`);
+  console.log(`UI:          ${localUrl}/ui`);
+  console.log(`API:         ${localUrl}/api`);
+  console.log(`Swagger:     ${localUrl}/api/docs`);
+
+  if (isLan) {
+    const ips = getNetworkAddresses();
+    for (const ip of ips) {
+      console.log(`Network:     http://${ip}:${port}`);
+      console.log(`Network UI:  http://${ip}:${port}/ui`);
+    }
+  }
+
+  console.log('────────────────────────────');
 }
 
 bootstrap();

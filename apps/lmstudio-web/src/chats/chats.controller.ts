@@ -25,6 +25,7 @@ import {
 import { ChatsService } from './chats.service';
 import { ChatThreadQueryService } from './chat-thread-query.service';
 import { ChatBranchingService } from './chat-branching.service';
+import { ChatForkService } from './chat-fork.service';
 
 import { CreateChatDto } from './dto/create-chat.dto';
 import { ChatThreadResponseDto } from './dto/thread.dto';
@@ -40,6 +41,7 @@ import { RenameChatDto } from './dto/rename-chat.dto';
 import { MoveChatDto } from './dto/move-chat.dto';
 import { ChatFoldersService } from './chat-folders.service';
 import { ReorderChatDto } from './dto/reorder-chat.dto';
+import { BranchChatDto, BranchChatResponseDto } from './dto/branch-chat.dto';
 
 @ApiTags('Chats')
 @Controller('chats')
@@ -48,6 +50,7 @@ export class ChatsController {
     private readonly chats: ChatsService,
     private readonly thread: ChatThreadQueryService,
     private readonly branching: ChatBranchingService,
+    private readonly fork: ChatForkService,
     private readonly folders: ChatFoldersService,
   ) {}
 
@@ -143,6 +146,22 @@ export class ChatsController {
   @ApiNotFoundResponse({ description: 'Chat or message not found' })
   activateHead(@Param('chatId') chatId: string, @Body() body: ActivateHeadDto) {
     return this.branching.activateHead(chatId, body.messageId ?? null);
+  }
+
+  @Post(':chatId/branch')
+  @ApiOperation({
+    summary: 'Fork a chat into a new chat (branching UX)',
+    description:
+      'Creates a NEW chat that contains the message chain up to the given message id (inclusive). ' +
+      'The new chat head will be set to that message.',
+  })
+  @ApiParam({ name: 'chatId', description: 'Source chat id' })
+  @ApiCreatedResponse({ type: BranchChatResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid messageId or cannot branch from deleted message' })
+  @ApiNotFoundResponse({ description: 'Chat or message not found' })
+  async branch(@Param('chatId') chatId: string, @Body() body: BranchChatDto) {
+    const newChat = await this.fork.forkChat({ chatId, fromMessageId: body.messageId });
+    return { chatId: newChat.id };
   }
 
   @Delete(':chatId')

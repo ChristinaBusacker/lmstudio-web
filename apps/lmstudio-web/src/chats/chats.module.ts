@@ -18,6 +18,7 @@ import { FoldersController } from './chat-folders.controller';
 import { SseModule } from '../sse/sse.module';
 import { ChatImportExportService } from './chat-import-export.service';
 import { ChatImportExportController } from './chat-import-export.controller';
+import { ChatForkService } from './chat-fork.service';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ChatImportExportController } from './chat-import-export.controller';
     ChatBranchingService,
     ChatFoldersService,
     ChatImportExportService,
+    ChatForkService,
   ],
   controllers: [ChatsController, MessagesController, FoldersController, ChatImportExportController],
   exports: [
@@ -45,6 +47,7 @@ import { ChatImportExportController } from './chat-import-export.controller';
     ChatBranchingService,
     ChatFoldersService,
     ChatImportExportService,
+    ChatForkService,
   ],
 })
 export class ChatsModule {}

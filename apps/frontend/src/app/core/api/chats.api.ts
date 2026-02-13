@@ -93,4 +93,10 @@ export class ChatsApi {
   importChat(bundle: ChatExportBundleDto): Observable<ChatMetaDto> {
     return this.http.post<ChatMetaDto>(`/api/chats/import`, bundle);
   }
+
+  branchChat(chatId: string, messageId: string): Observable<{ chatId: string }> {
+    return this.http.post<{ chatId: string }>(`/api/chats/${encodeURIComponent(chatId)}/branch`, {
+      messageId,
+    });
+  }
 }
