@@ -28,7 +28,7 @@ import {
   provideNgDiagram,
   type EdgeDrawnEvent,
 } from 'ng-diagram';
-import { distinctUntilChanged, filter, map } from 'rxjs';
+import { distinctUntilChanged, filter, firstValueFrom, map } from 'rxjs';
 
 import { SseService } from '../../core/sse/sse.service';
 import { WorkflowApiService } from '../../core/api/workflow-api.service';
@@ -36,6 +36,7 @@ import { SettingsState } from '../../core/state/settings/settings.state';
 import { SetSelectedWorkflow, StartWorkflowRun } from '../../core/state/workflows/workflow.actions';
 import { WorkflowsState } from '../../core/state/workflows/workflow.state';
 import { Icon } from '../../ui/icon/icon';
+import { DialogService } from '../../ui/dialog/dialog.service';
 import { WorkflowNodeComponent } from './components/workflow-node/workflow-node';
 import { WorkflowRunListContainer } from './components/workflow-run-list-container/workflow-run-list-container';
 import { WorkflowDiagramCommandsService } from './workflow-diagram-commands.service';
@@ -85,6 +86,7 @@ export class WorkflowPage {
   private readonly envInjector = inject(EnvironmentInjector);
   private readonly modelService = inject(NgDiagramModelService);
   private readonly workflowApi = inject(WorkflowApiService);
+  private readonly dialogs = inject(DialogService);
   readonly commands = inject(WorkflowDiagramCommandsService);
   readonly facade = inject(WorkflowDiagramFacade);
   private readonly editorState = inject(WorkflowEditorStateService);
@@ -210,7 +212,41 @@ export class WorkflowPage {
     this.facade.saveSelectedWorkflow();
   }
 
-  startRun(workflowId: string): void {
+  async startRun(workflowId: string): Promise<void> {
+    if (!workflowId) return;
+
+    // The server-side workflow run uses the persisted workflow graph.
+    // If the editor has unsaved changes, ask the user what to do.
+    if (this.editorDirty()) {
+      const ref = this.dialogs.confirm({
+        title: 'Unsaved changes',
+        message:
+          'You have unsaved changes in the workflow editor. Runs use the saved server version. Do you want to save before starting the run?',
+        confirmLabel: 'Save & run',
+        declineLabel: 'Run without saving',
+        closeLabel: 'Cancel',
+      });
+
+      const res = await firstValueFrom(ref.afterClosed());
+
+      if (res.action === 'close') return;
+
+      if (res.action === 'confirm') {
+        // Save first, then start the run.
+        await firstValueFrom(this.facade.saveSelectedWorkflow$());
+        this.store.dispatch(new StartWorkflowRun(workflowId));
+        return;
+      }
+
+      if (res.action === 'decline') {
+        this.store.dispatch(new StartWorkflowRun(workflowId));
+        return;
+      }
+
+      // Any unknown action => do nothing.
+      return;
+    }
+
     this.store.dispatch(new StartWorkflowRun(workflowId));
   }
 

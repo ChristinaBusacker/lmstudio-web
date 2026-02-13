@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Observable, of } from 'rxjs';
 import { Store } from '@ngxs/store';
 import {
   NgDiagramModelService,
@@ -249,25 +250,38 @@ export class WorkflowDiagramFacade {
   }
 
   saveSelectedWorkflow(): void {
-    this.runWhenReady(() => {
-      const wf = this.store.selectSnapshot(WorkflowsState.selectedWorkflow);
-      if (!wf) return;
+    // Fire-and-forget variant kept for existing callers.
+    this.saveSelectedWorkflow$().subscribe();
+  }
 
-      // Normalize before persisting:
-      // - Single-input nodes must not have multiple incoming edges.
-      // - Merge nodes keep their targetPort semantics.
-      const normalizedModel = this.normalizeModelForSave();
+  /**
+   * Saves the current diagram to the server and returns an Observable that completes
+   * once the underlying NGXS dispatch completes.
+   */
+  saveSelectedWorkflow$(): Observable<unknown> {
+    // If the diagram isn't ready yet, just no-op.
+    if (!this._diagramReady()) return of(null);
 
-      const graph = diagramJsonToWorkflowGraph(JSON.stringify(normalizedModel));
-      this.lastLoadedGraphSig = this.workflowGraphSig({ graph });
+    const wf = this.store.selectSnapshot(WorkflowsState.selectedWorkflow);
+    if (!wf) return of(null);
 
-      this.store.dispatch(new UpdateWorkflow(wf.id, { graph: graph as any }));
+    // Normalize before persisting:
+    // - Single-input nodes must not have multiple incoming edges.
+    // - Merge nodes keep their targetPort semantics.
+    const normalizedModel = this.normalizeModelForSave();
 
-      this.editorState.clearDirty();
-      this.lastSavedSnapshot = this.snapshot();
-      this.undoStack = [];
-      this.redoStack = [];
-    });
+    const graph = diagramJsonToWorkflowGraph(JSON.stringify(normalizedModel));
+    this.lastLoadedGraphSig = this.workflowGraphSig({ graph });
+
+    const dispatch$ = this.store.dispatch(new UpdateWorkflow(wf.id, { graph: graph as any }));
+
+    // Optimistically update editor state immediately (UX), while the server saves.
+    this.editorState.clearDirty();
+    this.lastSavedSnapshot = this.snapshot();
+    this.undoStack = [];
+    this.redoStack = [];
+
+    return dispatch$;
   }
 
   resetToLastSaved(): void {

@@ -27,4 +27,38 @@ const envSrc = path.join(root, '.env.prod');
 const envDst = path.join(dist, '.env');
 if (fs.existsSync(envSrc)) fs.copyFileSync(envSrc, envDst);
 
+const esbuild = require('esbuild');
+
+const migrationsSrcDir = path.join(root, 'apps', 'lmstudio-web', 'src', 'migrations');
+const migrationsDstDir = path.join(dist, 'migrations');
+
+fs.mkdirSync(migrationsDstDir, { recursive: true });
+
+if (fs.existsSync(migrationsSrcDir)) {
+  const files = fs.readdirSync(migrationsSrcDir).filter(f => f.endsWith('.ts') || f.endsWith('.js'));
+
+  for (const file of files) {
+    const src = path.join(migrationsSrcDir, file);
+
+    if (file.endsWith('.js')) {
+      // if you ever have prebuilt js migrations, just copy them
+      fs.copyFileSync(src, path.join(migrationsDstDir, file));
+      continue;
+    }
+
+    // compile .ts -> .js (CJS, because Nest/TypeORM runtime is CommonJS here)
+    const outFile = path.join(migrationsDstDir, file.replace(/\.ts$/, '.js'));
+
+    esbuild.buildSync({
+      entryPoints: [src],
+      outfile: outFile,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node18', // or node20; node24 is fine too
+      sourcemap: false,
+      bundle: false, // keep it simple; it's a single migration file
+    });
+  }
+  }
+
 console.log('dist finalized');

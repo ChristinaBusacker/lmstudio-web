@@ -17,12 +17,11 @@
             <div class="runs__time">{{ r.createdAt | date: 'shortTime' }}</div>
           </div>
 
-          @if (r.isActive && r.progress !== null) {
+          @if (r.isActive) {
             <div class="runs__progress">
-              <div class="runs__progressBar">
-                <div class="runs__progressFill" [style.width.%]="percent(r.progress)"></div>
+              <div class="runs__progressBar" aria-label="Run in progress">
+                <div class="runs__progressIndeterminate"></div>
               </div>
-              <div class="runs__progressText">{{ percent(r.progress) }}%</div>
             </div>
           }
 

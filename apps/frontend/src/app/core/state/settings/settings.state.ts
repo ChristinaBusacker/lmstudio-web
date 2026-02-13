@@ -1,11 +1,12 @@
 // Comments in English as requested.
 
 import { Injectable } from '@angular/core';
+import { Router } from '@angular/router';
 import { Action, Selector, State, StateContext } from '@ngxs/store';
-import { tap, catchError } from 'rxjs/operators';
-import { EMPTY } from 'rxjs';
+import { EMPTY, of, switchMap, tap, catchError } from 'rxjs';
 import { SettingsApiService } from '../../api/settings.api';
 import type { SettingsProfile } from '@shared/contracts';
+import { DialogService } from '../../../ui/dialog/dialog.service';
 import {
   ClearError,
   CreateProfile,
@@ -34,7 +35,13 @@ export interface SettingsStateModel {
 })
 @Injectable()
 export class SettingsState {
-  constructor(private readonly api: SettingsApiService) {}
+  private readonly firstVisitKey = 'lmstudio-web:first-visit-settings-profile-hint-shown';
+
+  constructor(
+    private readonly api: SettingsApiService,
+    private readonly dialogs: DialogService,
+    private readonly router: Router,
+  ) {}
 
   // ----------------------------
   // Selectors
@@ -86,6 +93,18 @@ export class SettingsState {
     ctx.patchState({ isLoading: true, error: null });
 
     return this.api.listProfiles().pipe(
+      switchMap((profiles) => {
+        // If there is exactly one profile and none is marked as default, auto-default it.
+        if (profiles.length === 1 && !profiles[0]?.isDefault) {
+          return this.api.setDefaultProfile(profiles[0].id).pipe(
+            switchMap((serverDefault) => {
+              const next = profiles.map((p) => (p.id === serverDefault.id ? serverDefault : p));
+              return of(next);
+            }),
+          );
+        }
+        return of(profiles);
+      }),
       tap((profiles) => {
         ctx.patchState({ profiles, isLoading: false });
 
@@ -94,6 +113,9 @@ export class SettingsState {
         if (selectedId && !profiles.some((p) => p.id === selectedId)) {
           ctx.patchState({ selectedProfileId: null });
         }
+
+        // First-visit onboarding hint: when there are no profiles yet.
+        this.maybeShowFirstVisitSettingsProfileHint(profiles);
       }),
       catchError((err) => {
         ctx.patchState({
@@ -157,9 +179,24 @@ export class SettingsState {
     ctx.patchState({ isLoading: true, error: null });
 
     return this.api.createProfile(action.payload).pipe(
-      tap((created) => {
+      switchMap((created) => {
         const state = ctx.getState();
-        let profiles = [...state.profiles, created];
+        const nextProfiles = [...state.profiles, created];
+
+        // If this is the first (and only) profile, ensure it becomes default.
+        if (nextProfiles.length === 1 && !created.isDefault) {
+          return this.api
+            .setDefaultProfile(created.id)
+            .pipe(
+              switchMap((serverDefault) => of({ created: serverDefault, isDefaultForced: true })),
+            );
+        }
+
+        return of({ created, isDefaultForced: false });
+      }),
+      tap(({ created }) => {
+        const state = ctx.getState();
+        let profiles = upsertById(state.profiles, created);
 
         // If created is default, ensure only one default in store.
         if (created.isDefault) {
@@ -245,6 +282,36 @@ export class SettingsState {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       err?.error?.message ?? err?.message ?? (typeof err === 'string' ? err : null) ?? fallback;
     return String(msg);
+  }
+
+  private maybeShowFirstVisitSettingsProfileHint(profiles: SettingsProfile[]): void {
+    // Guard against SSR and non-browser environments.
+    if (typeof window === 'undefined') return;
+    if (typeof localStorage === 'undefined') return;
+
+    // Only show this once per browser profile.
+    const alreadyShown = localStorage.getItem(this.firstVisitKey) === '1';
+    if (alreadyShown) return;
+
+    // Only show the hint if there are no profiles yet.
+    if (profiles.length > 0) return;
+
+    localStorage.setItem(this.firstVisitKey, '1');
+
+    const ref = this.dialogs.confirm({
+      title: 'Welcome',
+      message:
+        'Before you can run workflows or chat, please create a Settings Profile first. It defines your model and runtime settings.',
+      confirmLabel: 'Open settings',
+      declineLabel: 'Later',
+      closeLabel: null,
+    });
+
+    ref.afterClosed().subscribe((r) => {
+      if (r.action === 'confirm') {
+        void this.router.navigate(['/settings']);
+      }
+    });
   }
 }
 

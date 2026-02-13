@@ -71,10 +71,7 @@
 
 .runs__progress {
   margin-top: 8px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  align-items: center;
+  display: block;
 }
 
 .runs__progressBar {
@@ -85,17 +82,22 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
-.runs__progressFill {
+// Indeterminate progress bar (infinite): indicates "a run is active".
+.runs__progressIndeterminate {
   height: 100%;
-  width: 0%;
+  width: 35%;
+  border-radius: 999px;
   background: rgba(255, 255, 255, 0.25);
+  animation: runs-progress-slide 1.1s ease-in-out infinite;
 }
 
-.runs__progressText {
-  font-size: 11px;
-  opacity: 0.8;
-  min-width: 38px;
-  text-align: right;
+@keyframes runs-progress-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
 }
 
 .runs__error {

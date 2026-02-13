@@ -103,7 +103,6 @@ export class ChatsService {
     const limit = params?.limit ?? 50;
 
     const where: FindOptionsWhere<ChatEntity> = {};
-    console.log(params?.includeDeleted);
     if (!params?.includeDeleted) {
       (where as any).deletedAt = IsNull();
     }

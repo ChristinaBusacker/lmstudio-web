@@ -19,8 +19,6 @@ import { WorkflowRunEntity } from './workflows/entities/workflow-run.entity';
 import { WorkflowEntity } from './workflows/entities/workflow.entity';
 import { WorkflowsModule } from './workflows/workflows.module';
 
-const distRoot = __dirname;
-
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -28,7 +26,7 @@ const distRoot = __dirname;
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'sqlite',
-        database: config.get('DB_PATH', join(distRoot, 'data', 'app.sqlite')),
+        database: config.get('DB_PATH', join(process.cwd(), 'data', 'app.sqlite')),
         synchronize: false,
         migrationsRun: true,
         autoLoadEntities: true,

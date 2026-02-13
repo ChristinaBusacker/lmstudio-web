@@ -4,10 +4,9 @@ import { DataSource } from 'typeorm';
 
 export const AppDataSource = new DataSource({
   type: 'sqlite',
-  database: process.env.DB_PATH ?? join(__dirname, 'data', 'app.sqlite'),
-
+  database: process.env.DB_PATH ?? join(process.cwd(), 'data', 'app.sqlite'),
   synchronize: false,
-  migrationsRun: false,
+  migrationsRun: true,
 
   entities: [__dirname + '/**/*.entity.{ts,js}'],
   migrations: [__dirname + '/migrations/*.{ts,js}'],

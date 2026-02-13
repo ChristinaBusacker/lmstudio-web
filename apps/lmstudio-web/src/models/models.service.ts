@@ -40,7 +40,6 @@ export class ModelsService {
     try {
       res = await fetch(url, { method: 'GET' });
     } catch (e: unknown) {
-      console.log(e);
       throw new ServiceUnavailableException(
         `LM Studio is not reachable at ${this.baseUrl}. Is the server running?`,
       );

@@ -23,7 +23,5 @@ export class AutoResizeDirective implements AfterViewInit {
     textarea.style.height = 'auto';
     textarea.style.overflowY = 'hidden';
     textarea.style.height = textarea.scrollHeight + 'px';
-
-    console.log(textarea.scrollHeight);
   }
 }
