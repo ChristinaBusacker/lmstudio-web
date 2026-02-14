@@ -1,0 +1,8 @@
+{LAN_IP}:8443, localhost:8443 {
+  tls internal
+  reverse_proxy localhost:3000
+}
+
+:8080 {
+  redir https://{host}:8443{uri}
+}
