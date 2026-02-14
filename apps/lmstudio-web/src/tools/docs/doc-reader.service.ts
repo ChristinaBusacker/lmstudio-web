@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { fileTypeFromBuffer } from 'file-type';
 import unzipper from 'unzipper';
-import { PDFParse } from 'pdf-parse';
 import { AssetsService } from '../../assets/assets.service';
 import { RunArtifactsService } from '../run-artifacts.service';
 import { JSDOM } from 'jsdom';
