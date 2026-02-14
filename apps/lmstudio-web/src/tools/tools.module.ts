@@ -8,11 +8,25 @@ import { WebSearchService } from './web/web-search.service';
 import { WebReaderService } from './web/web-reader.service';
 import { DocReaderService } from './docs/doc-reader.service';
 import { ToolsController } from './tools.controller';
+import { ToolOrchestratorService } from './tool-orchestrator.service';
+import { SseModule } from '../sse/sse.module';
 
 @Module({
-  imports: [ConfigModule, AssetsModule, TypeOrmModule.forFeature([RunArtifactEntity])],
+  imports: [ConfigModule, AssetsModule, TypeOrmModule.forFeature([RunArtifactEntity]), SseModule],
   controllers: [ToolsController],
-  providers: [RunArtifactsService, WebSearchService, WebReaderService, DocReaderService],
-  exports: [WebSearchService, WebReaderService, DocReaderService, RunArtifactsService],
+  providers: [
+    RunArtifactsService,
+    WebSearchService,
+    WebReaderService,
+    DocReaderService,
+    ToolOrchestratorService,
+  ],
+  exports: [
+    WebSearchService,
+    WebReaderService,
+    DocReaderService,
+    RunArtifactsService,
+    ToolOrchestratorService,
+  ],
 })
 export class ToolsModule {}

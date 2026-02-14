@@ -13,6 +13,8 @@ import {
 } from '../common/utils/think-parser';
 import { RunsService } from './runs.service';
 import { SseBusService } from '../sse/sse-bus.service';
+import { ToolOrchestratorService } from '../tools/tool-orchestrator.service';
+import { ConfigService } from '@nestjs/config';
 
 interface RunExecContext {
   runId: string;
@@ -56,6 +58,8 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly engine: ChatEngineService,
     private readonly variants: MessageVariantsService,
     private readonly sse: SseBusService,
+    private readonly toolOrchestrator: ToolOrchestratorService,
+    private readonly config: ConfigService,
   ) {}
 
   onModuleInit() {
@@ -201,7 +205,21 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
       systemPrompt as string,
     );
 
-    const gen = this.engine.streamChat(ctx.runId, messages, ctx.params);
+    const toolsEnabledDefault =
+      (this.config.get<string>('LMSTUDIO_TOOLS_ENABLED') ?? 'true').toLowerCase() !== 'false';
+
+    const toolsEnabled =
+      typeof (ctx.params as any)?.toolsEnabled === 'boolean'
+        ? Boolean((ctx.params as any).toolsEnabled)
+        : toolsEnabledDefault;
+
+    // If structured output is enabled, prefer schema-enforced output and disable tool calling for now.
+    const structuredEnabled = Boolean((ctx.params as any)?.structuredOutput?.enabled);
+
+    const gen =
+      toolsEnabled && !structuredEnabled
+        ? this.toolOrchestrator.streamWithTools(ctx.runId, messages, ctx.params as any)
+        : this.engine.streamChat(ctx.runId, messages, ctx.params);
 
     while (true) {
       const { value, done } = await gen.next();
@@ -265,6 +283,7 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
       if (Date.now() - ctx.lastFlushMs >= this.FLUSH_MS) {
         if (await this.isCanceledInDb(ctx.runId)) {
           this.engine.cancel(ctx.runId);
+          this.toolOrchestrator.cancel(ctx.runId);
           await this.flush(ctx);
           await this.finalizeCanceled(ctx);
           return;

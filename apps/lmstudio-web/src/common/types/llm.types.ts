@@ -1,8 +1,11 @@
-export type LmRole = 'system' | 'user' | 'assistant';
+export type LmRole = 'system' | 'user' | 'assistant' | 'tool';
 
 export interface LmMessage {
   role: LmRole;
   content: string; // content-only, reasoning excluded
+
+  /** OpenAI-compatible tool routing (only used for chat.completions tool calling) */
+  tool_call_id?: string;
 }
 
 export interface RunParams {
@@ -25,6 +28,9 @@ export interface RunParams {
     name?: string;
     schema?: Record<string, any>;
   };
+
+  /** Enable OpenAI-style tool calling (chat.completions). Default: true (server-configurable). */
+  toolsEnabled?: boolean;
 }
 /**
  * Stream chunk from the model server.

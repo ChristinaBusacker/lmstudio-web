@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { UnixMs } from '../common/datetime.contract';
 import type { ChatId, RunId, WorkflowId } from '../common/id.contract';
 import type { RunStatus } from '../runs/run.contract';
@@ -29,7 +30,10 @@ export type SseEventType =
   | 'chats.changed'
   | 'workflow.run.status'
   | 'workflow.node-run.upsert'
-  | 'workflow.artifact.created';
+  | 'workflow.artifact.created'
+  | 'run.tool_call'
+  | 'run.tool_result'
+  | 'run.tool_error';
 
 export interface SseEnvelope<TType extends SseEventType = SseEventType, TPayload = unknown> {
   id: number;

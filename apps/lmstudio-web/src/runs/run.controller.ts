@@ -14,6 +14,7 @@ import { ListRunsQueryDto } from './dto/list-runs.query.dto';
 import { ListActiveRunsQueryDto } from './dto/active-runs.dto';
 import { ChatEngineService } from '../chats/chat-engine.service';
 import { CancelRunResponseDto } from './dto/cancel-run-response.dto';
+import { ToolOrchestratorService } from '../tools/tool-orchestrator.service';
 
 @ApiTags('Runs')
 @Controller()
@@ -21,6 +22,7 @@ export class RunsController {
   constructor(
     private readonly runs: RunsService,
     private readonly engine: ChatEngineService,
+    private readonly toolOrchestrator: ToolOrchestratorService,
   ) {}
 
   @Get('runs/active')
@@ -172,6 +174,7 @@ export class RunsController {
     // Best-effort abort streaming if currently running in this process
     // (If you later have multiple workers, you’ll want a shared cancel signal.)
     this.engine.cancel(runId);
+    this.toolOrchestrator.cancel(runId);
 
     await this.runs.markCanceled(runId);
 

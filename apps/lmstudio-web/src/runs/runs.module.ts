@@ -8,9 +8,16 @@ import { ChatsModule } from '../chats/chats.module';
 import { ModelsModule } from '../models/models.module';
 import { RunsController } from './run.controller';
 import { SseModule } from '../sse/sse.module';
+import { ToolsModule } from '../tools/tools.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([RunEntity]), ChatsModule, ModelsModule, SseModule],
+  imports: [
+    TypeOrmModule.forFeature([RunEntity]),
+    ChatsModule,
+    ModelsModule,
+    SseModule,
+    ToolsModule,
+  ],
   providers: [RunsService, RunWorkerService, ChatEngineService],
   exports: [RunsService, ChatEngineService],
   controllers: [RunsController],
