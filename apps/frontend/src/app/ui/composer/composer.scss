@@ -19,6 +19,25 @@
     align-items: flex-end;
   }
 
+  .composer__file {
+    display: none;
+  }
+
+  .composer__tool {
+    border: none;
+    cursor: pointer;
+    background: #fff;
+    border-radius: 50%;
+    aspect-ratio: 1 / 1;
+    margin: 0.35rem 0 0.35rem 0.35rem;
+    padding: 5px;
+
+    &[disabled] {
+      background: grey !important;
+      cursor: not-allowed;
+    }
+  }
+
   .composer__editable,
   .composer__textarea {
     width: 100%;
@@ -77,5 +96,53 @@
     & option {
       background-color: var(--color-container);
     }
+  }
+
+  .attachments {
+    padding: 0.25rem 0.75rem 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .attachments__title {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin: 0.25rem 0 0.5rem;
+  }
+
+  .attachments__item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0;
+
+    .name {
+      font-size: 0.9rem;
+    }
+
+    .meta {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+        'Courier New', monospace;
+      font-size: 0.75rem;
+      opacity: 0.75;
+      margin-left: auto;
+    }
+  }
+
+  .attachments__hint {
+    font-size: 0.75rem;
+    opacity: 0.75;
+    margin-top: 0.35rem;
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+        'Courier New', monospace;
+      font-size: 0.75rem;
+    }
+  }
+
+  .upload-error {
+    padding: 0.5rem 0.75rem;
+    color: #ffb3b3;
+    font-size: 0.85rem;
   }
 }

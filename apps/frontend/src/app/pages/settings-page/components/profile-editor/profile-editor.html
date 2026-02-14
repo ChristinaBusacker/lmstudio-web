@@ -171,6 +171,19 @@
     </label>
   </div>
 
+  <!-- Tools card -->
+  <div class="card">
+    <div class="card-title">Tools</div>
+
+    <label class="field">
+      <span class="label">Enable tools (web search, web read, document read)</span>
+      <div class="inline">
+        <input type="checkbox" [(ngModel)]="editParams.toolsEnabled" />
+        <span class="hint">If disabled, runs using this profile should not call tools.</span>
+      </div>
+    </label>
+  </div>
+
   <!-- Advanced card -->
   <div class="card advanced">
     <div class="row row-top">

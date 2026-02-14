@@ -44,6 +44,7 @@ export class ChatRunsService {
       temperature: 0.7,
       maxTokens: 800,
       topP: 0.9,
+      toolsEnabled: true,
       modelKey: this.config.get<string>('LMSTUDIO_DEFAULT_MODEL') ?? undefined,
     };
   }

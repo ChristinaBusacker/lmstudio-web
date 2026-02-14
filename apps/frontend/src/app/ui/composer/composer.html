@@ -11,6 +11,14 @@
     }
   </select>
   <div class="composer">
+    <input
+      #fileInput
+      type="file"
+      class="composer__file"
+      (change)="onFilesSelected($event)"
+      multiple
+    />
+
     @if (useContentEditable) {
       <div
         #editable
@@ -33,6 +41,17 @@
         >{{ value }}</textarea
       >
     }
+
+    <button
+      class="composer__tool"
+      type="button"
+      title="Upload file"
+      (click)="openFilePicker()"
+      [disabled]="disabled"
+    >
+      <app-icon class="icon icon-black" name="file-text-line" [size]="18"></app-icon>
+    </button>
+
     @if (isStreaming$ | async) {
       <button class="composer__send" (click)="abort()">
         <app-icon class="icon icon-black" name="stop-fill" [size]="18"></app-icon>
@@ -43,4 +62,26 @@
       </button>
     }
   </div>
+
+  @if (attachments.length) {
+    <div class="attachments">
+      <div class="attachments__title">Attachments</div>
+      @for (a of attachments; track a.id) {
+        <div class="attachments__item">
+          <span class="name">{{ a.originalFilename }}</span>
+          <span class="meta">assetId: {{ a.id }}</span>
+          <button class="btn btn-ghost" type="button" (click)="removeAttachment(a.id)">
+            <app-icon class="icon" name="close-circle-line" [size]="16"></app-icon>
+          </button>
+        </div>
+      }
+      <div class="attachments__hint">
+        Tip: You can reference these in prompts. Example: <code>doc_read</code> with <code>assetId</code>.
+      </div>
+    </div>
+  }
+
+  @if (uploadError) {
+    <div class="upload-error">{{ uploadError }}</div>
+  }
 </div>

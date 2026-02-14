@@ -5,10 +5,19 @@ export type SettingsParams = {
   temperature?: number;
   maxTokens?: number;
   topP?: number;
+  /** Enables tool usage (e.g. web_search/web_read/doc_read) for runs using this profile. */
+  toolsEnabled?: boolean;
   [k: string]: any;
 };
 
-const CORE_KEYS = new Set(['systemPrompt', 'modelKey', 'temperature', 'maxTokens', 'topP']);
+const CORE_KEYS = new Set([
+  'systemPrompt',
+  'modelKey',
+  'temperature',
+  'maxTokens',
+  'topP',
+  'toolsEnabled',
+]);
 
 export function createDefaultParams(): SettingsParams {
   return {
@@ -17,6 +26,7 @@ export function createDefaultParams(): SettingsParams {
     temperature: 0.7,
     maxTokens: 800,
     topP: 0.9,
+    toolsEnabled: true,
   };
 }
 
@@ -29,6 +39,9 @@ export function normalizeParams(raw: any): SettingsParams {
 
   merged.systemPrompt = (merged.systemPrompt ?? '').toString();
   merged.modelKey = (merged.modelKey ?? '').toString();
+
+  // Keep it strict-ish but user friendly.
+  merged.toolsEnabled = !!merged.toolsEnabled;
 
   return merged;
 }

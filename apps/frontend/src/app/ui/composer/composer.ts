@@ -25,6 +25,7 @@ import { LoadProfiles } from '../../core/state/settings/settings.actions';
 import { SettingsState } from '../../core/state/settings/settings.state';
 import { Icon } from '../icon/icon';
 import { v4 as uuidv4 } from 'uuid';
+import { AssetsApi, type AssetDto } from '@frontend/src/app/core/api/assets.api';
 
 @Component({
   selector: 'app-composer',
@@ -45,6 +46,7 @@ export class Composer implements AfterViewInit {
     @Inject(PLATFORM_ID) private readonly platformId: object,
     private api: ChatsApi,
     private router: Router,
+    private assetsApi: AssetsApi,
   ) {
     this.store.dispatch(new LoadProfiles());
   }
@@ -67,6 +69,14 @@ export class Composer implements AfterViewInit {
 
   disabled = false;
   value = '';
+
+  // Uploaded attachments for the next send()
+  attachments: AssetDto[] = [];
+
+  uploadError: string | null = null;
+
+  @ViewChild('fileInput', { static: false })
+  private fileInput?: ElementRef<HTMLInputElement>;
 
   activeRuns = this.chatId ? this.store.select(RunsState.activeByChat(this.chatId)) : of([]);
 
@@ -234,8 +244,12 @@ export class Composer implements AfterViewInit {
       return;
     }
 
-    const content = this.value.trim();
-    if (!content) return;
+    const baseContent = this.value.trim();
+    if (!baseContent) return;
+
+    const content = this.attachments.length
+      ? this.appendAttachmentsBlock(baseContent, this.attachments)
+      : baseContent;
 
     const chatId = this.store.selectSnapshot(ChatDetailState.chatId);
     if (!chatId) return;
@@ -244,6 +258,10 @@ export class Composer implements AfterViewInit {
 
     // Wichtig: clear + DOM wirklich leeren
     this.clearEditorAndRefocus();
+
+    // Clear attachments after successful trigger
+    this.attachments = [];
+    this.uploadError = null;
 
     const options: any = {
       content,
@@ -255,6 +273,45 @@ export class Composer implements AfterViewInit {
     }
 
     this.store.dispatch(new SendMessage(chatId, options));
+  }
+
+  openFilePicker(): void {
+    if (this.disabled) return;
+    this.uploadError = null;
+    this.fileInput?.nativeElement?.click();
+  }
+
+  onFilesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const files = Array.from(input?.files ?? []);
+    if (!files.length) return;
+
+    // Allow selecting the same file again later
+    if (input) input.value = '';
+
+    for (const f of files) {
+      this.assetsApi.upload(f).subscribe({
+        next: (asset) => {
+          this.attachments = [...this.attachments, asset];
+        },
+        error: (err) => {
+          console.error('[Assets] upload failed', err);
+          this.uploadError = 'Upload failed.';
+        },
+      });
+    }
+  }
+
+  removeAttachment(id: string): void {
+    this.attachments = this.attachments.filter((a) => a.id !== id);
+  }
+
+  private appendAttachmentsBlock(content: string, assets: AssetDto[]): string {
+    const lines = assets
+      .map((a) => `- ${a.originalFilename} (assetId: ${a.id}${a.mimeType ? `, mime: ${a.mimeType}` : ''})`)
+      .join('\n');
+
+    return `${content}\n\n[Attachments]\n${lines}`;
   }
 
   abort(): void {
