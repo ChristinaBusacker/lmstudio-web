@@ -1,5 +1,4 @@
 <div class="runs">
-
   @if (isLoading) {
     <div class="runs__empty">Loading…</div>
   } @else if (!runs.length) {
@@ -14,7 +13,24 @@
         >
           <div class="runs__top">
             <div class="runs__status">{{ r.status }}</div>
-            <div class="runs__time">{{ r.createdAt | date: 'shortTime' }}</div>
+            <div class="runs__controls">
+              @if (r.status === 'running' || r.status === 'queued') {
+                <button (click)="pause(r)">
+                  <app-icon name="pause-line" />
+                </button>
+              }
+              @if (r.status === 'paused') {
+                <button (click)="resume(r)">
+                  <app-icon name="play-line" />
+                </button>
+              }
+              @if (r.status !== 'completed' && r.status !== 'failed' && r.status !== 'canceled') {
+                <button (click)="cancel(r)">
+                  <app-icon name="stop-fill" />
+                </button>
+              }
+              <div class="runs__time">{{ r.createdAt | date: 'shortTime' }}</div>
+            </div>
           </div>
 
           @if (r.isActive) {

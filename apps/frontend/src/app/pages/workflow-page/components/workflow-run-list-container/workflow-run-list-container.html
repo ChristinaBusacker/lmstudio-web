@@ -1,18 +1,20 @@
 <app-tabs>
-  <app-tab label="Runs">
-    <app-workflow-run-list
-      [runs]="vm.runs"
-      [selectedRunId]="vm.selectedRunId"
-      [isLoading]="vm.isLoading"
-      (selectRun)="onSelectRun($event)"
-    />
-  </app-tab>
-  @if (vm.details) {
-    <app-tab label="Artefacts">
-      <app-workflow-run-details [details]="vm.details" />
+  @if (vm(); as vm) {
+    <app-tab label="Runs">
+      <app-workflow-run-list
+        [runs]="vm.runs"
+        [selectedRunId]="vm.selectedRunId"
+        [isLoading]="vm.isLoading"
+        (selectRun)="onSelectRun($event)"
+      />
     </app-tab>
+    @if (vm.details) {
+      <app-tab label="Artefacts">
+        <app-workflow-run-details [details]="vm.details" />
+      </app-tab>
+    }
   }
 </app-tabs>
-    <button class="refreshBtn" (click)="refresh()">
-      <app-icon name="refresh-line" />
-    </button>
+<button class="refreshBtn" (click)="refresh()">
+  <app-icon name="refresh-line" />
+</button>

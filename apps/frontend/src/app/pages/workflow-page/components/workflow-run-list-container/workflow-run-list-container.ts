@@ -1,5 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngxs/store';
@@ -42,17 +48,17 @@ export class WorkflowRunListContainer {
 
   private lastSelectedRunId?: string;
 
-  vm: {
+  vm = signal<{
     runs: RunVm[];
     selectedRunId: string | null;
     isLoading: boolean;
     details: WorkflowRunDetails | null;
-  } = {
+  }>({
     runs: [],
     selectedRunId: null,
     isLoading: false,
     details: null,
-  };
+  });
 
   private loadedForWorkflowId: string | null = null;
 
@@ -107,8 +113,7 @@ export class WorkflowRunListContainer {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((vm) => {
-        this.vm = vm;
-        this.cdr.detectChanges();
+        this.vm.set(vm);
       });
 
     selectedWorkflow$

@@ -64,6 +64,15 @@
   text-transform: lowercase;
 }
 
+.runs__controls {
+  display: flex;
+  align-items: center;
+
+  & button {
+    margin: 5px 0;
+  }
+}
+
 .runs__time {
   font-size: 11px;
   opacity: 0.7;

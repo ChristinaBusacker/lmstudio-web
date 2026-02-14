@@ -1,11 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, inject, ChangeDetectionStrategy } from '@angular/core';
-import {
-  CancelWorkflowRun,
-  PauseWorkflowRun,
-  ResumeWorkflowRun,
-} from '@frontend/src/app/core/state/workflows/workflow.actions';
+import { Component, Input, OnChanges, inject } from '@angular/core';
 import type {
   Artifact,
   WorkflowNodeRun,
@@ -20,7 +15,6 @@ import { Store } from '@ngxs/store';
   imports: [CommonModule, Icon],
   templateUrl: './workflow-run-details.html',
   styleUrl: './workflow-run-details.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkflowRunDetailsComponent implements OnChanges {
   private readonly store = inject(Store);
@@ -35,38 +29,6 @@ export class WorkflowRunDetailsComponent implements OnChanges {
         .filter((nr) => this.isExporterNodeRun(nr))
         .map((nr) => this.details?.artifacts.find((a) => a.id === nr.primaryArtifactId));
     }
-  }
-
-  canPause(): boolean {
-    const st = this.details?.run?.status;
-    return st === 'running' || st === 'queued';
-  }
-
-  canResume(): boolean {
-    return this.details?.run?.status === 'paused';
-  }
-
-  canCancel(): boolean {
-    const st = this.details?.run?.status;
-    return !!st && st !== 'completed' && st !== 'failed' && st !== 'canceled';
-  }
-
-  pause(): void {
-    const runId = this.details?.run?.id;
-    if (!runId) return;
-    this.store.dispatch(new PauseWorkflowRun(runId));
-  }
-
-  resume(): void {
-    const runId = this.details?.run?.id;
-    if (!runId) return;
-    this.store.dispatch(new ResumeWorkflowRun(runId));
-  }
-
-  cancel(): void {
-    const runId = this.details?.run?.id;
-    if (!runId) return;
-    this.store.dispatch(new CancelWorkflowRun(runId));
   }
 
   exportArtifacts(details: WorkflowRunDetails | null): Artifact[] {

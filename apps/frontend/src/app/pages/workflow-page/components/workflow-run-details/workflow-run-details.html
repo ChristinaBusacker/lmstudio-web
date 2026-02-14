@@ -8,48 +8,6 @@
         <span>Exports</span>
         <span class="details__count">({{ exports.length }})</span>
       </div>
-
-      <div class="details__workflowExport">
-        <a
-          class="details__workflowExportBtn"
-          [href]="'/api/workflows/' + details.run.workflowId + '/export'"
-        >
-          <app-icon name="share-forward-line" />
-          <span>Workflow</span>
-        </a>
-
-        <a
-          class="details__workflowExportBtn"
-          [href]="'/api/workflows/' + details.run.workflowId + '/export?includeRuns=1&limitRuns=50'"
-          title="Includes recent runs and artifacts (limit 50)"
-        >
-          <app-icon name="archive-line" />
-          <span>Workflow + Runs</span>
-        </a>
-      </div>
-
-      <div class="details__runActions">
-        @if (canPause()) {
-          <button class="details__runActionBtn" (click)="pause()" title="Pause run">
-            <app-icon name="pause-line" />
-            <span>Pause</span>
-          </button>
-        }
-
-        @if (canResume()) {
-          <button class="details__runActionBtn" (click)="resume()" title="Resume run">
-            <app-icon name="play-line" />
-            <span>Resume</span>
-          </button>
-        }
-
-        @if (canCancel()) {
-          <button class="details__runActionBtn details__runActionBtn--danger" (click)="cancel()" title="Cancel run">
-            <app-icon name="stop-line" />
-            <span>Cancel</span>
-          </button>
-        }
-      </div>
     </div>
 
     @if (!exports.length) {

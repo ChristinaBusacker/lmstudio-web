@@ -1,7 +1,21 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+  ChangeDetectionStrategy,
+  inject,
+} from '@angular/core';
 import { TabsModule } from '@frontend/src/app/ui/tabs/tabs-module';
 import type { WorkflowRun } from '@frontend/src/app/core/state/workflows/workflow.models';
+import { Store } from '@ngxs/store';
+import {
+  PauseWorkflowRun,
+  ResumeWorkflowRun,
+  CancelWorkflowRun,
+} from '@frontend/src/app/core/state/workflows/workflow.actions';
+import { Icon } from '@frontend/src/app/ui/icon/icon';
 
 type RunStatus = WorkflowRun['status'];
 type RunVm = {
@@ -18,12 +32,14 @@ type RunVm = {
 @Component({
   selector: 'app-workflow-run-list',
   standalone: true,
-  imports: [CommonModule, DatePipe, TabsModule],
+  imports: [CommonModule, DatePipe, TabsModule, Icon],
   templateUrl: './workflow-run-list.html',
   styleUrls: ['./workflow-run-list.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkflowRunList {
+  private readonly store = inject(Store);
+
   @Input({ required: true }) runs: RunVm[] = [];
   @Input({ required: true }) selectedRunId: string | null = null;
   @Input({ required: true }) isLoading = false;
@@ -79,5 +95,23 @@ export class WorkflowRunList {
 
   statusClass(s: RunStatus): string {
     return `status status--${s}`;
+  }
+
+  pause(run: WorkflowRun): void {
+    const runId = run.id;
+    if (!runId) return;
+    this.store.dispatch(new PauseWorkflowRun(runId));
+  }
+
+  resume(run: WorkflowRun): void {
+    const runId = run.id;
+    if (!runId) return;
+    this.store.dispatch(new ResumeWorkflowRun(runId));
+  }
+
+  cancel(run: WorkflowRun): void {
+    const runId = run.id;
+    if (!runId) return;
+    this.store.dispatch(new CancelWorkflowRun(runId));
   }
 }
