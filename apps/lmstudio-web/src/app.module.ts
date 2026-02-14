@@ -18,6 +18,10 @@ import { WorkflowNodeRunEntity } from './workflows/entities/workflow-node-run.en
 import { WorkflowRunEntity } from './workflows/entities/workflow-run.entity';
 import { WorkflowEntity } from './workflows/entities/workflow.entity';
 import { WorkflowsModule } from './workflows/workflows.module';
+import { AssetsModule } from './assets/assets.module';
+import { AssetEntity } from './assets/entities/asset.entity';
+import { ToolsModule } from './tools/tools.module';
+import { RunArtifactEntity } from './tools/entities/run-artifact.entity';
 
 @Module({
   imports: [
@@ -39,6 +43,8 @@ import { WorkflowsModule } from './workflows/workflows.module';
           WorkflowRunEntity,
           ArtifactEntity,
           WorkflowNodeRunEntity,
+          AssetEntity,
+          RunArtifactEntity,
         ],
 
         migrations: [join(__dirname, 'migrations', '*.{js,ts}')],
@@ -52,6 +58,8 @@ import { WorkflowsModule } from './workflows/workflows.module';
     ModelsModule,
     SearchModule,
     WorkflowsModule,
+    AssetsModule,
+    ToolsModule,
   ],
 })
 export class AppModule {}
