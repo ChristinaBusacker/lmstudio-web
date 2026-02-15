@@ -102,8 +102,47 @@ DB_PATH=./data/app.sqlite
 LMSTUDIO_BASE_URL=http://127.0.0.1:1234
 LMSTUDIO_DEFAULT_MODEL=openai/gpt-oss-20b
 
+# Optional: Web search provider
+# If set, the start scripts will auto-start a local SearXNG container via Docker Compose.
+# SearXNG is configured to use Google as its search engine.
+# If NOT set, web_search falls back to DuckDuckGo's Instant Answer API (limited).
+#
+# Example:
+# SEARXNG_BASE_URL=http://localhost:8080
+
 NODE_ENV=production
 ```
+
+---
+
+## Web Search (Optional, One-Click)
+
+This project includes a **web_search tool**. To keep the main app "one click", the backend can **auto-start SearXNG via Docker**.
+
+### Option A: Local SearXNG via Docker (recommended)
+
+1) Install Docker.
+2) Set in your `.env`:
+
+```env
+SEARXNG_BASE_URL=http://localhost:8080
+```
+
+3) Start the app as usual (`npm run dev:api`, `npm start`, or `npm run start:prod`).
+
+On startup, the scripts will run:
+
+```bash
+docker compose -f docker-compose.searxng.yml up -d
+```
+
+SearXNG will be available on `http://localhost:8080` and is configured to use **Google** as its engine.
+
+### Option B: No SearXNG (fallback)
+
+If you do **not** set `SEARXNG_BASE_URL`, `web_search` will automatically fall back to the **DuckDuckGo Instant Answer API**.
+
+Note: this fallback is intentionally lightweight and may return fewer / less complete results than a full web search.
 
 ---
 

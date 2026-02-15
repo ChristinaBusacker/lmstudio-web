@@ -1,0 +1,22 @@
+# Minimal SearXNG settings for lmstudio-web.
+#
+# Goal:
+# - "one click" local web_search via docker compose
+# - keep configuration auditable and tiny
+# - use Google as the (single) engine
+
+use_default_settings: true
+
+general:
+  instance_name: "lmstudio-web"
+
+search:
+  safe_search: 0
+  autocomplete: ""
+
+# Enable ONLY Google.
+engines:
+  - name: google
+    engine: google
+    shortcut: go
+    disabled: false

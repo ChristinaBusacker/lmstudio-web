@@ -1,0 +1,13 @@
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: lmstudio-web-searxng
+    ports:
+      - "8080:8080"
+    environment:
+      # Keep it deterministic & simple.
+      - SEARXNG_BASE_URL=http://localhost:8080/
+    volumes:
+      # Force Google engine (and keep the settings small & auditable)
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    restart: unless-stopped
