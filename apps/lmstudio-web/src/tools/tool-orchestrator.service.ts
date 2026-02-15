@@ -127,8 +127,8 @@ export class ToolOrchestratorService {
     let args: AnyJson = {};
     try {
       args = rawArgs && typeof rawArgs === 'string' ? (JSON.parse(rawArgs) as AnyJson) : {};
-    } catch {
-      // keep args empty, but report in result
+    } catch (err) {
+      console.log('[TOOL ERROR]', call.function?.name, err);
       args = {};
     }
 

@@ -205,13 +205,16 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
       systemPrompt as string,
     );
 
-    const toolsEnabledDefault =
-      (this.config.get<string>('LMSTUDIO_TOOLS_ENABLED') ?? 'true').toLowerCase() !== 'false';
-
+    const raw = (ctx.params as any)?.toolsEnabled;
+    console.log(ctx.params);
     const toolsEnabled =
-      typeof (ctx.params as any)?.toolsEnabled === 'boolean'
-        ? Boolean((ctx.params as any).toolsEnabled)
-        : toolsEnabledDefault;
+      typeof raw === 'boolean'
+        ? raw
+        : typeof raw === 'string'
+          ? raw.toLowerCase() !== 'false'
+          : typeof raw === 'number'
+            ? raw !== 0
+            : true;
 
     // If structured output is enabled, prefer schema-enforced output and disable tool calling for now.
     const structuredEnabled = Boolean((ctx.params as any)?.structuredOutput?.enabled);

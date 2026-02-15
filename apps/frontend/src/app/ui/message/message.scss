@@ -1,14 +1,15 @@
 :host {
   width: 100%;
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
 
   & .message {
     display: block;
 
     padding: 10px;
     border-radius: 8px;
-    width: 90%;
+    width: 100%;
+    max-width: 1200px;
 
     .topbar {
       display: flex;
@@ -112,15 +113,17 @@
     }
 
     &.user {
-      align-self: self-end;
+      align-self: self-start;
       background-color: var(--color-container);
-
+      width: 50%;
       @media (max-width: 768px) {
         width: 80%;
       }
     }
 
     &.assistant {
+      align-self: self-end;
+      background-color: rgba(22, 22, 22, 0.2);
     }
   }
 

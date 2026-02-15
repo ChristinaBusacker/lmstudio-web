@@ -10,9 +10,15 @@
 
     @if (hasMultipleVariants()) {
       <div class="variants">
-        <button type="button" class="variant-btn" (click)="prevVariant()" title="Previous variant">‹</button>
-        <span class="variant-label">{{ activeVariantIndex() + 1 }}/{{ message.variantsCount }}</span>
-        <button type="button" class="variant-btn" (click)="nextVariant()" title="Next variant">›</button>
+        <button type="button" class="variant-btn" (click)="prevVariant()" title="Previous variant">
+          ‹
+        </button>
+        <span class="variant-label"
+          >{{ activeVariantIndex() + 1 }}/{{ message.variantsCount }}</span
+        >
+        <button type="button" class="variant-btn" (click)="nextVariant()" title="Next variant">
+          ›
+        </button>
       </div>
     }
 
@@ -29,7 +35,7 @@
     </details>
   }
 
-  <div class="content">
+  <div class="content markdown">
     @if (isEditing()) {
       <textarea class="editor" [(ngModel)]="editContent" rows="6"></textarea>
       <div class="edit-actions">
