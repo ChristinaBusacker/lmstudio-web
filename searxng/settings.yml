@@ -3,20 +3,39 @@
 # Goal:
 # - "one click" local web_search via docker compose
 # - keep configuration auditable and tiny
-# - use Google as the (single) engine
+# - use Google (+ optional Wikipedia) engines
+# - allow JSON output for tool integration
 
 use_default_settings: true
 
 general:
-  instance_name: "lmstudio-web"
+  instance_name: 'lmstudio-web'
+
+server:
+  # IMPORTANT: must NOT be the default "ultrasecretkey"
+  secret_key: 'lmstudio-web-dev-please-change-this-very-long-random-ish-key'
+
+  # IMPORTANT: this should match how YOU access SearXNG from the host
+  # (your docker port mapping is 8081:8080)
+  base_url: 'http://localhost:8081/'
 
 search:
   safe_search: 0
-  autocomplete: ""
+  autocomplete: ''
 
-# Enable ONLY Google.
+  # IMPORTANT: allow JSON for /search?format=json
+  formats:
+    - html
+    - json
+
+# Enable Google + Wikipedia
 engines:
   - name: google
     engine: google
     shortcut: go
+    disabled: false
+
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
     disabled: false

@@ -1,0 +1,4 @@
+# Local dev-friendly limiter config for lmstudio-web.
+# Goal: avoid 403 for JSON/tool requests on localhost.
+[botdetection]
+enabled = false

@@ -32,7 +32,16 @@ if (fs.existsSync(envSrc)) fs.copyFileSync(envSrc, envDst);
 // copy searxng script (if exists)
 const searxngScript = path.join(root, 'scripts', 'start-searxng.mjs');
 const searxngDst = path.join(dist, 'start-searxng.mjs');
-if (fs.existsSync(envSrc)) fs.copyFileSync(searxngScript, searxngDst);
+if (fs.existsSync(searxngScript)) fs.copyFileSync(searxngScript, searxngDst);
+
+// Create convenience start scripts inside dist so running from repo root still uses dist/.env
+// (Windows + POSIX). These scripts also start SearXNG if SEARXNG_BASE_URL is set.
+const startCmd = `@echo off\r\ncd /d %~dp0\r\nnode start-searxng.mjs\r\nnode main.js\r\n`;
+fs.writeFileSync(path.join(dist, 'start.cmd'), startCmd, 'utf8');
+
+const startSh = `#!/usr/bin/env sh\ncd "$(dirname "$0")"\nnode start-searxng.mjs\nnode main.js\n`;
+fs.writeFileSync(path.join(dist, 'start.sh'), startSh, 'utf8');
+try { fs.chmodSync(path.join(dist, 'start.sh'), 0o755); } catch {}
 
 const esbuild = require('esbuild');
 

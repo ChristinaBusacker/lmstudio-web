@@ -138,6 +138,17 @@ docker compose -f docker-compose.searxng.yml up -d
 
 SearXNG will be available on `http://localhost:8080` and is configured to use **Google** as its engine.
 
+### Running a finalized dist build
+
+The build pipeline copies `.env.prod` into `dist/.env`.
+
+To ensure the dist build picks up those variables (and auto-starts SearXNG when configured), start it via:
+
+- Windows: `dist\\start.cmd`
+- macOS/Linux: `./dist/start.sh`
+
+These scripts run from inside `dist/` so `dist/.env` is always used.
+
 ### Option B: No SearXNG (fallback)
 
 If you do **not** set `SEARXNG_BASE_URL`, `web_search` will automatically fall back to the **DuckDuckGo Instant Answer API**.
