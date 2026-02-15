@@ -33,7 +33,7 @@
           class="composer__editable"
           [attr.contenteditable]="disabled ? 'false' : 'true'"
           [attr.aria-disabled]="disabled"
-          [attr.data-placeholder]="placeholder || null"
+          [attr.data-placeholder]="(placeholder | i18n | async) || null"
           (input)="onEditableInput()"
           (keydown)="onComposerKeydown($event)"
           (blur)="markTouched()"
@@ -42,7 +42,7 @@
         <textarea
           class="composer__textarea"
           [disabled]="disabled"
-          [attr.placeholder]="placeholder || null"
+          [attr.placeholder]="(placeholder | i18n | async) || null"
           (input)="onTextareaInput($event)"
           (keydown)="onComposerKeydown($event)"
           (blur)="markTouched()"

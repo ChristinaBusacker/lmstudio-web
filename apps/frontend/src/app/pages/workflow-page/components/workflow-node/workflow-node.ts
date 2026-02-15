@@ -402,4 +402,26 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
   protected readonly MERGE_OUT_PORT = MERGE_OUT_PORT;
   protected readonly CONDITION_TRUE_PORT = CONDITION_TRUE_PORT;
   protected readonly CONDITION_FALSE_PORT = CONDITION_FALSE_PORT;
+  nodeTypeLabel(type: string): string {
+    // Return i18n key for the given node type.
+    switch (type) {
+      case this.NODE_LLM:
+        return 'workflow.nodeType.llm';
+      case this.NODE_MERGE:
+        return 'workflow.nodeType.merge';
+      case this.NODE_EXPORT:
+        return 'workflow.nodeType.export';
+      case this.NODE_PREVIEW:
+        return 'workflow.nodeType.preview';
+      case this.NODE_CONDITION:
+        return 'workflow.nodeType.condition';
+      case this.NODE_LOOP_START:
+        return 'workflow.nodeType.loopStart';
+      case this.NODE_LOOP_END:
+        return 'workflow.nodeType.loopEnd';
+      default:
+        return type; // fallback
+    }
+  }
+
 }

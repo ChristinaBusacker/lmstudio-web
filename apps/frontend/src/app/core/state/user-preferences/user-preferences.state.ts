@@ -60,7 +60,7 @@ export class UserPreferencesState {
       if (!raw) return null;
       const json = JSON.parse(raw) as any;
 
-      const language = json?.language === 'en' ? 'en' : 'de';
+      const language = json?.language === 'en' || json?.language === 'fr' ? json.language : 'de';
       const theme: ThemeName =
         json?.theme === 'Dark' || json?.theme === 'Light' || json?.theme === 'Glass'
           ? json.theme

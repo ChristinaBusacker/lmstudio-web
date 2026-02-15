@@ -1,4 +1,4 @@
-export type LanguageCode = 'de' | 'en';
+export type LanguageCode = 'de' | 'en' | 'fr';
 
 export type ThemeName = 'LMStudio' | 'Dark' | 'Light' | 'Glass';
 

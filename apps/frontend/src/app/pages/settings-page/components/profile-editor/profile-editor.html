@@ -16,10 +16,10 @@
 
     <div class="actions">
       <button class="btn btn-ghost" (click)="onSetDefault()" [disabled]="profile.isDefault">
-        Set default
+        {{ 'profiles.editor.setDefault' | i18n | async }}
       </button>
       <button class="btn btn-primary" (click)="onSave()" [disabled]="!isDirty || !editName.trim()">
-        Save
+        {{ 'common.save' | i18n | async }}
       </button>
     </div>
   </div>
@@ -94,7 +94,7 @@
             (click)="onLoadModel()"
             [disabled]="!editParams.modelKey"
           >
-            Load
+            {{ 'common.load' | i18n | async }}
           </button>
           <button
             class="btn btn-ghost"
@@ -102,7 +102,7 @@
             (click)="onUnloadModel()"
             [disabled]="!editParams.modelKey"
           >
-            Unload
+            {{ 'common.unload' | i18n | async }}
           </button>
         </div>
       </div>
@@ -190,9 +190,9 @@
       <div class="card-title">{{ 'profiles.editor.section.advanced' | i18n | async }}</div>
       <button class="btn btn-ghost" type="button" (click)="onToggleAdvanced()">
         @if (showAdvanced) {
-          Hide
+          {{ 'common.hide' | i18n | async }}
         } @else {
-          Show
+          {{ 'common.show' | i18n | async }}
         }
       </button>
     </div>

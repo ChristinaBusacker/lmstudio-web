@@ -77,7 +77,7 @@
 
   <div class="header">
     <div class="title">{{ title() }}</div>
-    <div class="sub">{{ node().data.nodeType }}</div>
+    <div class="sub">{{ nodeTypeLabel(node().data.nodeType) | i18n | async }}</div>
   </div>
 
   <div class="body">
@@ -90,13 +90,13 @@
         (wheel)="$event.stopPropagation()"
         (change)="updateNodeType($event.target.value)"
       >
-        <option [value]="NODE_LLM">lmstudio.llm</option>
-        <option [value]="NODE_MERGE">workflow.merge</option>
-        <option [value]="NODE_EXPORT">workflow.export</option>
-        <option [value]="NODE_PREVIEW">ui.preview</option>
-        <option [value]="NODE_CONDITION">workflow.condition</option>
-        <option [value]="NODE_LOOP_START">workflow.loopStart</option>
-        <option [value]="NODE_LOOP_END">workflow.loopEnd</option>
+        <option [value]="NODE_LLM">{{ 'workflow.nodeType.llm' | i18n | async }}</option>
+        <option [value]="NODE_MERGE">{{ 'workflow.nodeType.merge' | i18n | async }}</option>
+        <option [value]="NODE_EXPORT">{{ 'workflow.nodeType.export' | i18n | async }}</option>
+        <option [value]="NODE_PREVIEW">{{ 'workflow.nodeType.preview' | i18n | async }}</option>
+        <option [value]="NODE_CONDITION">{{ 'workflow.nodeType.condition' | i18n | async }}</option>
+        <option [value]="NODE_LOOP_START">{{ 'workflow.nodeType.loopStart' | i18n | async }}</option>
+        <option [value]="NODE_LOOP_END">{{ 'workflow.nodeType.loopEnd' | i18n | async }}</option>
       </select>
     </label>
 
@@ -151,7 +151,7 @@
       </label>
 
       <div class="hint">
-        Inputs are merged in port order (in-1, in-2, …). One free input is always available.
+        {{ 'workflow.node.mergeHint' | i18n | async }}
       </div>
     }
 
@@ -270,9 +270,10 @@
       </label>
 
       <div class="hint">
-        Inside loop body prompts you can use <code>{{ '{{loop.index}}' }}</code> (0-based) and
-        <code>{{ '{{loop.iteration}}' }}</code> (1-based). Short aliases
-        <code>{{ '{{index}}' }}</code> / <code>{{ '{{iteration}}' }}</code> work too.
+        {{ 'workflow.node.loopHint.before' | i18n | async }} <code>{{ '{{loop.index}}' }}</code>
+        {{ 'workflow.node.loopHint.middle' | i18n | async }} <code>{{ '{{loop.iteration}}' }}</code>
+        {{ 'workflow.node.loopHint.after' | i18n | async }} <code>{{ '{{index}}' }}</code> / <code>{{ '{{iteration}}' }}</code>
+        {{ 'workflow.node.loopHint.tail' | i18n | async }}
       </div>
     }
 

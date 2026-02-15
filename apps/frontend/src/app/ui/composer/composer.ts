@@ -37,7 +37,7 @@ import { I18nPipe } from '../../core/i18n/i18n.pipe';
   styleUrl: './composer.scss',
 })
 export class Composer implements AfterViewInit {
-  @Input() placeholder = 'Schreibe etwas...';
+  @Input() placeholder = 'composer.placeholder';
   @Input() forceTextarea = false;
   @Input() chatId?: string;
   @Input() folderId?: string;

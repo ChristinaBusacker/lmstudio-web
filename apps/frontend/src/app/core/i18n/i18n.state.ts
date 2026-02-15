@@ -5,18 +5,19 @@ import { Action, createSelector, Selector, State } from '@ngxs/store';
 import type { StateContext } from '@ngxs/store';
 import { LoadI18n } from './i18n.actions';
 import { LanguageService } from './language.service';
+import { LanguageCode } from '../state/user-preferences/user-preferences.model';
 
 export type I18nDict = Record<string, string>;
 
 export interface I18nModel {
-  language: 'de' | 'en';
+  language: LanguageCode;
   dict: I18nDict;
 }
 
 @State<I18nModel>({
   name: 'i18n',
   defaults: {
-    language: 'de',
+    language: 'en',
     dict: {},
   },
 })
