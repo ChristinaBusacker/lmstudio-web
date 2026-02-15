@@ -176,9 +176,10 @@
     <div class="card-title">{{ 'profiles.editor.section.tools' | i18n | async }}</div>
 
     <label class="field">
-      <span class="label">{{ 'profiles.editor.enableTools' | i18n | async }}</span>
       <div class="inline">
         <input type="checkbox" [(ngModel)]="editParams.toolsEnabled" />
+        <span class="label">{{ 'profiles.editor.enableTools' | i18n | async }}</span>
+
         <span class="hint">{{ 'profiles.editor.toolsHint' | i18n | async }}</span>
       </div>
     </label>
@@ -215,13 +216,16 @@
   <div class="card meta">
     <div class="card-title">{{ 'profiles.editor.section.meta' | i18n | async }}</div>
     <div class="meta-row">
-      <span class="muted">{{ 'profiles.editor.meta.ownerKey' | i18n | async }}</span><span>{{ profile.ownerKey }}</span>
+      <span class="muted">{{ 'profiles.editor.meta.ownerKey' | i18n | async }}</span
+      ><span>{{ profile.ownerKey }}</span>
     </div>
     <div class="meta-row">
-      <span class="muted">{{ 'profiles.editor.meta.created' | i18n | async }}</span><span>{{ profile.createdAt }}</span>
+      <span class="muted">{{ 'profiles.editor.meta.created' | i18n | async }}</span
+      ><span>{{ profile.createdAt }}</span>
     </div>
     <div class="meta-row">
-      <span class="muted">{{ 'profiles.editor.meta.updated' | i18n | async }}</span><span>{{ profile.updatedAt }}</span>
+      <span class="muted">{{ 'profiles.editor.meta.updated' | i18n | async }}</span
+      ><span>{{ profile.updatedAt }}</span>
     </div>
   </div>
 }

@@ -26,6 +26,7 @@
 
   @media (max-width: 920px) {
     grid-template-columns: 1fr;
+    padding-right: 0px;
   }
 }
 
@@ -36,6 +37,8 @@
   padding: 14px;
   flex-grow: 1;
   max-width: 100%;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .card-title {

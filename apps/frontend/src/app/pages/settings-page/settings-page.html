@@ -23,53 +23,55 @@
     @if (error$ | async; as err) {
       <div class="error">
         <div class="error-text">{{ err }}</div>
-        <button class="btn btn-ghost" (click)="clearError()">{{ 'common.dismiss' | i18n | async }}</button>
+        <button class="btn btn-ghost" (click)="clearError()">
+          {{ 'common.dismiss' | i18n | async }}
+        </button>
+      </div>
+    }
+
+    @if (tab === 'profiles') {
+      <div class="grid">
+        <aside class="panel">
+          <app-profiles-sidebar
+            [profiles]="profiles$ | async"
+            [selectedId]="selectedId"
+            (reload)="reload()"
+            (selectId)="selectProfile($event)"
+            (create)="createProfile($event)"
+            (setDefaultId)="setDefault($event)"
+            (deleteProfileId)="deleteProfile($event)"
+          />
+        </aside>
+
+        <main class="panel">
+          <app-profile-editor
+            [profile]="selected$ | async"
+            [models]="models$ | async"
+            [modelsLoading]="modelsLoading$ | async"
+            [isModelBusyFn]="isModelBusy.bind(this)"
+            [isModelLoadedFn]="isModelLoaded.bind(this)"
+            (save)="saveProfile($event.id, $event.patch)"
+            (setDefaultId)="setDefault($event)"
+            (loadModelId)="loadModel($event)"
+            (unloadModelId)="unloadModel($event)"
+          />
+        </main>
+      </div>
+    } @else if (tab === 'models') {
+      <div class="panel">
+        <app-models-panel
+          [models]="models$ | async"
+          [loading]="modelsLoading$ | async"
+          [isBusyFn]="isModelBusy.bind(this)"
+          (loadModelId)="loadModel($event)"
+          (unloadModelId)="unloadModel($event)"
+          (reloadModels)="reloadModels()"
+        />
+      </div>
+    } @else {
+      <div class="panel">
+        <app-user-preferences />
       </div>
     }
   </section>
-
-  @if (tab === 'profiles') {
-    <div class="grid">
-      <aside class="panel">
-        <app-profiles-sidebar
-          [profiles]="profiles$ | async"
-          [selectedId]="selectedId"
-          (reload)="reload()"
-          (selectId)="selectProfile($event)"
-          (create)="createProfile($event)"
-          (setDefaultId)="setDefault($event)"
-          (deleteProfileId)="deleteProfile($event)"
-        />
-      </aside>
-
-      <main class="panel">
-        <app-profile-editor
-          [profile]="selected$ | async"
-          [models]="models$ | async"
-          [modelsLoading]="modelsLoading$ | async"
-          [isModelBusyFn]="isModelBusy.bind(this)"
-          [isModelLoadedFn]="isModelLoaded.bind(this)"
-          (save)="saveProfile($event.id, $event.patch)"
-          (setDefaultId)="setDefault($event)"
-          (loadModelId)="loadModel($event)"
-          (unloadModelId)="unloadModel($event)"
-        />
-      </main>
-    </div>
-  } @else if (tab === 'models') {
-    <div class="panel">
-      <app-models-panel
-        [models]="models$ | async"
-        [loading]="modelsLoading$ | async"
-        [isBusyFn]="isModelBusy.bind(this)"
-        (loadModelId)="loadModel($event)"
-        (unloadModelId)="unloadModel($event)"
-        (reloadModels)="reloadModels()"
-      />
-    </div>
-  } @else {
-    <div class="panel">
-      <app-user-preferences />
-    </div>
-  }
 </div>

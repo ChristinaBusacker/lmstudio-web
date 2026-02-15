@@ -3,13 +3,16 @@
 <div class="card">
   <div class="row row-top">
     <div class="card-title">{{ 'profiles.list' | i18n | async }}</div>
+
     <div class="list-controls">
       <input
         class="input input-small"
         type="text"
-        [(ngModel)]="filter"
+        [value]="filter()"
+        (input)="onFilterInput($any($event.target).value ?? '')"
         [placeholder]="'common.filter' | i18n | async"
       />
+
       <button
         class="btn btn-icon"
         (click)="reload.emit()"
@@ -21,18 +24,20 @@
     </div>
   </div>
 
-  @if (profiles === null) {
+  @if (profiles() === null) {
     <div class="empty">{{ 'common.loading' | i18n | async }}</div>
-  } @else if (filteredProfiles.length === 0) {
+  } @else if (filteredProfiles().length === 0) {
     <div class="empty">{{ 'profiles.none' | i18n | async }}</div>
-    <button class="btn btn-primary" (click)="onCreate()">{{ 'profiles.create' | i18n | async }}</button>
+    <button class="btn btn-primary" (click)="onCreate()">
+      {{ 'profiles.create' | i18n | async }}
+    </button>
   } @else {
     <div class="list">
-      @for (p of filteredProfiles; track p.id) {
+      @for (p of filteredProfiles(); track p.id) {
         <button
           class="list-item"
-          [class.active]="p.id === selectedId"
-          (click)="selectId.emit(p.id)"
+          [class.active]="p.id === selectedId()"
+          (click)="selectProfile(p.id)"
         >
           <div class="row">
             <div class="name">
@@ -67,7 +72,9 @@
         </button>
       }
 
-      <button class="btn btn-primary" (click)="onCreate()">{{ 'profiles.create' | i18n | async }}</button>
+      <button class="btn btn-primary" (click)="onCreate()">
+        {{ 'profiles.create' | i18n | async }}
+      </button>
     </div>
   }
 </div>

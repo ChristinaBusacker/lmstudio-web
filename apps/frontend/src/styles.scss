@@ -185,6 +185,9 @@ input[type='range' i] {
   background: var(--color-container);
   border-radius: 16px;
   padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .card-title {

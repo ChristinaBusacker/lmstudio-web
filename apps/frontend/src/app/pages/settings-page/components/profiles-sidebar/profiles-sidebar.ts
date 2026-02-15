@@ -1,18 +1,18 @@
 import {
-  Component,
-  EventEmitter,
-  inject,
-  Input,
-  Output,
   ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 
 import { createDefaultParams } from '@frontend/src/app/core/utils/settings-params.util';
 import {
-  SettingsProfile,
   CreateSettingsProfilePayload,
+  SettingsProfile,
 } from '@frontend/src/app/core/api/settings.api';
 import { DialogService } from '@frontend/src/app/ui/dialog/dialog.service';
 import { Icon } from '@frontend/src/app/ui/icon/icon';
@@ -22,34 +22,39 @@ import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 @Component({
   selector: 'app-profiles-sidebar',
   standalone: true,
-  imports: [CommonModule, FormsModule, Icon, I18nPipe],
+  imports: [CommonModule, Icon, I18nPipe],
   templateUrl: './profiles-sidebar.html',
   styleUrl: './profiles-sidebar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProfilesSidebar {
-  dialog = inject(DialogService);
+  private readonly dialog = inject(DialogService);
 
-  @Input() profiles: SettingsProfile[] | null = null;
-  @Input() selectedId: string | null = null;
+  // Angular 21 style: signal-based inputs/outputs
+  readonly profiles = input<SettingsProfile[] | null>(null);
+  readonly selectedId = input<string | null>(null);
 
-  @Output() reload = new EventEmitter<void>();
-  @Output() selectId = new EventEmitter<string>();
-  @Output() setDefaultId = new EventEmitter<string>();
-  @Output() deleteProfileId = new EventEmitter<string>();
-  @Output() create = new EventEmitter<CreateSettingsProfilePayload>();
+  readonly reload = output<void>();
+  readonly selectId = output<string>();
+  readonly setDefaultId = output<string>();
+  readonly deleteProfileId = output<string>();
+  readonly create = output<CreateSettingsProfilePayload>();
 
-  // Local UI state
-  filter = '';
+  // Local state as signals
+  readonly filter = signal('');
 
-  get filteredProfiles(): SettingsProfile[] {
-    const list = this.profiles ?? [];
-    const q = (this.filter ?? '').trim().toLowerCase();
+  // Derived state as computed
+  readonly filteredProfiles = computed<SettingsProfile[]>(() => {
+    const list = this.profiles() ?? [];
+    const q = this.filter().trim().toLowerCase();
     if (!q) return list;
-    return list.filter(
-      (p) => (p.name ?? '').toLowerCase().includes(q) || (p.id ?? '').toLowerCase().includes(q),
-    );
-  }
+
+    return list.filter((p) => {
+      const name = (p.name ?? '').toLowerCase();
+      const id = (p.id ?? '').toLowerCase();
+      return name.includes(q) || id.includes(q);
+    });
+  });
 
   onCreate(): void {
     this.dialog
@@ -63,15 +68,23 @@ export class ProfilesSidebar {
       })
       .afterClosed()
       .subscribe((result) => {
-        if (result.action === 'confirm' && result.data) {
-          const payload: CreateSettingsProfilePayload = {
-            name: result.data,
-            params: createDefaultParams(),
-            isDefault: false,
-          };
+        if (result.action !== 'confirm' || !result.data) return;
 
-          this.create.emit(payload);
-        }
+        const payload: CreateSettingsProfilePayload = {
+          name: result.data,
+          params: createDefaultParams(),
+          isDefault: false,
+        };
+
+        this.create.emit(payload);
       });
+  }
+
+  selectProfile(profileId: string): void {
+    this.selectId.emit(profileId);
+  }
+
+  onFilterInput(value: string): void {
+    this.filter.set(value);
   }
 }

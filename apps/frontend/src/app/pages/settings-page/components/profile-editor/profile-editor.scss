@@ -18,4 +18,10 @@
     top: -27px;
     z-index: 99;
   }
+
+  .inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
 }

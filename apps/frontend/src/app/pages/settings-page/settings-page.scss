@@ -35,7 +35,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 28px;
+
+  padding: 16px;
+
+  @media (max-width: 920px) {
+    min-height: unset;
+  }
 
   .pill {
     padding: 6px 10px;
@@ -64,6 +69,7 @@
   display: grid;
   grid-template-columns: 360px 1fr;
   gap: 12px;
+  width: 100%;
 
   @media (max-width: 920px) {
     grid-template-columns: 1fr;
@@ -72,6 +78,7 @@
 
 .panel {
   border-radius: 16px;
+  width: 100%;
 
   h2 {
     margin: 0 0 12px 0;
@@ -202,12 +209,6 @@
     font-size: 12px;
     opacity: 0.7;
   }
-}
-
-.inline {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .two-col {
