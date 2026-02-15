@@ -3,7 +3,7 @@
     @if (data?.message; as msg) {
       <div class="confirm__message">{{ msg }}</div>
     } @else {
-      <div class="confirm__message">Are you sure?</div>
+      <div class="confirm__message">{{ 'dialog.confirmDefault' | i18n | async }}</div>
     }
   </div>
 </app-dialog>

@@ -26,38 +26,43 @@
     <div class="controls">
       <button class="btn" (click)="addNode()">
         <app-icon name="add-line" />
-        <span>Add</span>
+        <span>{{ 'workflow.controls.add' | i18n | async }}</span>
       </button>
 
       <button class="btn btn-primary" (click)="saveGraph()" [disabled]="!editorDirty()">
         <app-icon name="save-line" />
-        <span>Save</span>
+        <span>{{ 'common.save' | i18n | async }}</span>
       </button>
 
       <button class="btn btn-accent" (click)="startRun(wf.id)">
         <app-icon name="play-line" />
-        <span>Run</span>
+        <span>{{ 'workflow.controls.run' | i18n | async }}</span>
       </button>
 
       <button type="button" class="btn" (click)="undo()">
         <app-icon name="arrow-go-back-line" />
-        <span>Undo</span>
+        <span>{{ 'common.undo' | i18n | async }}</span>
       </button>
       <button type="button" class="btn" (click)="redo()">
         <app-icon name="arrow-go-forward-line" />
-        <span>Redo</span>
+        <span>{{ 'common.redo' | i18n | async }}</span>
       </button>
 
       <button type="button" class="btn" (click)="resetToLastSaved()">
         <app-icon name="reset-left-line" />
-        <span>Reset</span>
+        <span>{{ 'common.reset' | i18n | async }}</span>
       </button>
 
       <div class="spacer"></div>
 
-      <button type="button" class="btn" (click)="exportWorkflow()" title="Export workflow">
+      <button
+        type="button"
+        class="btn"
+        (click)="exportWorkflow()"
+        [attr.title]="'workflow.export' | i18n | async"
+      >
         <app-icon name="download-line" />
-        <span>Export</span>
+        <span>{{ 'workflow.export' | i18n | async }}</span>
       </button>
 
       <input
@@ -67,14 +72,19 @@
         hidden
         (change)="importWorkflow(importInput.files?.item(0) ?? null)"
       />
-      <button type="button" class="btn" (click)="importInput.click()" title="Import workflow">
+      <button
+        type="button"
+        class="btn"
+        (click)="importInput.click()"
+        [attr.title]="'workflow.import' | i18n | async"
+      >
         <app-icon name="file-text-line" />
-        <span>Import</span>
+        <span>{{ 'workflow.import' | i18n | async }}</span>
       </button>
     </div>
   }
   <button class="runbar-toggle" (click)="runbarOpen = !runbarOpen" [class.open]="runbarOpen">
-    <span>Runs</span>
+    <span>{{ 'workflow.runs.title' | i18n | async }}</span>
     <div class="runbar-toggle__icon">
       <app-icon name="arrow-left-s-line" />
     </div>

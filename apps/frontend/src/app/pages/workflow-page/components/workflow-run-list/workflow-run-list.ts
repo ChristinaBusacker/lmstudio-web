@@ -16,6 +16,7 @@ import {
   CancelWorkflowRun,
 } from '@frontend/src/app/core/state/workflows/workflow.actions';
 import { Icon } from '@frontend/src/app/ui/icon/icon';
+import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 
 type RunStatus = WorkflowRun['status'];
 type RunVm = {
@@ -32,7 +33,7 @@ type RunVm = {
 @Component({
   selector: 'app-workflow-run-list',
   standalone: true,
-  imports: [CommonModule, DatePipe, TabsModule, Icon],
+  imports: [CommonModule, DatePipe, TabsModule, Icon, I18nPipe],
   templateUrl: './workflow-run-list.html',
   styleUrls: ['./workflow-run-list.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,

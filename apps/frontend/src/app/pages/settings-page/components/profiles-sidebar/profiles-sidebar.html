@@ -1,19 +1,31 @@
-<h2>Profiles</h2>
+<h2>{{ 'profiles.title' | i18n | async }}</h2>
 
 <div class="card">
   <div class="row row-top">
-    <div class="card-title">List</div>
+    <div class="card-title">{{ 'profiles.list' | i18n | async }}</div>
     <div class="list-controls">
-      <input class="input input-small" type="text" [(ngModel)]="filter" placeholder="Filter…" />
-      <button class="btn btn-icon" (click)="reload.emit()"><app-icon name="refresh-line" /></button>
+      <input
+        class="input input-small"
+        type="text"
+        [(ngModel)]="filter"
+        [placeholder]="'common.filter' | i18n | async"
+      />
+      <button
+        class="btn btn-icon"
+        (click)="reload.emit()"
+        [attr.title]="'common.reload' | i18n | async"
+        [attr.aria-label]="'common.reload' | i18n | async"
+      >
+        <app-icon name="refresh-line" />
+      </button>
     </div>
   </div>
 
   @if (profiles === null) {
-    <div class="empty">Loading…</div>
+    <div class="empty">{{ 'common.loading' | i18n | async }}</div>
   } @else if (filteredProfiles.length === 0) {
-    <div class="empty">No profiles found.</div>
-    <button class="btn btn-primary" (click)="onCreate()">Create new profile</button>
+    <div class="empty">{{ 'profiles.none' | i18n | async }}</div>
+    <button class="btn btn-primary" (click)="onCreate()">{{ 'profiles.create' | i18n | async }}</button>
   } @else {
     <div class="list">
       @for (p of filteredProfiles; track p.id) {
@@ -27,7 +39,7 @@
               {{ p.name }}
 
               @if (p.isDefault) {
-                <span class="badge">default</span>
+                <span class="badge">{{ 'common.default' | i18n | async }}</span>
               }
             </div>
             <div class="id">{{ p.id }}</div>
@@ -40,7 +52,7 @@
               (click)="$event.stopPropagation(); setDefaultId.emit(p.id)"
               [disabled]="p.isDefault"
             >
-              Set default
+              {{ 'profiles.setDefault' | i18n | async }}
             </button>
 
             <button
@@ -49,13 +61,13 @@
               (click)="$event.stopPropagation(); deleteProfileId.emit(p.id)"
               [disabled]="p.isDefault"
             >
-              Delete Profile
+              {{ 'profiles.delete' | i18n | async }}
             </button>
           </div>
         </button>
       }
 
-      <button class="btn btn-primary" (click)="onCreate()">Create new profile</button>
+      <button class="btn btn-primary" (click)="onCreate()">{{ 'profiles.create' | i18n | async }}</button>
     </div>
   }
 </div>

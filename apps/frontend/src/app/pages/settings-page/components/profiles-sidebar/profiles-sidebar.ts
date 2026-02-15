@@ -16,11 +16,13 @@ import {
 } from '@frontend/src/app/core/api/settings.api';
 import { DialogService } from '@frontend/src/app/ui/dialog/dialog.service';
 import { Icon } from '@frontend/src/app/ui/icon/icon';
+import { i18n } from '@frontend/src/app/core/i18n/i18n.util';
+import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 
 @Component({
   selector: 'app-profiles-sidebar',
   standalone: true,
-  imports: [CommonModule, FormsModule, Icon],
+  imports: [CommonModule, FormsModule, Icon, I18nPipe],
   templateUrl: './profiles-sidebar.html',
   styleUrl: './profiles-sidebar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -52,12 +54,12 @@ export class ProfilesSidebar {
   onCreate(): void {
     this.dialog
       .prompt({
-        title: 'Profile name',
-        placeholder: 'Enter a profile name...',
+        title: i18n('profiles.createPrompt.title'),
+        placeholder: i18n('profiles.createPrompt.placeholder'),
         initialValue: '',
-        hint: 'Choose a descriptive profile title. For example purpose or specific model you want to appned to this profile.',
-        confirmLabel: 'Save',
-        declineLabel: 'Cancel',
+        hint: i18n('profiles.createPrompt.hint'),
+        confirmLabel: i18n('common.save'),
+        declineLabel: i18n('common.cancel'),
       })
       .afterClosed()
       .subscribe((result) => {

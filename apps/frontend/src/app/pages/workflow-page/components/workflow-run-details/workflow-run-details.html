@@ -1,17 +1,17 @@
 <div class="details">
   @if (!details) {
-    <div class="details__empty">Select a run to see its exports.</div>
+    <div class="details__empty">{{ 'workflow.runs.selectRun' | i18n | async }}</div>
   } @else {
     <div class="details__header">
       <div class="details__title">
         <app-icon name="download-line" />
-        <span>Exports</span>
+        <span>{{ 'workflow.exports.title' | i18n | async }}</span>
         <span class="details__count">({{ exports.length }})</span>
       </div>
     </div>
 
     @if (!exports.length) {
-      <div class="details__empty">No exporter artifacts for this run.</div>
+      <div class="details__empty">{{ 'workflow.exports.none' | i18n | async }}</div>
     } @else {
       <ul class="details__list">
         @for (a of exports; track a.id) {
@@ -29,7 +29,7 @@
 
             <a class="details__download" [href]="downloadUrl(a)">
               <app-icon name="download-line" />
-              <span>Download</span>
+              <span>{{ 'common.download' | i18n | async }}</span>
             </a>
           </li>
         }

@@ -22,6 +22,7 @@ import { ContextMenuItem, MenuState } from '../../ui/context-menu/context-menu.t
 import { RenameChat, DeleteChat, MoveChat } from '../../core/state/chats/chats.actions';
 import { ContextMenu } from '../../ui/context-menu/context-menu';
 import { DialogService } from '../../ui/dialog/dialog.service';
+import { i18n } from '../../core/i18n/i18n.util';
 
 @Component({
   selector: 'app-folder-page',
@@ -50,14 +51,14 @@ export class FolderPage implements OnInit {
   readonly menuItems: Array<ContextMenuItem<string | null>> = [
     {
       id: 'open',
-      label: 'Chat öffnen',
+      label: i18n('menu.chat.open'),
       action: (id) => {
         this.router.navigate(['/', 'chat', id]);
       },
     },
     {
       id: 'moveOut',
-      label: 'Chat aus Ordner nehmen',
+      label: i18n('menu.chat.removeFromFolder'),
       action: (id) => {
         if (id) {
           this.store.dispatch(new MoveChat(id, null));
@@ -66,7 +67,7 @@ export class FolderPage implements OnInit {
     },
     {
       id: 'rename',
-      label: 'Chat umbenennen',
+      label: i18n('menu.chat.rename'),
       action: (id) => {
         if (id) {
           const items = this.store.selectSnapshot(ChatsState.items);
@@ -74,12 +75,12 @@ export class FolderPage implements OnInit {
           if (chat) {
             this.dialog
               .prompt({
-                title: 'Chat title',
-                placeholder: 'Enter chat title...',
+                title: i18n('dialog.renameChat.title'),
+                placeholder: i18n('dialog.renameChat.placeholder'),
                 initialValue: chat.title || '',
-                hint: 'Choose a descriptive title.',
-                confirmLabel: 'Save',
-                declineLabel: 'Cancel',
+                hint: i18n('dialog.renameChat.hint'),
+                confirmLabel: i18n('common.save'),
+                declineLabel: i18n('common.cancel'),
               })
               .afterClosed()
               .pipe(takeUntilDestroyed(this.destroyRef))
@@ -99,7 +100,7 @@ export class FolderPage implements OnInit {
     },
     {
       id: 'delete',
-      label: 'Chat löschen',
+      label: i18n('menu.chat.delete'),
       danger: true,
       action: (id) => {
         if (!id) {
@@ -109,10 +110,10 @@ export class FolderPage implements OnInit {
 
         this.dialog
           .confirm({
-            title: 'Delete chat',
-            message: 'Do you want to delete the chat?',
-            confirmLabel: 'Delete',
-            declineLabel: 'Cancel',
+            title: i18n('dialog.deleteChat.title'),
+            message: i18n('dialog.deleteChat.message'),
+            confirmLabel: i18n('common.delete'),
+            declineLabel: i18n('common.cancel'),
             closeLabel: null,
           })
           .afterClosed()

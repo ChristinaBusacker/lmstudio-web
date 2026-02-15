@@ -3,12 +3,15 @@ import { DIALOG_DATA } from './dialog.tokens';
 import { DialogRef } from './dialog-ref';
 import { DialogData, DialogResult } from './dialog.types';
 import { DialogContext } from './dialog.context';
+import { I18nPipe } from '../../core/i18n/i18n.pipe';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-dialog',
   standalone: true,
   templateUrl: './dialog.html',
   styleUrls: ['./dialog.scss'],
+  imports: [I18nPipe, CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Dialog<T = unknown> {

@@ -3,6 +3,7 @@ import {
   provideAppInitializer,
   inject,
   provideBrowserGlobalErrorListeners,
+  EnvironmentInjector,
 } from '@angular/core';
 import { provideRouter } from '@angular/router';
 
@@ -36,6 +37,9 @@ import { GlobalErrorHandler } from './core/errors/global-error-handler';
 import { httpErrorToastInterceptor } from './core/http/http-error-toast.interceptor';
 import { UserPreferencesState } from './core/state/user-preferences/user-preferences.state';
 import { I18nState } from './core/i18n/i18n.state';
+import { LanguageService } from './core/i18n/language.service';
+import { firstValueFrom } from 'rxjs';
+import { setI18nInjector } from './core/i18n/i18n.util';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -65,6 +69,18 @@ export const appConfig: ApplicationConfig = {
     ),
     provideHttpClient(withInterceptors([httpErrorToastInterceptor])),
     provideMarkdown(),
+    provideAppInitializer(() => {
+      const store = inject(Store);
+      const languageService = inject(LanguageService);
+
+      const envInjector = inject(EnvironmentInjector);
+      setI18nInjector(envInjector);
+
+      const language = store.selectSnapshot(UserPreferencesState.language);
+
+      // Wichtig: Angular wartet auf Promise/Observable completion.
+      return firstValueFrom(languageService.load(language));
+    }),
     ChatsApi,
     FoldersApi,
     ModelsApi,

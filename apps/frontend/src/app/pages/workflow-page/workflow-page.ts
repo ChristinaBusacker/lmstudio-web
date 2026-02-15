@@ -43,6 +43,7 @@ import { WorkflowDiagramCommandsService } from './workflow-diagram-commands.serv
 import { WORKFLOW_NODE_TEMPLATE } from './workflow-diagram.adapter';
 import { WorkflowDiagramFacade } from './workflow-diagram.facade';
 import { WorkflowEditorStateService } from './workflow-editor-state.service';
+import { I18nPipe } from '../../core/i18n/i18n.pipe';
 
 function isEditableTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -65,8 +66,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
     NgDiagramComponent,
     NgDiagramBackgroundComponent,
     Icon,
-    WorkflowRunListContainer,
-  ],
+    WorkflowRunListContainer, I18nPipe],
   providers: [
     provideNgDiagram(),
     WorkflowDiagramCommandsService,

@@ -1,14 +1,14 @@
-<h2>Editor</h2>
+<h2>{{ 'profiles.editor.title' | i18n | async }}</h2>
 
 @if (!profile) {
-  <div class="empty big">Select a profile on the left.</div>
+  <div class="empty big">{{ 'profiles.editor.selectHint' | i18n | async }}</div>
 } @else {
   <div class="editor-header card">
     <div class="titleblock">
       <div class="big">
         {{ profile.name }}
         @if (profile.isDefault) {
-          <span class="badge">default</span>
+          <span class="badge">{{ 'common.default' | i18n | async }}</span>
         }
       </div>
       <div class="muted">ID: {{ profile.id }}</div>
@@ -26,20 +26,20 @@
 
   <!-- Profile card -->
   <div class="card">
-    <div class="card-title">Profile</div>
+    <div class="card-title">{{ 'profiles.editor.section.profile' | i18n | async }}</div>
 
     <label class="field">
-      <span class="label">Profile name</span>
+      <span class="label">{{ 'profiles.editor.profileName' | i18n | async }}</span>
       <input class="input" type="text" [(ngModel)]="editName" />
     </label>
   </div>
 
   <!-- Prompt card -->
   <div class="card">
-    <div class="card-title">Prompt</div>
+    <div class="card-title">{{ 'profiles.editor.section.prompt' | i18n | async }}</div>
 
     <label class="field">
-      <span class="label">System prompt</span>
+      <span class="label">{{ 'profiles.editor.systemPrompt' | i18n | async }}</span>
       <textarea
         autoResize
         class="textarea textarea-small"
@@ -51,13 +51,13 @@
 
   <!-- Model card -->
   <div class="card">
-    <div class="card-title">Model</div>
+    <div class="card-title">{{ 'profiles.editor.section.model' | i18n | async }}</div>
 
     @if (models) {
       <label class="field">
-        <span class="label">Model</span>
+        <span class="label">{{ 'profiles.editor.section.model' | i18n | async }}</span>
         <select class="select" [(ngModel)]="editParams.modelKey">
-          <option value="">— Select a model —</option>
+          <option value="">{{ 'profiles.editor.selectModel' | i18n | async }}</option>
 
           @for (m of models; track m.id) {
             <option [value]="m.id">
@@ -77,13 +77,13 @@
       <div class="model-row">
         <div class="model-meta">
           @if (editParams.modelKey) {
-            <span class="muted">Selected:</span>
+            <span class="muted">{{ 'profiles.editor.selected' | i18n | async }}</span>
             <span class="mono">{{ editParams.modelKey }}</span>
             @if (isModelBusyFn(editParams.modelKey) | async) {
-              <span class="pill">busy…</span>
+              <span class="pill">{{ 'models.busy' | i18n | async }}</span>
             }
           } @else {
-            <span class="muted">No model selected</span>
+            <span class="muted">{{ 'profiles.editor.noModelSelected' | i18n | async }}</span>
           }
         </div>
 
@@ -108,20 +108,20 @@
       </div>
 
       @if (modelsLoading) {
-        <div class="hint">Loading models…</div>
+        <div class="hint">{{ 'profiles.editor.loadingModels' | i18n | async }}</div>
       }
     } @else {
-      <div class="hint">Models not available.</div>
+      <div class="hint">{{ 'models.notAvailable' | i18n | async }}</div>
     }
   </div>
 
   <!-- Sampling card -->
   <div class="card">
-    <div class="card-title">Sampling</div>
+    <div class="card-title">{{ 'profiles.editor.section.sampling' | i18n | async }}</div>
 
     <div class="two-col">
       <label class="field">
-        <span class="label">Temperature (0–2)</span>
+        <span class="label">{{ 'profiles.editor.temperature' | i18n | async }}</span>
         <div class="inline">
           <input
             class="range"
@@ -143,7 +143,7 @@
       </label>
 
       <label class="field">
-        <span class="label">Top-P (0–1)</span>
+        <span class="label">{{ 'profiles.editor.topP' | i18n | async }}</span>
         <div class="inline">
           <input
             class="range"
@@ -166,20 +166,20 @@
     </div>
 
     <label class="field">
-      <span class="label">Max tokens</span>
+      <span class="label">{{ 'profiles.editor.maxTokens' | i18n | async }}</span>
       <input class="input" type="number" min="1" step="1" [(ngModel)]="editParams.maxTokens" />
     </label>
   </div>
 
   <!-- Tools card -->
   <div class="card">
-    <div class="card-title">Tools</div>
+    <div class="card-title">{{ 'profiles.editor.section.tools' | i18n | async }}</div>
 
     <label class="field">
-      <span class="label">Enable tools (web search, web read, document read)</span>
+      <span class="label">{{ 'profiles.editor.enableTools' | i18n | async }}</span>
       <div class="inline">
         <input type="checkbox" [(ngModel)]="editParams.toolsEnabled" />
-        <span class="hint">If disabled, runs using this profile should not call tools.</span>
+        <span class="hint">{{ 'profiles.editor.toolsHint' | i18n | async }}</span>
       </div>
     </label>
   </div>
@@ -187,7 +187,7 @@
   <!-- Advanced card -->
   <div class="card advanced">
     <div class="row row-top">
-      <div class="card-title">Advanced</div>
+      <div class="card-title">{{ 'profiles.editor.section.advanced' | i18n | async }}</div>
       <button class="btn btn-ghost" type="button" (click)="onToggleAdvanced()">
         @if (showAdvanced) {
           Hide
@@ -198,7 +198,7 @@
     </div>
 
     @if (showAdvanced) {
-      <div class="hint">Extra keys as JSON object. Core fields won’t be overwritten.</div>
+      <div class="hint">{{ 'profiles.editor.extraKeysHint' | i18n | async }}</div>
       <textarea
         class="textarea"
         [(ngModel)]="advancedJson"
@@ -213,15 +213,15 @@
 
   <!-- Meta card -->
   <div class="card meta">
-    <div class="card-title">Meta</div>
+    <div class="card-title">{{ 'profiles.editor.section.meta' | i18n | async }}</div>
     <div class="meta-row">
-      <span class="muted">ownerKey</span><span>{{ profile.ownerKey }}</span>
+      <span class="muted">{{ 'profiles.editor.meta.ownerKey' | i18n | async }}</span><span>{{ profile.ownerKey }}</span>
     </div>
     <div class="meta-row">
-      <span class="muted">created</span><span>{{ profile.createdAt }}</span>
+      <span class="muted">{{ 'profiles.editor.meta.created' | i18n | async }}</span><span>{{ profile.createdAt }}</span>
     </div>
     <div class="meta-row">
-      <span class="muted">updated</span><span>{{ profile.updatedAt }}</span>
+      <span class="muted">{{ 'profiles.editor.meta.updated' | i18n | async }}</span><span>{{ profile.updatedAt }}</span>
     </div>
   </div>
 }

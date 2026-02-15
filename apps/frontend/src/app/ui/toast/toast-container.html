@@ -25,7 +25,13 @@
         }
       </div>
 
-      <button class="toast__close" type="button" (click)="toast.dismiss(t.id)" title="Close">
+      <button
+        class="toast__close"
+        type="button"
+        (click)="toast.dismiss(t.id)"
+        [attr.title]="'common.close' | i18n | async"
+        [attr.aria-label]="'common.close' | i18n | async"
+      >
         <app-icon name="close-line" [size]="16"></app-icon>
       </button>
     </div>

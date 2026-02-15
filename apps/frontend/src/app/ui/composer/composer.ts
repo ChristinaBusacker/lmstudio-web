@@ -28,10 +28,11 @@ import { SettingsState } from '../../core/state/settings/settings.state';
 import { Icon } from '../icon/icon';
 import { ToastService } from '../toast/toast.service';
 import { DropFilesDirective } from './drop-files.directive';
+import { I18nPipe } from '../../core/i18n/i18n.pipe';
 
 @Component({
   selector: 'app-composer',
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, Icon, DropFilesDirective],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, Icon, DropFilesDirective, I18nPipe],
   templateUrl: './composer.html',
   styleUrl: './composer.scss',
 })

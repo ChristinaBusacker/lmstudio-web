@@ -15,12 +15,14 @@ import {
 import { ContextMenu } from '../context-menu/context-menu';
 import type { ContextMenuItem } from '../context-menu/context-menu.types';
 import { DialogService } from '../dialog/dialog.service';
+import { i18n } from '../../core/i18n/i18n.util';
 import { Icon } from '../icon/icon';
 import { v4 as uuidv4 } from 'uuid';
+import { I18nPipe } from '../../core/i18n/i18n.pipe';
 
 @Component({
   selector: 'app-message',
-  imports: [CommonModule, FormsModule, MarkdownModule, ContextMenu, Icon],
+  imports: [CommonModule, FormsModule, MarkdownModule, ContextMenu, Icon, I18nPipe],
   templateUrl: './message.html',
   styleUrl: './message.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,27 +59,27 @@ export class Message {
   readonly menuItems: Array<ContextMenuItem<ThreadMessageDto>> = [
     {
       id: 'branch',
-      label: 'Branch from here',
+      label: i18n('message.menu.branchFromHere'),
       icon: 'flow-chart',
       action: (m) => this.branchFrom(m),
     },
     {
       id: 'regenerate',
-      label: 'Regenerate',
+      label: i18n('message.menu.regenerate'),
       icon: 'refresh-line',
       hidden: (m) => m.role !== 'assistant',
       action: (m) => this.regenerate(m),
     },
     {
       id: 'edit',
-      label: 'Edit',
+      label: i18n('message.menu.edit'),
       icon: 'pencil-line',
       disabled: (m) => !!m.deletedAt,
       action: (m) => this.startEdit(m),
     },
     {
       id: 'delete',
-      label: 'Delete',
+      label: i18n('message.menu.delete'),
       icon: 'delete-bin-line',
       danger: true,
       disabled: (m) => !!m.deletedAt,
@@ -183,10 +185,10 @@ export class Message {
   private deleteMessage(m: ThreadMessageDto): void {
     this.dialog
       .confirm({
-        title: 'Delete message',
-        message: 'Do you want to delete this message?',
-        confirmLabel: 'Delete',
-        declineLabel: 'Cancel',
+        title: i18n('dialog.deleteMessage.title'),
+        message: i18n('dialog.deleteMessage.message'),
+        confirmLabel: i18n('common.delete'),
+        declineLabel: i18n('common.cancel'),
         closeLabel: null,
       })
       .afterClosed()

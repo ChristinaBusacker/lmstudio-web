@@ -26,11 +26,12 @@ import {
   mergeForSave,
 } from '@frontend/src/app/core/utils/settings-params.util';
 import { AutoResizeDirective } from '@frontend/src/app/core/directives/textarea/auto-size.directive';
+import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 
 @Component({
   selector: 'app-profile-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, AutoResizeDirective],
+  imports: [CommonModule, FormsModule, AutoResizeDirective, I18nPipe],
   templateUrl: './profile-editor.html',
   styleUrl: './profile-editor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

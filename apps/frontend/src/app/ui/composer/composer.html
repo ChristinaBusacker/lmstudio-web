@@ -3,9 +3,9 @@
     class="config"
     (change)="selectProfile()"
     #configSelect
-    title="Visit settings to define presets"
+    [attr.title]="'common.visitSettingsPresets' | i18n | async"
   >
-    <option value="">Default</option>
+    <option value="">{{ 'common.default' | i18n | async }}</option>
     @for (profile of profiles$ | async; track $index) {
       <option [value]="profile.id">{{ profile.name }}</option>
     }
@@ -25,7 +25,7 @@
       (filesDropped)="onFilesDropped($event)"
       (dragActiveChange)="onDragActiveChange($event)"
       [class.drag-active]="isDragActive"
-      title="Drop files here to upload"
+      [attr.title]="'composer.dropTitle' | i18n | async"
     >
       @if (useContentEditable) {
         <div
@@ -51,13 +51,14 @@
 
       <div class="composer__dropHint" [class.visible]="isDragActive">
         <app-icon class="icon" name="upload-2-line" [size]="18"></app-icon>
-        <span>Drop files to upload</span>
+        <span>{{ 'composer.dropHint' | i18n | async }}</span>
       </div>
 
       <button
         class="composer__attach"
         type="button"
-        title="Upload file"
+        [attr.title]="'composer.uploadFile' | i18n | async"
+        [attr.aria-label]="'composer.uploadFile' | i18n | async"
         (click)="openFilePicker(); $event.stopPropagation()"
         [disabled]="disabled"
       >
@@ -66,11 +67,22 @@
     </div>
 
     @if (isStreaming$ | async) {
-      <button class="composer__send" (click)="abort()">
+      <button
+        class="composer__send"
+        (click)="abort()"
+        [attr.aria-label]="'composer.abort' | i18n | async"
+        [attr.title]="'composer.abort' | i18n | async"
+      >
         <app-icon class="icon icon-black" name="stop-fill" [size]="18"></app-icon>
       </button>
     } @else {
-      <button class="composer__send" (click)="send()" [disabled]="value.trim().length < 1">
+      <button
+        class="composer__send"
+        (click)="send()"
+        [disabled]="value.trim().length < 1"
+        [attr.aria-label]="'composer.send' | i18n | async"
+        [attr.title]="'composer.send' | i18n | async"
+      >
         <app-icon class="icon icon-black" name="send-plane-2-fill" [size]="18"></app-icon>
       </button>
     }
@@ -78,18 +90,27 @@
 
   @if (attachments.length) {
     <div class="attachments">
-      <div class="attachments__title">Attachments</div>
+      <div class="attachments__title">{{ 'composer.attachments' | i18n | async }}</div>
       @for (a of attachments; track a.id) {
         <div class="attachments__item">
           <span class="name">{{ a.originalFilename }}</span>
-          <span class="meta">assetId: {{ a.id }}</span>
-          <button class="btn btn-ghost" type="button" (click)="removeAttachment(a.id)">
+          <span class="meta">{{ 'composer.assetId' | i18n | async }}: {{ a.id }}</span>
+          <button
+            class="btn btn-ghost"
+            type="button"
+            (click)="removeAttachment(a.id)"
+            [attr.title]="'common.remove' | i18n | async"
+            [attr.aria-label]="'common.remove' | i18n | async"
+          >
             <app-icon class="icon" name="close-circle-line" [size]="16"></app-icon>
           </button>
         </div>
       }
       <div class="attachments__hint">
-        Tip: You can reference these in prompts. Example: <code>doc_read</code> with <code>assetId</code>.
+        {{ 'composer.attachmentsHint' | i18n | async }}
+        <code>doc_read</code>
+        {{ 'composer.attachmentsHintAssetId' | i18n | async }}
+        <code>assetId</code>.
       </div>
     </div>
   }

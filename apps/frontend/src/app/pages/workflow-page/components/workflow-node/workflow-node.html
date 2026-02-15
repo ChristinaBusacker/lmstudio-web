@@ -32,7 +32,7 @@
     >
       <div class="mergePortInner mergeOutInner">
         <div class="mergePortDot" aria-hidden="true"></div>
-        <div class="mergePortBadge">out</div>
+        <div class="mergePortBadge">{{ 'workflow.port.out' | i18n | async }}</div>
       </div>
     </ng-diagram-port>
   } @else if (isCondition()) {
@@ -48,7 +48,7 @@
     >
       <div class="condPortInner">
         <div class="condPortDot" aria-hidden="true"></div>
-        <div class="condPortBadge">true</div>
+        <div class="condPortBadge">{{ 'common.true' | i18n | async }}</div>
       </div>
     </ng-diagram-port>
 
@@ -62,7 +62,7 @@
     >
       <div class="condPortInner">
         <div class="condPortDot" aria-hidden="true"></div>
-        <div class="condPortBadge">false</div>
+        <div class="condPortBadge">{{ 'common.false' | i18n | async }}</div>
       </div>
     </ng-diagram-port>
   } @else if (isExport() || isPreview()) {
@@ -82,7 +82,7 @@
 
   <div class="body">
     <label class="field">
-      <div class="label">Node Type</div>
+      <div class="label">{{ 'workflow.node.nodeType' | i18n | async }}</div>
       <select
         class="config input"
         [value]="node().data.nodeType"
@@ -102,16 +102,16 @@
 
     @if (isLlm() || isCondition() || isLoopStart()) {
       <label class="field">
-        <div class="label">Profile</div>
+        <div class="label">{{ 'workflow.node.profile' | i18n | async }}</div>
         <select
           class="config input"
           [value]="node().data.profileName"
           (pointerdown)="$event.stopPropagation()"
           (wheel)="$event.stopPropagation()"
           (change)="updateProfileName($event.target.value)"
-          title="Visit settings to define presets"
+          [attr.title]="'common.visitSettingsPresets' | i18n | async"
         >
-          <option value="">Default</option>
+          <option value="">{{ 'common.default' | i18n | async }}</option>
           @for (profile of profiles$ | async; track $index) {
             <option [value]="profile.name" [selected]="profile.name === node().data.profileName">
               {{ profile.name }}
@@ -122,7 +122,7 @@
 
       @if (isLlm() || isCondition()) {
         <label class="field">
-          <div class="label">Prompt</div>
+          <div class="label">{{ 'workflow.node.prompt' | i18n | async }}</div>
           <textarea
             class="textarea"
             rows="5"
@@ -130,7 +130,7 @@
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
             (input)="promptInput$.next($any($event.target).value)"
-            placeholder="Prompt for this step..."
+            [placeholder]="'workflow.node.promptPlaceholder' | i18n | async"
           ></textarea>
         </label>
       }
@@ -138,7 +138,7 @@
 
     @if (isMerge()) {
       <label class="field">
-        <div class="label">Separator</div>
+        <div class="label">{{ 'workflow.node.separator' | i18n | async }}</div>
         <textarea
           class="textarea"
           rows="2"
@@ -157,7 +157,7 @@
 
     @if (isExport()) {
       <label class="field">
-        <div class="label">Filename</div>
+        <div class="label">{{ 'workflow.node.filename' | i18n | async }}</div>
         <input
           class="input"
           type="text"
@@ -165,16 +165,16 @@
           (pointerdown)="$event.stopPropagation()"
           (wheel)="$event.stopPropagation()"
           (input)="updateExportFilename($any($event.target).value)"
-          placeholder="export.txt"
+          [placeholder]="'workflow.node.filenamePlaceholder' | i18n | async"
         />
       </label>
 
-      <div class="hint">Creates a text artifact for the current run.</div>
+      <div class="hint">{{ 'workflow.node.exportHint' | i18n | async }}</div>
     }
 
     @if (isPreview()) {
       <label class="field">
-        <div class="label">Max lines</div>
+        <div class="label">{{ 'workflow.node.maxLines' | i18n | async }}</div>
         <input
           class="input"
           type="number"
@@ -192,21 +192,21 @@
         <pre class="previewText">{{ getPreviewText(details) }}</pre>
       </div>
 
-      <div class="hint">Shows output of the connected upstream node for the selected run.</div>
+      <div class="hint">{{ 'workflow.node.previewHint' | i18n | async }}</div>
     }
 
     @if (isLoopStart()) {
       <label class="field">
-        <div class="label">Profile</div>
+        <div class="label">{{ 'workflow.node.profile' | i18n | async }}</div>
         <select
           class="config input"
           [value]="node().data.profileName"
           (pointerdown)="$event.stopPropagation()"
           (wheel)="$event.stopPropagation()"
           (change)="updateProfileName($event.target.value)"
-          title="Visit settings to define presets"
+          [attr.title]="'common.visitSettingsPresets' | i18n | async"
         >
-          <option value="">Default</option>
+          <option value="">{{ 'common.default' | i18n | async }}</option>
           @for (profile of profiles$ | async; track $index) {
             <option [value]="profile.name" [selected]="profile.name === node().data.profileName">
               {{ profile.name }}
@@ -216,7 +216,7 @@
       </label>
 
       <label class="field">
-        <div class="label">Loop mode</div>
+        <div class="label">{{ 'workflow.node.loopMode' | i18n | async }}</div>
         <select
           class="config input"
           [value]="node().data.loopMode ?? 'until'"
@@ -224,13 +224,13 @@
           (wheel)="$event.stopPropagation()"
           (change)="updateLoopMode($any($event.target).value)"
         >
-          <option value="until">Until condition is true</option>
-          <option value="while">While condition is true</option>
+          <option value="until">{{ 'workflow.node.loop.until' | i18n | async }}</option>
+          <option value="while">{{ 'workflow.node.loop.while' | i18n | async }}</option>
         </select>
       </label>
 
       <label class="field">
-        <div class="label">Max iterations</div>
+        <div class="label">{{ 'workflow.node.maxIterations' | i18n | async }}</div>
         <input
           class="input"
           type="number"
@@ -244,7 +244,7 @@
       </label>
 
       <label class="field">
-        <div class="label">Joiner</div>
+        <div class="label">{{ 'workflow.node.joiner' | i18n | async }}</div>
         <textarea
           class="textarea"
           rows="2"
@@ -257,7 +257,7 @@
       </label>
 
       <label class="field">
-        <div class="label">Condition prompt</div>
+        <div class="label">{{ 'workflow.node.conditionPrompt' | i18n | async }}</div>
         <textarea
           class="textarea"
           rows="4"
@@ -265,7 +265,7 @@
           (pointerdown)="$event.stopPropagation()"
           (wheel)="$event.stopPropagation()"
           (input)="updateLoopConditionPrompt($any($event.target).value)"
-          placeholder="E.g. Are all chapters fully written?"
+          [placeholder]="'workflow.node.conditionPlaceholder' | i18n | async"
         ></textarea>
       </label>
 
@@ -283,17 +283,17 @@
     <div class="controls">
       @if (canRerunFromHere()) {
         <button (pointerdown)="$event.stopPropagation()" (click)="rerunFromHere()">
-          <app-icon name="restart-line" title="rerun from here" />
+          <app-icon name="restart-line" [attr.title]="'workflow.node.action.rerunFromHere' | i18n | async" />
         </button>
       }
       <button (pointerdown)="$event.stopPropagation()" (click)="duplicateNode()">
-        <app-icon name="file-copy-line" title="duplicate" />
+        <app-icon name="file-copy-line" [attr.title]="'common.duplicate' | i18n | async" />
       </button>
       <button (pointerdown)="$event.stopPropagation()" (click)="deleteNode()">
-        <app-icon name="delete-bin-line" title="delete" />
+        <app-icon name="delete-bin-line" [attr.title]="'common.delete' | i18n | async" />
       </button>
       <button (pointerdown)="$event.stopPropagation()" (click)="addLinkedNode()">
-        <app-icon name="add-line" title="add connected node" />
+        <app-icon name="add-line" [attr.title]="'workflow.node.action.addConnected' | i18n | async" />
       </button>
     </div>
   </div>

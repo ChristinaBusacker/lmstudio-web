@@ -8,11 +8,12 @@ import type {
 } from '@frontend/src/app/core/state/workflows/workflow.models';
 import { Icon } from '@frontend/src/app/ui/icon/icon';
 import { Store } from '@ngxs/store';
+import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 
 @Component({
   selector: 'app-workflow-run-details',
   standalone: true,
-  imports: [CommonModule, Icon],
+  imports: [CommonModule, Icon, I18nPipe],
   templateUrl: './workflow-run-details.html',
   styleUrl: './workflow-run-details.scss',
 })

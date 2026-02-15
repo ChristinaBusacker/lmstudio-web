@@ -2,11 +2,12 @@
 
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { Action, Selector, State, StateContext } from '@ngxs/store';
+import { Action, Selector, State, StateContext, Store } from '@ngxs/store';
 import { EMPTY, of, switchMap, tap, catchError } from 'rxjs';
 import { SettingsApiService } from '../../api/settings.api';
 import type { SettingsProfile } from '@shared/contracts';
 import { DialogService } from '../../../ui/dialog/dialog.service';
+import { I18nState } from '../../i18n/i18n.state';
 import {
   ClearError,
   CreateProfile,
@@ -41,6 +42,7 @@ export class SettingsState {
     private readonly api: SettingsApiService,
     private readonly dialogs: DialogService,
     private readonly router: Router,
+    private readonly store: Store,
   ) {}
 
   // ----------------------------
@@ -299,11 +301,10 @@ export class SettingsState {
     localStorage.setItem(this.firstVisitKey, '1');
 
     const ref = this.dialogs.confirm({
-      title: 'Welcome',
-      message:
-        'Before you can run workflows or chat, please create a Settings Profile first. It defines your model and runtime settings.',
-      confirmLabel: 'Open settings',
-      declineLabel: 'Later',
+      title: this.store.selectSnapshot(I18nState.value('settings.firstVisit.title')),
+      message: this.store.selectSnapshot(I18nState.value('settings.firstVisit.message')),
+      confirmLabel: this.store.selectSnapshot(I18nState.value('settings.firstVisit.openSettings')),
+      declineLabel: this.store.selectSnapshot(I18nState.value('settings.firstVisit.later')),
       closeLabel: null,
     });
 

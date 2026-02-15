@@ -16,10 +16,12 @@ import { ContextMenu } from '../../ui/context-menu/context-menu';
 import { LocalizedTimeDirective } from '../../core/directives/localized-time/localized-time.directive';
 import { Icon } from '../../ui/icon/icon';
 import { DialogService } from '../../ui/dialog/dialog.service';
+import { i18n } from '../../core/i18n/i18n.util';
+import { I18nPipe } from '../../core/i18n/i18n.pipe';
 
 @Component({
   selector: 'app-overview-page',
-  imports: [CommonModule, Composer, ChatCard, ContextMenu, LocalizedTimeDirective, Icon],
+  imports: [CommonModule, Composer, ChatCard, ContextMenu, LocalizedTimeDirective, Icon, I18nPipe],
   templateUrl: './overview-page.html',
   styleUrl: './overview-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -50,14 +52,14 @@ export class OverviewPage {
   readonly chatMenuItems: Array<ContextMenuItem<string | null>> = [
     {
       id: 'open',
-      label: 'Chat öffnen',
+      label: i18n('menu.chat.open'),
       action: (id) => {
         this.router.navigate(['/', 'chat', id]);
       },
     },
     {
       id: 'rename',
-      label: 'Chat umbenennen',
+      label: i18n('menu.chat.rename'),
       action: (id) => {
         if (id) {
           const items = this.store.selectSnapshot(ChatsState.items);
@@ -65,12 +67,12 @@ export class OverviewPage {
           if (chat) {
             this.dialog
               .prompt({
-                title: 'Chat title',
-                placeholder: 'Enter chat title...',
+                title: i18n('dialog.renameChat.title'),
+                placeholder: i18n('dialog.renameChat.placeholder'),
                 initialValue: chat.title || '',
-                hint: 'Choose a descriptive title.',
-                confirmLabel: 'Save',
-                declineLabel: 'Cancel',
+                hint: i18n('dialog.renameChat.hint'),
+                confirmLabel: i18n('common.save'),
+                declineLabel: i18n('common.cancel'),
               })
               .afterClosed()
               .pipe(takeUntilDestroyed(this.destroyRef))
@@ -87,7 +89,7 @@ export class OverviewPage {
     },
     {
       id: 'delete',
-      label: 'Chat löschen',
+      label: i18n('menu.chat.delete'),
       danger: true,
       action: (id) => {
         if (!id) {
@@ -97,10 +99,10 @@ export class OverviewPage {
 
         this.dialog
           .confirm({
-            title: 'Delete chat',
-            message: 'Do you want to delete the chat?',
-            confirmLabel: 'Delete',
-            declineLabel: 'Cancel',
+            title: i18n('dialog.deleteChat.title'),
+            message: i18n('dialog.deleteChat.message'),
+            confirmLabel: i18n('common.delete'),
+            declineLabel: i18n('common.cancel'),
             closeLabel: null, // optional: keinen extra Close-Button
           })
           .afterClosed()
@@ -118,20 +120,20 @@ export class OverviewPage {
   readonly folderMenuItems: Array<ContextMenuItem<string | null>> = [
     {
       id: 'open',
-      label: 'Ordner öffnen',
+      label: i18n('menu.folder.open'),
       action: (id) => {
         this.router.navigate(['/', 'folder', id]);
       },
     },
     {
       id: 'rename',
-      label: 'Ordner umbenennen',
+      label: i18n('menu.folder.rename'),
       action: (id) => {
         if (id) {
           const items = this.store.selectSnapshot(FoldersState.items);
           const folder = items.find((i) => i.id === id);
           if (folder) {
-            const name = prompt('Renaming fodler title', folder.name || '');
+            const name = prompt(i18n('dialog.renameFolder.title'), folder.name || '');
             if (name) {
               this.store.dispatch(new RenameFolder(id, { name }));
             }
@@ -141,7 +143,7 @@ export class OverviewPage {
     },
     {
       id: 'delete',
-      label: 'Ordner löschen',
+      label: i18n('menu.folder.delete'),
       danger: true,
       action: (id) => {
         if (!id) {
@@ -151,10 +153,10 @@ export class OverviewPage {
 
         this.dialog
           .confirm({
-            title: 'Delete chat',
-            message: 'Do you want to delete the chat?',
-            confirmLabel: 'Delete',
-            declineLabel: 'Cancel',
+            title: i18n('dialog.deleteFolder.title'),
+            message: i18n('dialog.deleteFolder.message'),
+            confirmLabel: i18n('common.delete'),
+            declineLabel: i18n('common.cancel'),
             closeLabel: null,
           })
           .afterClosed()

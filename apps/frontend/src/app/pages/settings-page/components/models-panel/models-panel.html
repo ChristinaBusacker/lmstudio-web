@@ -1,29 +1,34 @@
 <div class="header-row">
   <div>
-    <h2>Models</h2>
-    <div class="muted">Manage loaded and available models.</div>
+    <h2>{{ 'models.title' | i18n | async }}</h2>
+    <div class="muted">{{ 'models.subtitle' | i18n | async }}</div>
   </div>
 
   <div class="actions">
-    <input class="input input-small" type="text" [(ngModel)]="filter" placeholder="Filter…" />
-    <button class="btn btn-ghost" (click)="reloadModels.emit()">Reload</button>
+    <input
+      class="input input-small"
+      type="text"
+      [(ngModel)]="filter"
+      [placeholder]="'common.filter' | i18n | async"
+    />
+    <button class="btn btn-ghost" (click)="reloadModels.emit()">{{ 'common.reload' | i18n | async }}</button>
   </div>
 </div>
 
 @if (loading) {
-  <div class="pill">Loading…</div>
+  <div class="pill">{{ 'common.loading' | i18n | async }}</div>
 }
 
 @if (models === null) {
-  <div class="empty">Models not available.</div>
+  <div class="empty">{{ 'models.notAvailable' | i18n | async }}</div>
 } @else {
   <div class="grid">
     <!-- Loaded -->
     <div class="card">
-      <div class="card-title">Loaded ({{ loadedModels.length }})</div>
+      <div class="card-title">{{ 'models.loaded' | i18n | async }} ({{ loadedModels.length }})</div>
 
       @if (loadedModels.length === 0) {
-        <div class="empty">No models loaded.</div>
+        <div class="empty">{{ 'models.noneLoaded' | i18n | async }}</div>
       } @else {
         <div class="list">
           @for (m of loadedModels; track m.id) {
@@ -32,7 +37,7 @@
                 <div class="name mono">{{ m.id }}</div>
 
                 @if (isBusyFn(m.id) | async) {
-                  <span class="pill">busy…</span>
+                  <span class="pill">{{ 'models.busy' | i18n | async }}</span>
                 }
               </div>
 
@@ -42,7 +47,7 @@
                   (click)="onUnload(m.id)"
                   [disabled]="isBusyFn(m.id) | async"
                 >
-                  Unload
+                  {{ 'models.unload' | i18n | async }}
                 </button>
               </div>
             </div>
@@ -53,10 +58,10 @@
 
     <!-- Not loaded -->
     <div class="card">
-      <div class="card-title">Available ({{ notLoadedModels.length }})</div>
+      <div class="card-title">{{ 'models.available' | i18n | async }} ({{ notLoadedModels.length }})</div>
 
       @if (notLoadedModels.length === 0) {
-        <div class="empty">No unloaded models found.</div>
+        <div class="empty">{{ 'models.noneAvailable' | i18n | async }}</div>
       } @else {
         <div class="list">
           @for (m of notLoadedModels; track m.id) {
@@ -65,7 +70,7 @@
                 <div class="name mono">{{ m.id }}</div>
 
                 @if (isBusyFn(m.id) | async) {
-                  <span class="pill">busy…</span>
+                  <span class="pill">{{ 'models.busy' | i18n | async }}</span>
                 }
               </div>
 
@@ -75,7 +80,7 @@
                   (click)="onLoad(m.id)"
                   [disabled]="isBusyFn(m.id) | async"
                 >
-                  Load
+                  {{ 'models.load' | i18n | async }}
                 </button>
               </div>
             </div>

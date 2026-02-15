@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Injectable, Injector } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { ComponentPortal, ComponentType } from '@angular/cdk/portal';
 
@@ -14,13 +14,12 @@ import { StringInputDialog } from './components/string-input-dialog/string-input
 import { StringInputDialogData } from './components/string-input-dialog/string-input-dialog.types';
 import { SearchDialog } from './components/search-dialog/search-dialog';
 import { SearchDialogData } from './components/search-dialog/search-dialog.types';
+import { i18n } from '../../core/i18n/i18n.util';
 
 @Injectable({ providedIn: 'root' })
 export class DialogService {
-  constructor(
-    private readonly overlay: Overlay,
-    private readonly injector: Injector,
-  ) {}
+  overlay = inject(Overlay);
+  injector = inject(Injector);
 
   open<TComponent, TResult = unknown, D = unknown>(
     component: ComponentType<TComponent>,
@@ -81,10 +80,10 @@ export class DialogService {
       closeOnEsc: true,
       ...(config ?? {}),
       data: {
-        title: 'Confirm',
-        confirmLabel: 'Confirm',
-        declineLabel: 'Decline',
-        closeLabel: 'Close',
+        title: i18n('dialog.confirm.title'),
+        confirmLabel: i18n('common.confirm'),
+        declineLabel: i18n('common.decline'),
+        closeLabel: i18n('common.close'),
         ...(data ?? {}),
       },
     });
@@ -96,9 +95,9 @@ export class DialogService {
       closeOnBackdropClick: true,
       closeOnEsc: true,
       data: {
-        title: 'Enter value',
-        confirmLabel: 'Save',
-        declineLabel: 'Cancel',
+        title: i18n('dialog.prompt.title'),
+        confirmLabel: i18n('common.save'),
+        declineLabel: i18n('common.cancel'),
         closeLabel: null,
         ...(data ?? {}),
       },
@@ -111,8 +110,8 @@ export class DialogService {
       closeOnBackdropClick: true,
       closeOnEsc: true,
       data: {
-        title: 'Search',
-        confirmLabel: 'Close',
+        title: i18n('common.search'),
+        confirmLabel: i18n('common.close'),
         closeLabel: null,
         ...(data ?? {}),
       },

@@ -4,11 +4,11 @@
       @if (folder()) {
         {{ folder()!.name }} /
       }
-      {{ meta()?.title || 'Chat' }}
+      {{ meta()?.title || ('chat.title' | i18n | async) }}
     </div>
 
     <div class="actions">
-      <button type="button" class="action" (click)="exportChat()" title="Export chat">
+      <button type="button" class="action" (click)="exportChat()" [attr.title]="'chat.export' | i18n | async">
         <app-icon name="download-line" [size]="18"></app-icon>
       </button>
 
@@ -19,7 +19,7 @@
         hidden
         (change)="importChat(importInput.files?.item(0) ?? null)"
       />
-      <button type="button" class="action" (click)="importInput.click()" title="Import chat">
+      <button type="button" class="action" (click)="importInput.click()" [attr.title]="'chat.import' | i18n | async">
         <app-icon name="file-text-line" [size]="18"></app-icon>
       </button>
     </div>
@@ -27,9 +27,9 @@
 
   <section #scrollContainer class="messages" (scroll)="onScroll()">
     @if (loading()) {
-      <div class="hint">Lade…</div>
+      <div class="hint">{{ 'common.loading' | i18n | async }}</div>
     } @else if (messages().length === 0) {
-      <div class="empty">Noch keine Nachrichten.</div>
+      <div class="empty">{{ 'chat.empty' | i18n | async }}</div>
     }
 
     @for (m of messages(); track m.id) {

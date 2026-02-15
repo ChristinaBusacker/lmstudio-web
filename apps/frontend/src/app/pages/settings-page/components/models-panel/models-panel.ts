@@ -4,11 +4,12 @@ import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ModelListItemDto } from '@frontend/src/app/core/api/models.api';
+import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 
 @Component({
   selector: 'app-models-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, I18nPipe],
   templateUrl: './models-panel.html',
   styleUrl: './models-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -5,31 +5,49 @@
     <div class="spacer"></div>
 
     @if (message.deletedAt) {
-      <span class="badge deleted">deleted</span>
+      <span class="badge deleted">{{ 'message.deleted' | i18n | async }}</span>
     }
 
     @if (hasMultipleVariants()) {
       <div class="variants">
-        <button type="button" class="variant-btn" (click)="prevVariant()" title="Previous variant">
+        <button
+          type="button"
+          class="variant-btn"
+          (click)="prevVariant()"
+          [attr.title]="'message.prevVariant' | i18n | async"
+          [attr.aria-label]="'message.prevVariant' | i18n | async"
+        >
           ‹
         </button>
         <span class="variant-label"
           >{{ activeVariantIndex() + 1 }}/{{ message.variantsCount }}</span
         >
-        <button type="button" class="variant-btn" (click)="nextVariant()" title="Next variant">
+        <button
+          type="button"
+          class="variant-btn"
+          (click)="nextVariant()"
+          [attr.title]="'message.nextVariant' | i18n | async"
+          [attr.aria-label]="'message.nextVariant' | i18n | async"
+        >
           ›
         </button>
       </div>
     }
 
-    <button type="button" class="menu-btn" (click)="openMenu($event)" title="Actions">
+    <button
+      type="button"
+      class="menu-btn"
+      (click)="openMenu($event)"
+      [attr.title]="'common.actions' | i18n | async"
+      [attr.aria-label]="'common.actions' | i18n | async"
+    >
       <app-icon name="settings-2-line" [size]="18"></app-icon>
     </button>
   </div>
 
   @if (message.activeVariant.reasoning && message.activeVariant.reasoning.trim().length > 0) {
     <details class="reasoning">
-      <summary>Reasoning</summary>
+      <summary>{{ 'message.reasoning' | i18n | async }}</summary>
       <markdown [data]="message.activeVariant.reasoning" clipboard></markdown>
       <hr />
     </details>
@@ -39,8 +57,12 @@
     @if (isEditing()) {
       <textarea class="editor" [(ngModel)]="editContent" rows="6"></textarea>
       <div class="edit-actions">
-        <button type="button" class="btn" (click)="saveEdit()">Save</button>
-        <button type="button" class="btn secondary" (click)="cancelEdit()">Cancel</button>
+        <button type="button" class="btn" (click)="saveEdit()">
+          {{ 'common.save' | i18n | async }}
+        </button>
+        <button type="button" class="btn secondary" (click)="cancelEdit()">
+          {{ 'common.cancel' | i18n | async }}
+        </button>
       </div>
     } @else {
       <markdown lineNumbers [start]="5" [data]="message.activeVariant.content" clipboard></markdown>

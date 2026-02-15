@@ -23,6 +23,7 @@ import { Accordion } from '../accordion/accordion';
 import { ContextMenu } from '../context-menu/context-menu';
 import { ContextMenuItem, MenuState } from '../context-menu/context-menu.types';
 import { DialogService } from '../dialog/dialog.service';
+import { i18n } from '../../core/i18n/i18n.util';
 import { Icon } from '../icon/icon';
 import { I18nPipe } from '../../core/i18n/i18n.pipe';
 import {
@@ -62,14 +63,14 @@ export class Sidebar {
   readonly chatMenuItems: Array<ContextMenuItem<string | null>> = [
     {
       id: 'open',
-      label: 'Chat öffnen',
+      label: i18n('menu.chat.open'),
       action: (id) => {
         this.router.navigate(['/', 'chat', id]);
       },
     },
     {
       id: 'rename',
-      label: 'Chat umbenennen',
+      label: i18n('menu.chat.rename'),
       action: (id) => {
         if (id) {
           const items = this.store.selectSnapshot(ChatsState.items);
@@ -78,11 +79,11 @@ export class Sidebar {
             this.dialog
               .prompt({
                 title: 'Chat title',
-                placeholder: 'Enter chat title...',
+                placeholder: i18n('dialog.renameChat.placeholder'),
                 initialValue: chat.title || '',
-                hint: 'Choose a descriptive title.',
-                confirmLabel: 'Save',
-                declineLabel: 'Cancel',
+                hint: i18n('dialog.renameChat.hint'),
+                confirmLabel: i18n('common.save'),
+                declineLabel: i18n('common.cancel'),
               })
               .afterClosed()
               .subscribe((result) => {
@@ -98,7 +99,7 @@ export class Sidebar {
     },
     {
       id: 'delete',
-      label: 'Chat löschen',
+      label: i18n('menu.chat.delete'),
       danger: true,
       action: (id) => {
         if (!id) {
@@ -108,10 +109,10 @@ export class Sidebar {
 
         this.dialog
           .confirm({
-            title: 'Delete chat',
-            message: 'Do you want to delete the chat?',
-            confirmLabel: 'Delete',
-            declineLabel: 'Cancel',
+            title: i18n('dialog.deleteChat.title'),
+            message: i18n('dialog.deleteChat.message'),
+            confirmLabel: i18n('common.delete'),
+            declineLabel: i18n('common.cancel'),
             closeLabel: null,
           })
           .afterClosed()
@@ -128,14 +129,14 @@ export class Sidebar {
   readonly folderMenuItems: Array<ContextMenuItem<string | null>> = [
     {
       id: 'open',
-      label: 'Ordner öffnen',
+      label: i18n('menu.folder.open'),
       action: (id) => {
         this.router.navigate(['/', 'folder', id]);
       },
     },
     {
       id: 'rename',
-      label: 'Ordner umbenennen',
+      label: i18n('menu.folder.rename'),
       action: (id) => {
         if (id) {
           const items = this.store.selectSnapshot(FoldersState.items);
@@ -143,12 +144,12 @@ export class Sidebar {
           if (folder) {
             this.dialog
               .prompt({
-                title: 'Rename folder',
-                placeholder: 'Enter folder name...',
+                title: i18n('dialog.renameFolder.title'),
+                placeholder: i18n('dialog.renameFolder.placeholder'),
                 initialValue: folder.name || '',
-                hint: 'Choose a descriptive name.',
-                confirmLabel: 'Save',
-                declineLabel: 'Cancel',
+                hint: i18n('dialog.renameWorkflow.hint'),
+                confirmLabel: i18n('common.save'),
+                declineLabel: i18n('common.cancel'),
               })
               .afterClosed()
               .subscribe((result) => {
@@ -164,7 +165,7 @@ export class Sidebar {
     },
     {
       id: 'delete',
-      label: 'Ordner löschen',
+      label: i18n('menu.folder.delete'),
       danger: true,
       action: (id) => {
         if (!id) {
@@ -175,9 +176,9 @@ export class Sidebar {
         this.dialog
           .confirm({
             title: 'Delete Folder',
-            message: 'Do you want to delete the folder?',
-            confirmLabel: 'Delete',
-            declineLabel: 'Cancel',
+            message: i18n('dialog.deleteFolder.message'),
+            confirmLabel: i18n('common.delete'),
+            declineLabel: i18n('common.cancel'),
             closeLabel: null,
           })
           .afterClosed()
@@ -194,14 +195,14 @@ export class Sidebar {
   readonly workflowMenuItems: Array<ContextMenuItem<string | null>> = [
     {
       id: 'open',
-      label: 'Open workflow',
+      label: i18n('menu.workflow.open'),
       action: (id) => {
         this.router.navigate(['/', 'workflow', id]);
       },
     },
     {
       id: 'rename',
-      label: 'Rename workflow',
+      label: i18n('menu.workflow.rename'),
       action: (id) => {
         if (id) {
           const items = this.store.selectSnapshot(WorkflowsState.workflows);
@@ -209,12 +210,12 @@ export class Sidebar {
           if (workflow) {
             this.dialog
               .prompt({
-                title: 'Rename workflow',
-                placeholder: 'Enter workflow name...',
+                title: i18n('dialog.renameWorkflow.title'),
+                placeholder: i18n('dialog.renameWorkflow.placeholder'),
                 initialValue: workflow.name || '',
-                hint: 'Choose a descriptive name.',
-                confirmLabel: 'Save',
-                declineLabel: 'Cancel',
+                hint: i18n('dialog.renameWorkflow.hint'),
+                confirmLabel: i18n('common.save'),
+                declineLabel: i18n('common.cancel'),
               })
               .afterClosed()
               .subscribe((result) => {
@@ -230,7 +231,7 @@ export class Sidebar {
     },
     {
       id: 'delete',
-      label: 'Delete workflow',
+      label: i18n('menu.workflow.delete'),
       danger: true,
       action: (id) => {
         if (!id) {
@@ -240,10 +241,10 @@ export class Sidebar {
 
         this.dialog
           .confirm({
-            title: 'Delete workflow',
-            message: 'Do you want to delete the workflow?',
-            confirmLabel: 'Delete',
-            declineLabel: 'Cancel',
+            title: i18n('dialog.deleteWorkflow.title'),
+            message: i18n('dialog.deleteWorkflow.message'),
+            confirmLabel: i18n('common.delete'),
+            declineLabel: i18n('common.cancel'),
             closeLabel: null,
           })
           .afterClosed()
@@ -273,9 +274,9 @@ export class Sidebar {
         title: 'Workflow name',
         placeholder: 'Enter workflow name',
         initialValue: 'New workflow',
-        hint: 'Choose a descriptive name.',
-        confirmLabel: 'Save',
-        declineLabel: 'Cancel',
+        hint: i18n('dialog.renameWorkflow.hint'),
+        confirmLabel: i18n('common.save'),
+        declineLabel: i18n('common.cancel'),
       })
       .afterClosed()
       .subscribe((result) => {
@@ -293,9 +294,9 @@ export class Sidebar {
         title: 'Folder name',
         placeholder: 'Enter folder...',
         initialValue: 'My Folder',
-        hint: 'Choose a descriptive name.',
-        confirmLabel: 'Save',
-        declineLabel: 'Cancel',
+        hint: i18n('dialog.renameWorkflow.hint'),
+        confirmLabel: i18n('common.save'),
+        declineLabel: i18n('common.cancel'),
       })
       .afterClosed()
       .subscribe((result) => {

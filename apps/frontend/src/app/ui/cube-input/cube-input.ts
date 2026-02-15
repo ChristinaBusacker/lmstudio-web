@@ -7,9 +7,12 @@ import {
   ViewChild,
 } from '@angular/core';
 
+import { I18nPipe } from '../../core/i18n/i18n.pipe';
+import { CommonModule } from '@angular/common';
+
 @Component({
   selector: 'app-cube-input',
-  imports: [],
+  imports: [CommonModule, I18nPipe],
   templateUrl: './cube-input.html',
   styleUrl: './cube-input.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

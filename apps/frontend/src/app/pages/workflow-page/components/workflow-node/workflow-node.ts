@@ -46,11 +46,12 @@ import {
   NODE_PREVIEW,
 } from '../../workflow-diagram.adapter';
 import { WorkflowEditorStateService } from '../../workflow-editor-state.service';
+import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 
 @Component({
   selector: 'app-workflow-node',
   standalone: true,
-  imports: [CommonModule, NgDiagramPortComponent, NgDiagramNodeResizeAdornmentComponent, Icon],
+  imports: [CommonModule, NgDiagramPortComponent, NgDiagramNodeResizeAdornmentComponent, Icon, I18nPipe],
   hostDirectives: [{ directive: NgDiagramNodeSelectedDirective, inputs: ['node'] }],
   templateUrl: './workflow-node.html',
   styleUrls: ['./workflow-node.scss'],

@@ -1,18 +1,20 @@
 <div class="cube-field" [class.is-flipped]="isFlipped">
   <div class="cube">
-    <button type="button" class="face front" (click)="flipToInput()">Klick mich</button>
+    <button type="button" class="face front" (click)="flipToInput()">
+      {{ 'cubeInput.clickMe' | i18n | async }}
+    </button>
 
     <div class="face back">
       <input
         #inputEl
         class="input"
         type="text"
-        placeholder="Tippe hier…"
+        [placeholder]="'cubeInput.typeHere' | i18n | async"
         [value]="value"
         (input)="onInput($event)"
         (keydown)="onKeydown($event)"
       />
-      <button type="button" class="mini" (click)="confirm()">OK</button>
+      <button type="button" class="mini" (click)="confirm()">{{ 'common.ok' | i18n | async }}</button>
     </div>
   </div>
 </div>

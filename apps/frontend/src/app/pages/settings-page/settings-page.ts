@@ -32,6 +32,7 @@ import type {
   UpdateSettingsProfilePayload,
 } from '../../core/api/settings.api';
 import { DialogService } from '../../ui/dialog/dialog.service';
+import { i18n } from '../../core/i18n/i18n.util';
 import { ModelsPanel } from './components/models-panel/models-panel';
 import { ProfileEditor } from './components/profile-editor/profile-editor';
 import { ProfilesSidebar } from './components/profiles-sidebar/profiles-sidebar';
@@ -131,10 +132,10 @@ export class SettingsPage implements OnInit {
 
     this.dialog
       .confirm({
-        title: 'Delete Profile',
-        message: 'Do you want to delete this profile?',
-        confirmLabel: 'Delete',
-        declineLabel: 'Cancel',
+        title: i18n('dialog.deleteProfile.title'),
+        message: i18n('dialog.deleteProfile.message'),
+        confirmLabel: i18n('common.delete'),
+        declineLabel: i18n('common.cancel'),
         closeLabel: null,
       })
       .afterClosed()

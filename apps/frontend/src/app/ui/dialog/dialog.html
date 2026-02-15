@@ -4,7 +4,7 @@
       <div class="dialog__title">{{ title }}</div>
 
       @if (closeLabel) {
-        <button type="button" class="icon-btn" (click)="close()" aria-label="Close">✕</button>
+        <button type="button" class="icon-btn" (click)="close()" [attr.aria-label]="'common.close' | i18n | async" [attr.title]="'common.close' | i18n | async">✕</button>
       }
     </div>
   }

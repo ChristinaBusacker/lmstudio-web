@@ -1,8 +1,8 @@
 <div class="runs">
   @if (isLoading) {
-    <div class="runs__empty">Loading…</div>
+    <div class="runs__empty">{{ 'common.loading' | i18n | async }}</div>
   } @else if (!runs.length) {
-    <div class="runs__empty">No runs yet.</div>
+    <div class="runs__empty">{{ 'workflow.runs.none' | i18n | async }}</div>
   } @else {
     <ul class="runs__list">
       @for (r of runs; track trackById($index, r)) {
@@ -15,17 +15,17 @@
             <div class="runs__status">{{ r.status }}</div>
             <div class="runs__controls">
               @if (r.status === 'running' || r.status === 'queued') {
-                <button (click)="pause(r)">
+                <button (click)="pause(r)" [attr.aria-label]="'workflow.run.pause' | i18n | async" [attr.title]="'workflow.run.pause' | i18n | async">
                   <app-icon name="pause-line" />
                 </button>
               }
               @if (r.status === 'paused') {
-                <button (click)="resume(r)">
+                <button (click)="resume(r)" [attr.aria-label]="'workflow.run.resume' | i18n | async" [attr.title]="'workflow.run.resume' | i18n | async">
                   <app-icon name="play-line" />
                 </button>
               }
               @if (r.status !== 'completed' && r.status !== 'failed' && r.status !== 'canceled') {
-                <button (click)="cancel(r)">
+                <button (click)="cancel(r)" [attr.aria-label]="'workflow.run.cancel' | i18n | async" [attr.title]="'workflow.run.cancel' | i18n | async">
                   <app-icon name="stop-fill" />
                 </button>
               }
@@ -35,7 +35,7 @@
 
           @if (r.isActive) {
             <div class="runs__progress">
-              <div class="runs__progressBar" aria-label="Run in progress">
+              <div class="runs__progressBar" [attr.aria-label]="'workflow.run.inProgress' | i18n | async">
                 <div class="runs__progressIndeterminate"></div>
               </div>
             </div>

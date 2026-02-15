@@ -28,11 +28,12 @@ import { ChatsApi } from '../../core/api/chats.api';
 import { Composer } from '../../ui/composer/composer';
 import { Message } from '../../ui/message/message';
 import { Icon } from '../../ui/icon/icon';
+import { I18nPipe } from '../../core/i18n/i18n.pipe';
 
 @Component({
   selector: 'app-chat-page',
   standalone: true,
-  imports: [CommonModule, Composer, Message, Icon],
+  imports: [CommonModule, Composer, Message, Icon, I18nPipe],
   templateUrl: './chat-page.html',
   styleUrl: './chat-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
