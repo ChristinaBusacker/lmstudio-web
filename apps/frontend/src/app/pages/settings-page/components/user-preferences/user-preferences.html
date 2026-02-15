@@ -1,29 +1,29 @@
-<h2>User</h2>
+<h2>{{ 'settings.tab.userPreferences' | i18n | async }}</h2>
 
 <div class="card">
-  <div class="card-title">Preferences</div>
+  <div class="card-title">{{ 'userPrefs.preferences' | i18n | async }}</div>
 
   <label class="field">
-    <span class="label">Language</span>
+    <span class="label">{{ 'userPrefs.language' | i18n | async }}</span>
     <select class="select" [(ngModel)]="language">
-      <option value="de">Deutsch</option>
-      <option value="en">English</option>
+      <option value="de">{{ 'userPrefs.language.de' | i18n | async }}</option>
+      <option value="en">{{ 'userPrefs.language.en' | i18n | async }}</option>
     </select>
   </label>
 
   <label class="field">
-    <span class="label">Theme</span>
+    <span class="label">{{ 'userPrefs.theme' | i18n | async }}</span>
     <select class="select" [(ngModel)]="theme">
-      <option value="LMStudio">LMStudio</option>
-      <option value="Dark">Dark</option>
-      <option value="Light">Light</option>
-      <option value="Glass">Glass</option>
+      <option value="LMStudio">{{ 'userPrefs.theme.lmstudio' | i18n | async }}</option>
+      <option value="Dark">{{ 'userPrefs.theme.dark' | i18n | async }}</option>
+      <option value="Light">{{ 'userPrefs.theme.light' | i18n | async }}</option>
+      <option value="Glass">{{ 'userPrefs.theme.glass' | i18n | async }}</option>
     </select>
   </label>
 
-  <div class="hint">Preferences are stored locally in your browser (localStorage).</div>
+  <div class="hint">{{ 'userPrefs.storageHint' | i18n | async }}</div>
 
   <div class="row">
-    <button class="btn btn-primary" (click)="onSave()">Save</button>
+    <button class="btn btn-primary" (click)="onSave()">{{ 'common.save' | i18n | async }}</button>
   </div>
 </div>

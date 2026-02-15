@@ -3,8 +3,10 @@
 import { Injectable } from '@angular/core';
 import { Action, Selector, State } from '@ngxs/store';
 import type { StateContext } from '@ngxs/store';
+import { Store } from '@ngxs/store';
 import { LoadUserPreferences, UpdateUserPreferences } from './user-preferences.actions';
 import type { ThemeName, UserPreferencesModel } from './user-preferences.model';
+import { LoadI18n } from '../../i18n/i18n.actions';
 
 const STORAGE_KEY = 'lmstudio-web:userPreferences';
 
@@ -17,6 +19,7 @@ const STORAGE_KEY = 'lmstudio-web:userPreferences';
 })
 @Injectable()
 export class UserPreferencesState {
+  constructor(private readonly store: Store) {}
   @Selector()
   static language(s: UserPreferencesModel) {
     return s.language;
@@ -44,6 +47,11 @@ export class UserPreferencesState {
     };
     ctx.setState(next);
     this.writeToStorage(next);
+
+    // When language changes, reload the language pack.
+    if (next.language !== s.language) {
+      this.store.dispatch(new LoadI18n(next.language));
+    }
   }
 
   private readFromStorage(): Partial<UserPreferencesModel> | null {

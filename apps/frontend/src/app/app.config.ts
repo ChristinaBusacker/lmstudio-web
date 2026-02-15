@@ -35,6 +35,7 @@ import { startUpApplication } from './core/utils/startup.util';
 import { GlobalErrorHandler } from './core/errors/global-error-handler';
 import { httpErrorToastInterceptor } from './core/http/http-error-toast.interceptor';
 import { UserPreferencesState } from './core/state/user-preferences/user-preferences.state';
+import { I18nState } from './core/i18n/i18n.state';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -58,6 +59,7 @@ export const appConfig: ApplicationConfig = {
         ChatSearchState,
         WorkflowsState,
         UserPreferencesState,
+        I18nState,
       ],
       withNgxsReduxDevtoolsPlugin(),
     ),

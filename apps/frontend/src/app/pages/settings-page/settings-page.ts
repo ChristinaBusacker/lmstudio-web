@@ -36,13 +36,14 @@ import { ModelsPanel } from './components/models-panel/models-panel';
 import { ProfileEditor } from './components/profile-editor/profile-editor';
 import { ProfilesSidebar } from './components/profiles-sidebar/profiles-sidebar';
 import { UserPreferences } from './components/user-preferences/user-preferences';
+import { I18nPipe } from '../../core/i18n/i18n.pipe';
 
 type SettingsTab = 'profiles' | 'models' | 'user';
 
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [CommonModule, ProfilesSidebar, ProfileEditor, UserPreferences, ModelsPanel],
+  imports: [CommonModule, ProfilesSidebar, ProfileEditor, UserPreferences, ModelsPanel, I18nPipe],
   templateUrl: './settings-page.html',
   styleUrl: './settings-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

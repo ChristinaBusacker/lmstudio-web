@@ -24,6 +24,7 @@ import { ContextMenu } from '../context-menu/context-menu';
 import { ContextMenuItem, MenuState } from '../context-menu/context-menu.types';
 import { DialogService } from '../dialog/dialog.service';
 import { Icon } from '../icon/icon';
+import { I18nPipe } from '../../core/i18n/i18n.pipe';
 import {
   CreateWorkflow,
   DeleteWorkflow,
@@ -32,7 +33,7 @@ import {
 
 @Component({
   selector: 'app-sidebar',
-  imports: [CommonModule, Accordion, Icon, RouterLink, ContextMenu, DragDropModule],
+  imports: [CommonModule, Accordion, Icon, RouterLink, ContextMenu, DragDropModule, I18nPipe],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

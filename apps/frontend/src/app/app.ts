@@ -1,5 +1,8 @@
-import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, inject, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
+import { Store } from '@ngxs/store';
+import { UserPreferencesState } from './core/state/user-preferences/user-preferences.state';
 import { Icon } from './ui/icon/icon';
 import { Sidebar } from './ui/sidebar/sidebar';
 import { ToastContainer } from './ui/toast/toast-container';
@@ -15,7 +18,22 @@ export class App {
   protected readonly title = signal('frontend');
   isSidebarClosed = false;
 
+  private readonly store = inject(Store);
+  private readonly document = inject(DOCUMENT);
+
   @ViewChild('toggle') sidebarToggle!: ElementRef<HTMLButtonElement>;
+
+  constructor() {
+    // Keep the theme class on <body> in sync with the persisted user preference.
+    this.store.select(UserPreferencesState.theme).subscribe((theme) => {
+      const body = this.document.body;
+      // Remove any previously applied theme classes.
+      for (const c of Array.from(body.classList)) {
+        if (c.startsWith('theme-')) body.classList.remove(c);
+      }
+      body.classList.add(`theme-${theme}`);
+    });
+  }
 
   toggleSidebar(): void {
     this.isSidebarClosed = !this.isSidebarClosed;

@@ -1,16 +1,16 @@
 <div class="group">
-  <button [routerLink]="['/']">Overview</button>
-  <button (click)="openSearch()">Chat suchen</button>
-  <button [routerLink]="['settings']">Settings</button>
+  <button [routerLink]="['/']">{{ 'common.overview' | i18n | async }}</button>
+  <button (click)="openSearch()">{{ 'sidebar.searchChat' | i18n | async }}</button>
+  <button [routerLink]="['settings']">{{ 'common.settings' | i18n | async }}</button>
 </div>
 
 <section class="sidebar-section">
-  <app-accordion title="Folder">
+  <app-accordion [title]="'sidebar.folders' | i18n | async">
     <div class="folder-list">
       @for (folder of fodlers$ | async; track folder.id) {
         <button
           class="folder"
-          [title]="folder.name || 'Untitled'"
+          [title]="folder.name || ('common.untitled' | i18n | async)"
           [routerLink]="['folder', folder.id]"
           (contextmenu)="openFolderMenu($event, folder.id)"
           dropTarget
@@ -20,18 +20,22 @@
           [dropTargetGroup]="'chats'"
         >
           <app-icon name="folder-line"></app-icon>
-          {{ folder.name || 'Untitled' }}
+          {{ folder.name || ('common.untitled' | i18n | async) }}
         </button>
       }
     </div>
   </app-accordion>
-  <button class="addBtn" title="Create new Folder" (click)="createNewFolder()">
+  <button
+    class="addBtn"
+    [title]="'sidebar.createFolder' | i18n | async"
+    (click)="createNewFolder()"
+  >
     <app-icon name="add-line" />
   </button>
 </section>
 
 <section class="sidebar-section">
-  <app-accordion title="Chats">
+  <app-accordion [title]="'sidebar.chats' | i18n | async">
     <div
       class="chat-list"
       dropContainer
@@ -43,25 +47,25 @@
       @for (chat of chats$ | async; track chat.id) {
         <button
           class="chats"
-          [title]="chat.title || 'Untitled'"
+          [title]="chat.title || ('common.untitled' | i18n | async)"
           [routerLink]="['chat', chat.id]"
           (contextmenu)="openChatMenu($event, chat.id)"
           dragItem
           [dragData]="chat"
         >
           <app-icon name="chat-4-line"></app-icon>
-          <span>{{ chat.title || 'Untitled' }}</span>
+          <span>{{ chat.title || ('common.untitled' | i18n | async) }}</span>
         </button>
       }
     </div>
   </app-accordion>
-  <button class="addBtn" title="Add new chat" (click)="createNewChat()">
+  <button class="addBtn" [title]="'sidebar.addChat' | i18n | async" (click)="createNewChat()">
     <app-icon name="add-line" />
   </button>
 </section>
 
 <section class="sidebar-section">
-  <app-accordion title="Workflows">
+  <app-accordion [title]="'sidebar.workflows' | i18n | async">
     <div
       class="workflow-list"
       dropContainer
@@ -73,19 +77,23 @@
       @for (w of workflows$ | async; track w.id) {
         <button
           class="workflow"
-          [title]="w.title || 'Untitled'"
+          [title]="w.title || ('common.untitled' | i18n | async)"
           [routerLink]="['workflow', w.id]"
           (contextmenu)="openWorkflowMenu($event, w.id)"
           dragItem
           [dragData]="w"
         >
           <app-icon name="flow-chart"></app-icon>
-          <span>{{ w.name || 'Untitled' }}</span>
+          <span>{{ w.name || ('common.untitled' | i18n | async) }}</span>
         </button>
       }
     </div>
   </app-accordion>
-  <button class="addBtn" title="Add new workflow" (click)="createNewWorkflow()">
+  <button
+    class="addBtn"
+    [title]="'sidebar.addWorkflow' | i18n | async"
+    (click)="createNewWorkflow()"
+  >
     <app-icon name="add-line" />
   </button>
 </section>

@@ -11,11 +11,13 @@ import type {
 } from '@frontend/src/app/core/state/user-preferences/user-preferences.model';
 import { UpdateUserPreferences } from '@frontend/src/app/core/state/user-preferences/user-preferences.actions';
 import { ToastService } from '@frontend/src/app/ui/toast/toast.service';
+import { I18nPipe } from '@frontend/src/app/core/i18n/i18n.pipe';
+import { i18n } from '@frontend/src/app/core/i18n/i18n.util';
 
 @Component({
   selector: 'app-user-preferences',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, I18nPipe],
   templateUrl: './user-preferences.html',
   styleUrl: './user-preferences.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,6 +31,6 @@ export class UserPreferences {
 
   onSave(): void {
     this.store.dispatch(new UpdateUserPreferences({ language: this.language, theme: this.theme }));
-    this.toast.success('Saved', 'User preferences updated');
+    this.toast.success(i18n('toast.saved'), i18n('toast.userPrefsUpdated'));
   }
 }

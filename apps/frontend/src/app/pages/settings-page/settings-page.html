@@ -1,27 +1,29 @@
 <div class="page">
   <header class="header">
-    <div class="title">Settings</div>
+    <div class="title">{{ 'settings.title' | i18n | async }}</div>
 
     <nav class="tabs">
       <button class="tab" [class.active]="tab === 'profiles'" (click)="setTab('profiles')">
-        Profiles
+        {{ 'settings.tab.profiles' | i18n | async }}
       </button>
       <button class="tab" [class.active]="tab === 'models'" (click)="setTab('models')">
-        Models
+        {{ 'settings.tab.models' | i18n | async }}
       </button>
-      <button class="tab" [class.active]="tab === 'user'" (click)="setTab('user')">User</button>
+      <button class="tab" [class.active]="tab === 'user'" (click)="setTab('user')">
+        {{ 'settings.tab.userPreferences' | i18n | async }}
+      </button>
     </nav>
   </header>
 
   <section class="status">
     @if (loading$ | async) {
-      <div class="pill">Loading…</div>
+      <div class="pill">{{ 'common.loading' | i18n | async }}</div>
     }
 
     @if (error$ | async; as err) {
       <div class="error">
         <div class="error-text">{{ err }}</div>
-        <button class="btn btn-ghost" (click)="clearError()">Dismiss</button>
+        <button class="btn btn-ghost" (click)="clearError()">{{ 'common.dismiss' | i18n | async }}</button>
       </div>
     }
   </section>
