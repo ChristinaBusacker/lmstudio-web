@@ -19,6 +19,18 @@
     align-items: flex-end;
   }
 
+  .composer__input {
+    position: relative;
+    flex: 1;
+    border-radius: 0.5rem;
+    transition: outline-color 120ms ease;
+  }
+
+  .composer__input.drop-active,
+  .composer__input.drag-active {
+    outline-color: rgba(255, 255, 255, 0.22);
+  }
+
   .composer__file {
     display: none;
   }
@@ -54,6 +66,49 @@
     color: var(--color-text);
     max-height: 60dvh;
     overflow-y: auto;
+  }
+
+  .composer__dropHint {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    opacity: 0;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 0.5rem;
+    backdrop-filter: blur(2px);
+  }
+
+  .composer__dropHint.visible {
+    opacity: 1;
+  }
+
+  .composer__attach {
+    position: absolute;
+    right: 10px;
+    bottom: 3px;
+    border: none;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    aspect-ratio: 1 / 1;
+    padding: 6px;
+    display: none;
+    margin: 0;
+    place-items: center;
+
+    @media (max-width: 768px) {
+      display: grid;
+    }
+  }
+
+  .composer__attach[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .composer__editable[contenteditable='true']:empty::before {
@@ -104,7 +159,7 @@
   }
 
   .attachments__title {
-    font-size: 0.85rem;
+    font-size: 1.2rem;
     opacity: 0.8;
     margin: 0.25rem 0 0.5rem;
   }
@@ -116,27 +171,48 @@
     padding: 0.35rem 0;
 
     .name {
-      font-size: 0.9rem;
+      font-size: 1.2rem;
+
+      @media (max-width: 768px) {
+        font-size: 0.6rem;
+      }
     }
 
     .meta {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-        'Courier New', monospace;
-      font-size: 0.75rem;
+      font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+        monospace;
+      font-size: 1.2rem;
       opacity: 0.75;
       margin-left: auto;
+
+      @media (max-width: 768px) {
+        font-size: 0.6rem;
+      }
+    }
+
+    & button {
+      padding: 0;
     }
   }
 
   .attachments__hint {
-    font-size: 0.75rem;
+    font-size: 1rem;
     opacity: 0.75;
     margin-top: 0.35rem;
 
     code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-        'Courier New', monospace;
-      font-size: 0.75rem;
+      font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+        monospace;
+      font-size: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      font-size: 0.6rem;
+      code {
+        font-size: 0.6rem;
+      }
     }
   }
 

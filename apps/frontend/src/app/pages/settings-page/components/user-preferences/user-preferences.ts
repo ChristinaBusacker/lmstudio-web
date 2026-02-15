@@ -1,10 +1,16 @@
 // Comments in English as requested.
 
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
-type LanguageCode = 'de' | 'en';
+import { Store } from '@ngxs/store';
+import { UserPreferencesState } from '@frontend/src/app/core/state/user-preferences/user-preferences.state';
+import type {
+  LanguageCode,
+  ThemeName,
+} from '@frontend/src/app/core/state/user-preferences/user-preferences.model';
+import { UpdateUserPreferences } from '@frontend/src/app/core/state/user-preferences/user-preferences.actions';
+import { ToastService } from '@frontend/src/app/ui/toast/toast.service';
 
 @Component({
   selector: 'app-user-preferences',
@@ -15,12 +21,14 @@ type LanguageCode = 'de' | 'en';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserPreferences {
-  // TODO: Replace with NGXS state + backend persistence.
-  language: LanguageCode = 'de';
+  private readonly store = inject(Store);
+  private readonly toast = inject(ToastService);
+
+  language: LanguageCode = this.store.selectSnapshot(UserPreferencesState.language);
+  theme: ThemeName = this.store.selectSnapshot(UserPreferencesState.theme);
 
   onSave(): void {
-    // TODO: Dispatch UpdateUserPreferences action.
-    // For now: placeholder.
-    console.log('Save preferences', { language: this.language });
+    this.store.dispatch(new UpdateUserPreferences({ language: this.language, theme: this.theme }));
+    this.toast.success('Saved', 'User preferences updated');
   }
 }

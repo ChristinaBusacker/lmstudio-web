@@ -37,3 +37,21 @@ export interface WorkflowArtifactCreatedPayload {
   mimeType?: string | null;
   filename?: string | null;
 }
+
+export type ExternalServiceName = 'lmstudio' | 'searxng';
+
+export interface ExternalServiceStatus {
+  name: ExternalServiceName;
+  /** Whether the service is configured/enabled (e.g. env present). */
+  enabled: boolean;
+  /** Whether the service is reachable and responding. */
+  ok: boolean;
+  baseUrl?: string | null;
+  checkedAt: string;
+  /** Optional human readable error. */
+  error?: string | null;
+}
+
+export interface ExternalStatusEventPayload {
+  services: ExternalServiceStatus[];
+}

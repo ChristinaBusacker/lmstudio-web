@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import type { LmMessage, RunParams, StreamDelta } from '../common/types/llm.types';
 import { ConfigService } from '@nestjs/config';
 
@@ -93,15 +93,32 @@ export class ChatEngineService implements OnModuleDestroy {
       body.reasoning = { effort: (params as any).reasoningEffort ?? 'medium' };
     }
 
-    const res = await fetch(`${this.baseUrl}/v1/responses`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/v1/responses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify(body),
+      });
+    } catch (e: any) {
+      // Network / refused / DNS / etc.
+      throw new ServiceUnavailableException({
+        code: 'LMSTUDIO_UNREACHABLE',
+        message: 'Unable to connect to LM Studio.',
+        baseUrl: this.baseUrl,
+        detail: String(e?.message ?? e),
+      });
+    }
 
     if (!res.ok || !res.body) {
-      throw new Error(`LM Studio error ${res.status}: ${await res.text()}`);
+      const text = await res.text().catch(() => '');
+      throw new ServiceUnavailableException({
+        code: 'LMSTUDIO_ERROR',
+        message: `LM Studio responded with ${res.status} ${res.statusText}.`,
+        baseUrl: this.baseUrl,
+        detail: text,
+      });
     }
 
     const reader = res.body.getReader();
@@ -202,15 +219,31 @@ export class ChatEngineService implements OnModuleDestroy {
       },
     };
 
-    const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify(body),
+      });
+    } catch (e: any) {
+      throw new ServiceUnavailableException({
+        code: 'LMSTUDIO_UNREACHABLE',
+        message: 'Unable to connect to LM Studio.',
+        baseUrl: this.baseUrl,
+        detail: String(e?.message ?? e),
+      });
+    }
 
     if (!res.ok || !res.body) {
-      throw new Error(`LM Studio error ${res.status}: ${await res.text()}`);
+      const text = await res.text().catch(() => '');
+      throw new ServiceUnavailableException({
+        code: 'LMSTUDIO_ERROR',
+        message: `LM Studio responded with ${res.status} ${res.statusText}.`,
+        baseUrl: this.baseUrl,
+        detail: text,
+      });
     }
 
     const reader = res.body.getReader();

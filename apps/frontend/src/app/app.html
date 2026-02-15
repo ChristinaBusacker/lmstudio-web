@@ -1,4 +1,5 @@
 <div class="app-shell">
+  <app-toast-container></app-toast-container>
   <app-sidebar [closed]="isSidebarClosed"></app-sidebar>
   <button (click)="toggleSidebar()" class="sidebar-toggle" [class.closed]="isSidebarClosed" #toggle>
     <div class="sidebar-toggle__icon"><app-icon name="arrow-left-s-line"></app-icon></div>

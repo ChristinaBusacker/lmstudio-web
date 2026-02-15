@@ -7,4 +7,6 @@ export type {
   WorkflowRunStatusPayload,
   WorkflowNodeRunUpsertPayload,
   WorkflowArtifactCreatedPayload,
+  ExternalStatusEventPayload,
+  ExternalServiceStatus,
 } from '@shared/contracts';

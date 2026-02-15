@@ -6,11 +6,13 @@ import { LoadLoadedModels, LoadModels } from '../state/models/models.actions';
 import { LoadActiveRuns } from '../state/runs/runs.actions';
 import { LoadWorkflows } from '../state/workflows/workflow.actions';
 import { LoadProfiles } from '../state/settings/settings.actions';
+import { LoadUserPreferences } from '../state/user-preferences/user-preferences.actions';
 
 export function startUpApplication(store: Store, sse: SseService): void {
   sse.connectGlobal();
 
   store.dispatch([
+    new LoadUserPreferences(),
     new LoadFolders(),
     new LoadModels(),
     new LoadLoadedModels(),

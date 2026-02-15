@@ -10,6 +10,8 @@ import { routes } from './app.routes';
 import { withNgxsReduxDevtoolsPlugin } from '@ngxs/devtools-plugin';
 import { provideStore, Store } from '@ngxs/store';
 import { provideHttpClient } from '@angular/common/http';
+import { withInterceptors } from '@angular/common/http';
+import { ErrorHandler } from '@angular/core';
 import { ChatsApi } from './core/api/chats.api';
 import { FoldersApi } from './core/api/folders.api';
 import { ModelsApi } from './core/api/models.api';
@@ -30,10 +32,14 @@ import { WorkflowsState } from './core/state/workflows/workflow.state';
 import { WorkflowApiService } from './core/api/workflow-api.service';
 import { SseService } from './core/sse/sse.service';
 import { startUpApplication } from './core/utils/startup.util';
+import { GlobalErrorHandler } from './core/errors/global-error-handler';
+import { httpErrorToastInterceptor } from './core/http/http-error-toast.interceptor';
+import { UserPreferencesState } from './core/state/user-preferences/user-preferences.state';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
     provideRouter(routes),
     provideAppInitializer(() => {
       const store = inject(Store);
@@ -51,10 +57,11 @@ export const appConfig: ApplicationConfig = {
         SettingsState,
         ChatSearchState,
         WorkflowsState,
+        UserPreferencesState,
       ],
       withNgxsReduxDevtoolsPlugin(),
     ),
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([httpErrorToastInterceptor])),
     provideMarkdown(),
     ChatsApi,
     FoldersApi,

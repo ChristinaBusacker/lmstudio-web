@@ -4,6 +4,7 @@ import { catchError, of, tap } from 'rxjs';
 import { ChatThreadApi } from '../../api/chat-thread.api';
 import type { ThreadMessage } from '@shared/contracts';
 import { ChatRunsApi } from '../../api/chat-runs.api';
+import { ToastService } from '@frontend/src/app/ui/toast/toast.service';
 import {
   ActivateHead,
   ApplyRunStatusFromSse,
@@ -37,6 +38,7 @@ export class ChatDetailState {
   constructor(
     private readonly threadApi: ChatThreadApi,
     private readonly runsApi: ChatRunsApi,
+    private readonly toast: ToastService,
   ) {}
 
   // ---------- Selectors ----------
@@ -141,9 +143,11 @@ export class ChatDetailState {
     return this.runsApi.send(action.chatId, action.payload).pipe(
       tap((res) => {
         ctx.dispatch(new EnqueuedRunLocal(res));
+        this.toast.success('Run created', `Run ${res.runId}`);
       }),
       catchError((err) => {
         console.error('[ChatDetail] sendMessage failed', err);
+        this.toast.error('Message failed', 'Could not start a run.');
         return of(null);
       }),
     );
@@ -152,9 +156,13 @@ export class ChatDetailState {
   @Action(RegenerateAssistantMessage)
   regenerate(ctx: StateContext<ChatDetailStateModel>, action: RegenerateAssistantMessage) {
     return this.runsApi.regenerate(action.messageId, action.payload).pipe(
-      tap((res) => ctx.dispatch(new EnqueuedRunLocal(res))),
+      tap((res) => {
+        ctx.dispatch(new EnqueuedRunLocal(res));
+        this.toast.success('Run created', `Run ${res.runId}`);
+      }),
       catchError((err) => {
         console.error('[ChatDetail] regenerate failed', err);
+        this.toast.error('Regenerate failed', 'Could not start a run.');
         return of(null);
       }),
     );

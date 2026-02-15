@@ -22,6 +22,7 @@ import { AssetsModule } from './assets/assets.module';
 import { AssetEntity } from './assets/entities/asset.entity';
 import { ToolsModule } from './tools/tools.module';
 import { RunArtifactEntity } from './tools/entities/run-artifact.entity';
+import { SystemModule } from './system/system.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { RunArtifactEntity } from './tools/entities/run-artifact.entity';
     WorkflowsModule,
     AssetsModule,
     ToolsModule,
+    SystemModule,
   ],
 })
 export class AppModule {}

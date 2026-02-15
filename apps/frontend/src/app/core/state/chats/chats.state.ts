@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Action, createSelector, Selector, State } from '@ngxs/store';
 import { catchError, of, switchMap, tap } from 'rxjs';
 import { ChatsApi } from '../../api/chats.api';
+import { ToastService } from '@frontend/src/app/ui/toast/toast.service';
 import type { ChatListItem } from '@shared/contracts';
 import {
   CreateChat,
@@ -36,6 +37,7 @@ export class ChatsState {
   constructor(
     private readonly api: ChatsApi,
     private readonly router: Router,
+    private readonly toast: ToastService,
   ) {}
 
   // ---------- Selectors ----------
@@ -110,10 +112,12 @@ export class ChatsState {
     return this.api.create(action.dto).pipe(
       tap((created) => {
         void this.router.navigate(['/chat', created.id]);
+        this.toast.success('Chat created', created.title ? String(created.title) : `Chat ${created.id}`);
       }),
       switchMap((created) => ctx.dispatch(new ReloadChats()).pipe(tap(() => created))),
       catchError((err) => {
         console.error('[Chats] create failed', err);
+        this.toast.error('Chat creation failed', 'Could not create a new chat.');
         return of(null);
       }),
     );

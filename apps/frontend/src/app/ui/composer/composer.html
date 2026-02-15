@@ -19,38 +19,51 @@
       multiple
     />
 
-    @if (useContentEditable) {
-      <div
-        #editable
-        class="composer__editable"
-        [attr.contenteditable]="disabled ? 'false' : 'true'"
-        [attr.aria-disabled]="disabled"
-        [attr.data-placeholder]="placeholder || null"
-        (input)="onEditableInput()"
-        (keydown)="onComposerKeydown($event)"
-        (blur)="markTouched()"
-      ></div>
-    } @else {
-      <textarea
-        class="composer__textarea"
-        [disabled]="disabled"
-        [attr.placeholder]="placeholder || null"
-        (input)="onTextareaInput($event)"
-        (keydown)="onComposerKeydown($event)"
-        (blur)="markTouched()"
-        >{{ value }}</textarea
-      >
-    }
-
-    <button
-      class="composer__tool"
-      type="button"
-      title="Upload file"
-      (click)="openFilePicker()"
-      [disabled]="disabled"
+    <div
+      class="composer__input"
+      appDropFiles
+      (filesDropped)="onFilesDropped($event)"
+      (dragActiveChange)="onDragActiveChange($event)"
+      [class.drag-active]="isDragActive"
+      title="Drop files here to upload"
     >
-      <app-icon class="icon icon-black" name="file-text-line" [size]="18"></app-icon>
-    </button>
+      @if (useContentEditable) {
+        <div
+          #editable
+          class="composer__editable"
+          [attr.contenteditable]="disabled ? 'false' : 'true'"
+          [attr.aria-disabled]="disabled"
+          [attr.data-placeholder]="placeholder || null"
+          (input)="onEditableInput()"
+          (keydown)="onComposerKeydown($event)"
+          (blur)="markTouched()"
+        ></div>
+      } @else {
+        <textarea
+          class="composer__textarea"
+          [disabled]="disabled"
+          [attr.placeholder]="placeholder || null"
+          (input)="onTextareaInput($event)"
+          (keydown)="onComposerKeydown($event)"
+          (blur)="markTouched()"
+        >{{ value }}</textarea>
+      }
+
+      <div class="composer__dropHint" [class.visible]="isDragActive">
+        <app-icon class="icon" name="upload-2-line" [size]="18"></app-icon>
+        <span>Drop files to upload</span>
+      </div>
+
+      <button
+        class="composer__attach"
+        type="button"
+        title="Upload file"
+        (click)="openFilePicker(); $event.stopPropagation()"
+        [disabled]="disabled"
+      >
+        <app-icon class="icon" name="file-text-line" [size]="18"></app-icon>
+      </button>
+    </div>
 
     @if (isStreaming$ | async) {
       <button class="composer__send" (click)="abort()">

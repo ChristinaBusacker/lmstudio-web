@@ -11,9 +11,17 @@
     </select>
   </label>
 
-  <div class="hint">
-    This will control the UI language (runtime switch). We’ll wire it to state + backend next.
-  </div>
+  <label class="field">
+    <span class="label">Theme</span>
+    <select class="select" [(ngModel)]="theme">
+      <option value="LMStudio">LMStudio</option>
+      <option value="Dark">Dark</option>
+      <option value="Light">Light</option>
+      <option value="Glass">Glass</option>
+    </select>
+  </label>
+
+  <div class="hint">Preferences are stored locally in your browser (localStorage).</div>
 
   <div class="row">
     <button class="btn btn-primary" (click)="onSave()">Save</button>

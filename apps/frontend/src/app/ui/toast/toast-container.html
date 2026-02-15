@@ -1,0 +1,33 @@
+<div class="toast-stack" aria-live="polite" aria-relevant="additions removals">
+  @for (t of toast.toasts(); track t.id) {
+    <div class="toast" [class]="'toast--' + t.kind" role="status">
+      <div class="toast__icon">
+        @switch (t.kind) {
+          @case ('success') {
+            <app-icon name="checkbox-circle-line" [size]="18"></app-icon>
+          }
+          @case ('info') {
+            <app-icon name="information-line" [size]="18"></app-icon>
+          }
+          @case ('warning') {
+            <app-icon name="alert-line" [size]="18"></app-icon>
+          }
+          @default {
+            <app-icon name="close-circle-line" [size]="18"></app-icon>
+          }
+        }
+      </div>
+
+      <div class="toast__body">
+        <div class="toast__title">{{ t.title }}</div>
+        @if (t.message) {
+          <div class="toast__message">{{ t.message }}</div>
+        }
+      </div>
+
+      <button class="toast__close" type="button" (click)="toast.dismiss(t.id)" title="Close">
+        <app-icon name="close-line" [size]="16"></app-icon>
+      </button>
+    </div>
+  }
+</div>

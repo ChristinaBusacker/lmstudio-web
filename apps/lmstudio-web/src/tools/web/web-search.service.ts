@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RunArtifactsService } from '../run-artifacts.service';
 
@@ -74,13 +74,28 @@ export class WebSearchService {
     // This also works even if other engines are enabled server-side.
     url.searchParams.set('engines', 'google');
 
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'lmstudio-web/1.0 (+tool web_search searxng)' },
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { 'User-Agent': 'lmstudio-web/1.0 (+tool web_search searxng)' },
+      });
+    } catch (e: any) {
+      throw new ServiceUnavailableException({
+        code: 'SEARXNG_UNREACHABLE',
+        message: 'SearXNG is configured but not reachable.',
+        baseUrl: params.base,
+        detail: String(e?.message ?? e),
+      });
+    }
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new Error(`SearXNG request failed: ${res.status} ${res.statusText} ${body}`);
+      throw new ServiceUnavailableException({
+        code: 'SEARXNG_ERROR',
+        message: `SearXNG responded with ${res.status} ${res.statusText}.`,
+        baseUrl: params.base,
+        detail: body,
+      });
     }
 
     const json: any = await res.json();

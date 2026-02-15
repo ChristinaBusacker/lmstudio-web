@@ -123,7 +123,10 @@ export class SseController {
       filter((e) => !e.chatId),
       filter(
         (e) =>
-          e.type === 'run.status' || e.type === 'sidebar.changed' || e.type === 'models.changed',
+          e.type === 'run.status' ||
+          e.type === 'sidebar.changed' ||
+          e.type === 'models.changed' ||
+          e.type === 'external.status',
       ),
       map((e) => this.toMessageEvent(e)),
     );

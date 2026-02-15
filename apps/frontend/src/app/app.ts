@@ -2,10 +2,11 @@ import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, signal } fro
 import { RouterOutlet } from '@angular/router';
 import { Icon } from './ui/icon/icon';
 import { Sidebar } from './ui/sidebar/sidebar';
+import { ToastContainer } from './ui/toast/toast-container';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Sidebar, Icon],
+  imports: [RouterOutlet, Sidebar, Icon, ToastContainer],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

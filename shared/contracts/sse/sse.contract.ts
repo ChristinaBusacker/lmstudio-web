@@ -33,7 +33,9 @@ export type SseEventType =
   | 'workflow.artifact.created'
   | 'run.tool_call'
   | 'run.tool_result'
-  | 'run.tool_error';
+  | 'run.tool_error'
+  // System / external services
+  | 'external.status';
 
 export interface SseEnvelope<TType extends SseEventType = SseEventType, TPayload = unknown> {
   id: number;

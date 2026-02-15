@@ -33,6 +33,7 @@ import {
   DeleteWorkflow,
 } from './workflow.actions';
 import { Router } from '@angular/router';
+import { ToastService } from '@frontend/src/app/ui/toast/toast.service';
 
 export interface WorkflowsStateModel {
   workflows: Workflow[];
@@ -80,6 +81,7 @@ export class WorkflowsState {
   constructor(
     private readonly api: WorkflowApiService,
     private readonly router: Router,
+    private readonly toast: ToastService,
   ) {}
 
   // --------------------
@@ -182,10 +184,13 @@ export class WorkflowsState {
           workflows: [wf, ...s.workflows.filter((x) => x.id !== wf.id)],
           selectedWorkflowId: wf.id,
         });
+
+        this.toast.success('Workflow created', wf.name ? String(wf.name) : `Workflow ${wf.id}`);
         void this.router.navigate(['/workflow', wf.id]);
       }),
       catchError((err) => {
         ctx.patchState({ error: this.toErrorMessage(err) });
+        this.toast.error('Workflow creation failed', this.toErrorMessage(err));
         return EMPTY;
       }),
     );
@@ -283,9 +288,12 @@ export class WorkflowsState {
 
         // Preload details so the UI can instantly show progress + node outputs.
         ctx.dispatch(new LoadWorkflowRunDetails(run.id));
+
+        this.toast.success('Workflow run created', `Run ${run.id}`);
       }),
       catchError((err) => {
         ctx.patchState({ error: this.toErrorMessage(err) });
+        this.toast.error('Workflow run failed', this.toErrorMessage(err));
         return EMPTY;
       }),
     );

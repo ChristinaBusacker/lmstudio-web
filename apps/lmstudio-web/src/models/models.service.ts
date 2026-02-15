@@ -40,15 +40,20 @@ export class ModelsService {
     try {
       res = await fetch(url, { method: 'GET' });
     } catch (e: unknown) {
-      throw new ServiceUnavailableException(
-        `LM Studio is not reachable at ${this.baseUrl}. Is the server running?`,
-      );
+      throw new ServiceUnavailableException({
+        code: 'LMSTUDIO_UNREACHABLE',
+        message: 'Unable to connect to LM Studio.',
+        baseUrl: this.baseUrl,
+      });
     }
 
     if (!res.ok) {
-      throw new ServiceUnavailableException(
-        `LM Studio request failed: GET ${path} -> ${res.status} ${res.statusText}`,
-      );
+      throw new ServiceUnavailableException({
+        code: 'LMSTUDIO_ERROR',
+        message: `LM Studio responded with ${res.status} ${res.statusText}.`,
+        baseUrl: this.baseUrl,
+        detail: `GET ${path}`,
+      });
     }
 
     return (await res.json()) as T;

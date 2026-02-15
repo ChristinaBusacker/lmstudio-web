@@ -14,11 +14,16 @@ import {
   ApplyWorkflowRunStatusFromSse,
   LoadWorkflowRunDetails,
 } from '../state/workflows/workflow.actions';
+import { ToastService } from '../../ui/toast/toast.service';
+import type { ExternalServiceStatus } from './sse-events.model';
 
 @Injectable({ providedIn: 'root' })
 export class SseService {
   private readonly store = inject(Store);
   private readonly zone = inject(NgZone);
+  private readonly toast = inject(ToastService);
+
+  private lastExternalOk: Record<string, boolean> = {};
 
   private globalEs: EventSource | null = null;
 
@@ -35,7 +40,13 @@ export class SseService {
     if (this.globalEs) return;
     const es = new EventSource('/api/sse/global');
 
-    const types = ['run.status', 'sidebar.changed', 'models.changed', 'heartbeat'];
+    const types = [
+      'run.status',
+      'sidebar.changed',
+      'models.changed',
+      'external.status',
+      'heartbeat',
+    ];
     for (const t of types) es.addEventListener(t, (ev: MessageEvent) => this.handleRaw(ev.data));
 
     es.onerror = (e) => console.warn('[SSE] global error', e);
@@ -136,6 +147,47 @@ export class SseService {
   }
 
   private routeEvent(e: SseEnvelopeDto): void {
+    if (e.type === 'external.status') {
+      const services: ExternalServiceStatus[] = Array.isArray((e as any)?.payload?.services)
+        ? ((e as any).payload.services as any[] as ExternalServiceStatus[])
+        : [];
+
+      for (const s of services) {
+        const key = String((s as any)?.name ?? '');
+        if (!key) continue;
+
+        const prev = this.lastExternalOk[key];
+        const now = !!(s as any)?.ok;
+        this.lastExternalOk[key] = now;
+
+        // First snapshot: only alert if it's already down (and enabled).
+        if (prev === undefined) {
+          if (!now && (s as any)?.enabled) {
+            this.toast.warning(
+              `${this.titleCase(key)} not reachable`,
+              (s as any)?.error ? String((s as any).error) : null,
+            );
+          }
+          continue;
+        }
+
+        if (prev !== now && (s as any)?.enabled) {
+          if (!now) {
+            this.toast.warning(
+              `${this.titleCase(key)} went offline`,
+              (s as any)?.error ? String((s as any).error) : null,
+            );
+          } else {
+            this.toast.success(
+              `${this.titleCase(key)} is back`,
+              (s as any)?.baseUrl ? String((s as any).baseUrl) : null,
+            );
+          }
+        }
+      }
+      return;
+    }
+
     // ----- existing chat/global routing -----
     if (e.type === 'sidebar.changed') {
       this.store.dispatch(new SidebarChanged());
@@ -236,5 +288,9 @@ export class SseService {
         }),
       );
     }
+  }
+
+  private titleCase(x: string): string {
+    return x.length ? x.charAt(0).toUpperCase() + x.slice(1) : x;
   }
 }

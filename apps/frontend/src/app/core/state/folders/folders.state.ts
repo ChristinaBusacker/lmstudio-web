@@ -14,6 +14,7 @@ import {
 import type { FoldersStateModel } from './folders.model';
 import type { StateContext } from '@ngxs/store';
 import { ReloadChats } from '../chats/chats.actions';
+import { ToastService } from '@frontend/src/app/ui/toast/toast.service';
 
 @State<FoldersStateModel>({
   name: 'folders',
@@ -26,7 +27,10 @@ import { ReloadChats } from '../chats/chats.actions';
 })
 @Injectable()
 export class FoldersState {
-  constructor(private readonly api: FoldersApi) {}
+  constructor(
+    private readonly api: FoldersApi,
+    private readonly toast: ToastService,
+  ) {}
 
   @Selector()
   static items(s: FoldersStateModel) {
@@ -65,9 +69,11 @@ export class FoldersState {
       tap((created) => {
         const s = ctx.getState();
         ctx.patchState({ items: [created, ...s.items] });
+        this.toast.success('Folder created', created.name ? String(created.name) : `Folder ${created.id}`);
       }),
       catchError((err) => {
         ctx.patchState({ error: this.toErrorMessage(err) });
+        this.toast.error('Folder creation failed', this.toErrorMessage(err));
         return of(null);
       }),
     );

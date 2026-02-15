@@ -2,6 +2,7 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import {
   AfterViewInit,
+  ChangeDetectorRef,
   Component,
   ElementRef,
   inject,
@@ -9,12 +10,13 @@ import {
   Input,
   PLATFORM_ID,
   ViewChild,
-  ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { AssetsApi, type AssetDto } from '@frontend/src/app/core/api/assets.api';
 import { Store } from '@ngxs/store';
 import { catchError, map, Observable, of, tap } from 'rxjs';
+import { v4 as uuidv4 } from 'uuid';
 import { ChatsApi, type ChatMetaDto } from '../../core/api/chats.api';
 import { OpenChat, SendMessage } from '../../core/state/chat-detail/chat-detail.actions';
 import { ChatDetailState } from '../../core/state/chat-detail/chat-detail.state';
@@ -24,15 +26,14 @@ import { RunsState } from '../../core/state/runs/runs.state';
 import { LoadProfiles } from '../../core/state/settings/settings.actions';
 import { SettingsState } from '../../core/state/settings/settings.state';
 import { Icon } from '../icon/icon';
-import { v4 as uuidv4 } from 'uuid';
-import { AssetsApi, type AssetDto } from '@frontend/src/app/core/api/assets.api';
+import { ToastService } from '../toast/toast.service';
+import { DropFilesDirective } from './drop-files.directive';
 
 @Component({
   selector: 'app-composer',
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, Icon],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, Icon, DropFilesDirective],
   templateUrl: './composer.html',
   styleUrl: './composer.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Composer implements AfterViewInit {
   @Input() placeholder = 'Schreibe etwas...';
@@ -47,6 +48,8 @@ export class Composer implements AfterViewInit {
     private api: ChatsApi,
     private router: Router,
     private assetsApi: AssetsApi,
+    private toast: ToastService,
+    private cdr: ChangeDetectorRef,
   ) {
     this.store.dispatch(new LoadProfiles());
   }
@@ -74,6 +77,8 @@ export class Composer implements AfterViewInit {
   attachments: AssetDto[] = [];
 
   uploadError: string | null = null;
+
+  isDragActive = false;
 
   @ViewChild('fileInput', { static: false })
   private fileInput?: ElementRef<HTMLInputElement>;
@@ -289,14 +294,33 @@ export class Composer implements AfterViewInit {
     // Allow selecting the same file again later
     if (input) input.value = '';
 
+    this.uploadFiles(files);
+  }
+
+  onFilesDropped(files: File[]): void {
+    if (this.disabled) return;
+    this.uploadError = null;
+    this.uploadFiles(files);
+  }
+
+  onDragActiveChange(active: boolean): void {
+    this.isDragActive = active;
+  }
+
+  private uploadFiles(files: File[]): void {
     for (const f of files) {
       this.assetsApi.upload(f).subscribe({
         next: (asset) => {
           this.attachments = [...this.attachments, asset];
+          this.toast.success('File uploaded', asset.originalFilename);
+          setTimeout(() => {
+            this.cdr.detectChanges();
+          }, 300);
         },
         error: (err) => {
           console.error('[Assets] upload failed', err);
           this.uploadError = 'Upload failed.';
+          this.toast.error('Upload failed', f.name);
         },
       });
     }
@@ -308,7 +332,10 @@ export class Composer implements AfterViewInit {
 
   private appendAttachmentsBlock(content: string, assets: AssetDto[]): string {
     const lines = assets
-      .map((a) => `- ${a.originalFilename} (assetId: ${a.id}${a.mimeType ? `, mime: ${a.mimeType}` : ''})`)
+      .map(
+        (a) =>
+          `- ${a.originalFilename} (assetId: ${a.id}${a.mimeType ? `, mime: ${a.mimeType}` : ''})`,
+      )
       .join('\n');
 
     return `${content}\n\n[Attachments]\n${lines}`;

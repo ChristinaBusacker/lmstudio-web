@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { IsoDateTimeString } from '../common/datetime.contract';
 import type { RunState } from '../runs/run.contract';
 
