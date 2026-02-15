@@ -78,6 +78,26 @@ export class DocReaderService {
     let sourceAssetId: string | null = null;
     let filenameHint: string | null = null;
 
+    const extractUuid = (s: string): string | null => {
+      const m = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(s);
+      return m?.[1] ?? null;
+    };
+
+    // Normalize inputs: if the model passes an internal /assets URL, prefer reading via assetId.
+    // This avoids failing fetches against the backend API and keeps tool usage consistent.
+    if (params.url) {
+      const urlUuid = extractUuid(params.url);
+      if (params.assetId && urlUuid && params.assetId === urlUuid) {
+        params.url = undefined;
+      } else if (
+        urlUuid &&
+        (params.url.includes('/assets/') || params.url.includes('/api/assets/'))
+      ) {
+        params.assetId = params.assetId ?? urlUuid;
+        params.url = undefined;
+      }
+    }
+
     if (params.url) {
       sourceUrl = params.url;
       const res = await fetch(params.url, {

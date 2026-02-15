@@ -99,14 +99,17 @@ export class ToolOrchestratorService {
           parameters: {
             type: 'object',
             additionalProperties: false,
+            description:
+              'Provide exactly one of: url (public http/https) OR assetId (uploaded asset). Do NOT pass an internal API /assets URL.',
+            oneOf: [{ required: ['url'] }, { required: ['assetId'] }],
             properties: {
               url: {
                 type: 'string',
-                description: 'http/https URL (optional if assetId is provided)',
+                description: 'Public http/https URL',
               },
               assetId: {
                 type: 'string',
-                description: 'Uploaded asset id (optional if url is provided)',
+                description: 'Uploaded asset id',
               },
             },
           },
@@ -125,12 +128,44 @@ export class ToolOrchestratorService {
     console.log('[TOOL CALL]', call.function.name, call.function.arguments);
 
     let args: AnyJson = {};
-    try {
-      args = rawArgs && typeof rawArgs === 'string' ? (JSON.parse(rawArgs) as AnyJson) : {};
-    } catch (err) {
-      console.log('[TOOL ERROR]', call.function?.name, err);
-      args = {};
-    }
+    const parseArgs = (input: unknown): AnyJson => {
+      if (!input || typeof input !== 'string') return {};
+      const raw = input.trim();
+
+      // First attempt: raw JSON
+      try {
+        return JSON.parse(raw) as AnyJson;
+      } catch {
+        // continue
+      }
+
+      // Second attempt: decodeURIComponent (models sometimes emit urlencoded JSON)
+      try {
+        const decoded = decodeURIComponent(raw);
+        return JSON.parse(decoded) as AnyJson;
+      } catch {
+        // continue
+      }
+
+      // Third attempt: extract the first {...} JSON object from a noisy string
+      const m = /\{[\s\S]*\}/.exec(raw);
+      if (m?.[0]) {
+        const candidate = m[0];
+        try {
+          return JSON.parse(candidate) as AnyJson;
+        } catch {
+          try {
+            return JSON.parse(decodeURIComponent(candidate)) as AnyJson;
+          } catch {
+            return {};
+          }
+        }
+      }
+
+      return {};
+    };
+
+    args = parseArgs(rawArgs);
 
     // Emit tool call event
     this.sse.publishEphemeral({
@@ -372,10 +407,39 @@ export class ToolOrchestratorService {
         }
       }
     }
+    let toolCalls = Array.from(toolCallsByIndex.values()).filter((c) => !!c.function?.name);
+
+    // Fallback: some models print tool calls into content instead of emitting structured tool_calls.
+    // Example: "[TOOL CALL] doc_read { ...json... }"
+    if (
+      toolCalls.length === 0 &&
+      typeof finalContent === 'string' &&
+      finalContent.includes('[TOOL CALL]')
+    ) {
+      const re = /\[TOOL CALL\]\s*([a-zA-Z0-9_]+)\s*([\s\S]*?\{[\s\S]*\})/g;
+      const matches: Array<{ name: string; args: string; full: string }> = [];
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(finalContent))) {
+        matches.push({ name: m[1], args: m[2].trim(), full: m[0] });
+      }
+
+      if (matches.length > 0) {
+        toolCalls = matches.map((x, idx) => ({
+          id: `call_fallback_${idx}`,
+          type: 'function' as const,
+          function: { name: x.name, arguments: x.args },
+        }));
+
+        // Strip the tool-call text from the assistant content to avoid polluting the chat output.
+        for (const x of matches) {
+          finalContent = finalContent.replace(x.full, '').trim();
+        }
+      }
+    }
 
     return {
       finalContent,
-      toolCalls: Array.from(toolCallsByIndex.values()).filter((c) => !!c.function?.name),
+      toolCalls,
       usage,
     };
   }
