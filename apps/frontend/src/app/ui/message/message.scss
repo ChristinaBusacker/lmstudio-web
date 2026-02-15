@@ -9,7 +9,7 @@
     padding: 10px;
     border-radius: 8px;
     width: 100%;
-    max-width: 1200px;
+    max-width: 130rem;
 
     .topbar {
       display: flex;
@@ -113,16 +113,15 @@
     }
 
     &.user {
-      align-self: self-start;
+      align-self: self-end;
       background-color: var(--color-container);
-      width: 50%;
       @media (max-width: 768px) {
         width: 80%;
       }
     }
 
     &.assistant {
-      align-self: self-end;
+      align-self: self-start;
       background-color: rgba(22, 22, 22, 0.2);
     }
   }

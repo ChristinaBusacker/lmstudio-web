@@ -77,37 +77,4 @@ if (fs.existsSync(migrationsSrcDir)) {
   }
 }
 
-function getLanIPv4() {
-  const nets = os.networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name] || []) {
-      if (net.family !== 'IPv4') continue;
-      if (net.internal) continue;
-      const ip = net.address;
-      if (ip.startsWith('169.254.')) continue; // APIPA
-      // Prefer common private ranges, but accept any non-internal IPv4
-      return ip;
-    }
-  }
-  return null;
-}
-
-try {
-  const lanIp = getLanIPv4() || '127.0.0.1';
-
-  const tplPath = path.join(__dirname, 'Caddyfile.local.template');
-  const outPath = path.join(process.cwd(), 'dist', 'Caddyfile.local');
-
-  if (fs.existsSync(tplPath)) {
-    const tpl = fs.readFileSync(tplPath, 'utf8');
-    const out = tpl.replaceAll('{LAN_IP}', lanIp);
-    fs.writeFileSync(outPath, out, 'utf8');
-    console.log(`Caddyfile generated: ${outPath} (LAN_IP=${lanIp})`);
-  } else {
-    console.warn(`Caddy template not found: ${tplPath} (skipping)`);
-  }
-} catch (e) {
-  console.warn('Failed to generate Caddyfile.local:', e);
-}
-
 console.log('dist finalized');
