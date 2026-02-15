@@ -32,7 +32,7 @@ where caddy >nul 2>nul || (
 
 REM --- Build ---
 echo Installing dependencies...
-npm install
+call npm install
 if errorlevel 1 (
   echo [ERROR] npm install fehlgeschlagen.
   pause
@@ -40,7 +40,7 @@ if errorlevel 1 (
 )
 
 echo Building project...
-npm run build
+call npm run build
 if errorlevel 1 (
   echo [ERROR] Build fehlgeschlagen.
   pause

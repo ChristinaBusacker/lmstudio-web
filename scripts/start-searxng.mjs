@@ -12,6 +12,7 @@ const baseUrl = (process.env.SEARXNG_BASE_URL ?? '').trim();
 
 // Only auto-start when user opted in by setting SEARXNG_BASE_URL.
 if (!baseUrl) {
+  console.warn('Searxing base URL not found. Searxing init is skipped');
   process.exit(0);
 }
 

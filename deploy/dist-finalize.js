@@ -29,6 +29,11 @@ const envSrc = path.join(root, '.env.prod');
 const envDst = path.join(dist, '.env');
 if (fs.existsSync(envSrc)) fs.copyFileSync(envSrc, envDst);
 
+// copy searxng script (if exists)
+const searxngScript = path.join(root, 'scripts', 'start-searxng.mjs');
+const searxngDst = path.join(dist, 'start-searxng.mjs');
+if (fs.existsSync(envSrc)) fs.copyFileSync(searxngScript, searxngDst);
+
 const esbuild = require('esbuild');
 
 const migrationsSrcDir = path.join(root, 'apps', 'lmstudio-web', 'src', 'migrations');

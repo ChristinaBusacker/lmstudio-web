@@ -44,7 +44,7 @@ if errorlevel 1 (
 )
 
 echo Starte Backend...
-start "LMStudio Web Backend" /MIN node dist\main.js
+start "LMStudio Web Backend" cmd /k "cd /d dist && node start-searxng.mjs && node main.js"
 
 echo Starte Caddy ^(HTTPS^)...
 echo.
