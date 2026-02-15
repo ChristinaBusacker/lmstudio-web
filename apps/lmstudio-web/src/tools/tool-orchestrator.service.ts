@@ -122,6 +122,8 @@ export class ToolOrchestratorService {
     const name = call.function?.name;
     const rawArgs = call.function?.arguments ?? '{}';
 
+    console.log('[TOOL CALL]', call.function.name, call.function.arguments);
+
     let args: AnyJson = {};
     try {
       args = rawArgs && typeof rawArgs === 'string' ? (JSON.parse(rawArgs) as AnyJson) : {};
@@ -148,6 +150,7 @@ export class ToolOrchestratorService {
         limit: typeof args.limit === 'number' ? args.limit : 5,
         runId,
       });
+      console.log('[TOOL RESULT]', call.function.name, JSON.stringify(out).slice(0, 200));
       return { result: out as AnyJson, artifactId: out.artifactId };
     }
 
