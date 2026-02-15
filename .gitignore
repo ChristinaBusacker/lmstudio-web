@@ -104,3 +104,5 @@ Thumbs.db
 Caddyfile.local
 
 PATH.txt
+data/assets
+data/assets/*
