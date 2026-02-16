@@ -2,27 +2,28 @@
 
 A **local-first, LAN-ready Web UI for LM Studio**.
 
-This project provides a browser-based interface for **LM Studio**, designed to run entirely on your local machine while being **accessible from any device in your home network** — phone, tablet, laptop, or desktop.
+This project provides a browser-based interface for **LM Studio**, designed to run entirely on your local machine while being **accessible from any device in your home network** (phone, tablet, laptop, desktop).
 
-It is **not a cloud service**, **not a hosted LLM**, and **not a replacement for LM Studio**.  
-Instead, it builds *on top of LM Studio’s excellent local runtime* and exposes it through a carefully designed web interface.
+It is **not a cloud service**, **not a hosted LLM**, and **not a replacement for LM Studio**.
+It builds on top of LM Studio’s local runtime and exposes it through a structured, inspectable web interface.
 
-> 💙 We deeply respect and appreciate the work of the LM Studio team.  
-> This project exists because LM Studio is great — and we wanted to make it even more convenient to use around the house.
+> This project exists because LM Studio is excellent at running local models — and we wanted a robust, network-friendly UI on top of it.
 
 ---
 
 ## What This Project Is (and Is Not)
 
-### ✅ What it **is**
-- A **local web interface** for LM Studio
-- Runs fully on **your own machine**
-- Accessible over the **local network**
-- Works with **any browser**
-- No cloud, no tracking, no accounts
-- Deterministic, inspectable, reproducible execution
+### What it **is**
 
-### ❌ What it is **not**
+- Local web interface for LM Studio
+- Runs entirely on your own machine
+- Accessible via local network (LAN)
+- No accounts, no telemetry, no cloud
+- Deterministic execution with inspectable state
+- Explicit tool usage and clear boundaries
+
+### What it **is not**
+
 - Not a hosted LLM service
 - Not a replacement for LM Studio
 - Not intended for public internet exposure
@@ -30,68 +31,163 @@ Instead, it builds *on top of LM Studio’s excellent local runtime* and exposes
 
 ---
 
-## High-Level Architecture
+## Architecture Overview
 
 ```
 Browser (any device)
         ↓
-   Web UI (Angular)
+   Angular Web UI
         ↓
-   Backend (NestJS)
+   NestJS Backend
         ↓
  LM Studio HTTP API
 ```
 
 - **Frontend:** Angular SPA
-- **Backend:** NestJS (Node.js)
+- **Backend:** NestJS
 - **Database:** SQLite (local file)
 - **ORM:** TypeORM (automatic migrations)
-- **LLM Runtime:** LM Studio (local HTTP server)
+- **LLM Runtime:** LM Studio
 
-Routing:
-- `/ui` → Web UI  
-- `/api` → Backend API  
-- `/api/docs` → Swagger UI  
+Routes:
 
-The backend also serves the frontend in production, so the entire system runs as **one local application**.
+- `/ui` – Web UI
+- `/api` – Backend API
+- `/api/docs` – Swagger / OpenAPI
+
+In production, the backend serves the frontend so the system runs as **a single local application**.
 
 ---
 
-## Features
+## Core Features
 
-- Clean browser-based UI for LM Studio
+- Browser-based UI for LM Studio
 - Works on desktop, tablet, and phone
-- Local SQLite database (no external dependencies)
-- Automatic database migrations
-- Deterministic message & workflow handling
-- One-command startup (with optional HTTPS)
+- Local SQLite persistence
+- Automatic DB migrations
+- Deterministic chat and workflow execution
+- Tool-based agent loop (no hidden magic)
 - LAN-ready by design
+
+---
+
+## Tools (Agent Capabilities)
+
+This project uses an explicit **tool orchestration system**.  
+Tools are exposed to the model via structured schemas and executed by the backend.
+
+### Available Tools
+
+#### `web_search`
+
+Search the web.
+
+- Uses **SearXNG** if configured (recommended)
+- Falls back to DuckDuckGo Instant Answers if not
+
+#### `web_read`
+
+Fetches and extracts readable text from a public web page.
+
+- Uses Readability-style extraction
+- Intended for articles and documentation
+- Not a general crawler
+
+#### `doc_read`
+
+Reads uploaded documents and provides their textual contents to the model.
+
+- Operates on uploaded **assets**
+- Uses `assetId` as the canonical reference
+- URLs are discouraged and sanitized if misused by the model
+
+Supported file types are listed below.
+
+#### (Planned) `vision_read`
+
+Planned extension for **image-capable models**.
+Will allow models with vision support to analyze uploaded images.
+
+---
+
+## File Upload & Document Support
+
+### Supported Formats
+
+The system is intentionally **text-first** and deterministic.
+
+#### Fully Supported
+
+- `.txt`
+- `.md`
+- `.json`
+- `.yaml`, `.yml`
+- `.csv`
+- `.log`
+- `.xml`
+
+#### ZIP Archives
+
+- `.zip`
+- Extracted server-side
+- Each contained text file is processed individually
+- Binary files inside ZIPs are ignored
+
+#### PDF (Limited)
+
+- Text-based PDFs only
+- No OCR
+- Scanned PDFs will likely produce no content
+
+#### Not Supported (stored but not readable)
+
+- Images (`.png`, `.jpg`, …)
+- Office documents (`.docx`, `.xlsx`, `.pptx`)
+- Audio / video
+- Arbitrary binaries
+
+This strict boundary prevents the model from hallucinating file contents.
+
+---
+
+## Vision Models (Important Note)
+
+LM Studio supports **vision-capable models** (VLMs).
+However, **this Web UI currently treats images as binary assets only**.
+
+Image understanding requires:
+
+- A vision-capable model loaded in LM Studio
+- A dedicated `vision_read` tool path
+
+This is planned but not enabled by default to avoid undefined behavior.
 
 ---
 
 ## Requirements
 
 ### Mandatory
-- **Node.js** (recommended: Node.js 22 LTS, 20+ should work)
+
+- **Node.js** (22 LTS recommended, 20+ should work)
 - **npm**
 - **LM Studio**
   - Installed locally
-  - HTTP server enabled  
+  - HTTP server enabled
   - Default URL: `http://127.0.0.1:1234`
 
-### Optional (for HTTPS / LAN comfort)
-- **Caddy** (used as a local HTTPS reverse proxy)
+### Optional
+
+- **Docker** (for SearXNG web search)
+- **Caddy** (for local HTTPS)
 
 ---
 
 ## Environment Configuration
 
 Configuration is handled via environment variables.
+A production template is provided as `.env.prod`.
 
-A production template is provided as `.env.prod`.  
-During build, this is copied to `dist/.env`.
-
-### Example `.env`
+Example:
 
 ```env
 HOST=0.0.0.0
@@ -102,80 +198,35 @@ DB_PATH=./data/app.sqlite
 LMSTUDIO_BASE_URL=http://127.0.0.1:1234
 LMSTUDIO_DEFAULT_MODEL=openai/gpt-oss-20b
 
-# Optional: Web search provider
-# If set, the start scripts will auto-start a local SearXNG container via Docker Compose.
-# SearXNG is configured to use Google as its search engine.
-# If NOT set, web_search falls back to DuckDuckGo's Instant Answer API (limited).
-#
-# Example:
-# SEARXNG_BASE_URL=http://localhost:8080
+# Optional web search provider
+SEARXNG_BASE_URL=http://localhost:8080
 
 NODE_ENV=production
 ```
 
 ---
 
-## Web Search (Optional, One-Click)
+## Web Search Setup (Optional)
 
-This project includes a **web_search tool**. To keep the main app "one click", the backend can **auto-start SearXNG via Docker**.
+### Recommended: Local SearXNG via Docker
 
-### Option A: Local SearXNG via Docker (recommended)
+1. Install Docker
+2. Set `SEARXNG_BASE_URL`
+3. Start the app
 
-1) Install Docker.
-2) Set in your `.env`:
-
-```env
-SEARXNG_BASE_URL=http://localhost:8080
-```
-
-3) Start the app as usual (`npm run dev:api`, `npm start`, or `npm run start:prod`).
-
-On startup, the scripts will run:
+The startup scripts will automatically run:
 
 ```bash
 docker compose -f docker-compose.searxng.yml up -d
 ```
 
-SearXNG will be available on `http://localhost:8080` and is configured to use **Google** as its engine.
-
-### Running a finalized dist build
-
-The build pipeline copies `.env.prod` into `dist/.env`.
-
-To ensure the dist build picks up those variables (and auto-starts SearXNG when configured), start it via:
-
-- Windows: `dist\\start.cmd`
-- macOS/Linux: `./dist/start.sh`
-
-These scripts run from inside `dist/` so `dist/.env` is always used.
-
-### Option B: No SearXNG (fallback)
-
-If you do **not** set `SEARXNG_BASE_URL`, `web_search` will automatically fall back to the **DuckDuckGo Instant Answer API**.
-
-Note: this fallback is intentionally lightweight and may return fewer / less complete results than a full web search.
+If not configured, the system falls back to DuckDuckGo Instant Answers.
 
 ---
 
-## Two Ways to Run the Application
+## Running the Application
 
-You can choose **one of two modes**, depending on your needs.
-
----
-
-# Option 1: Simple Mode (No HTTPS)
-
-**Best for:**  
-- Local development  
-- Quick testing  
-- Single-device usage  
-
-### Works on
-- Windows
-- macOS
-- Linux
-
-### Steps
+### Development / Local Use
 
 ```bash
 npm install
@@ -183,99 +234,23 @@ npm run build
 npm start
 ```
 
-The app will be available at:
+Access:
 
 ```
 http://localhost:3000/ui
 ```
 
-If `HOST=0.0.0.0`, it is also reachable from other devices:
+LAN access:
 
 ```
 http://<your-lan-ip>:3000/ui
 ```
 
-No HTTPS, no certificates, no extra tools.
-
 ---
 
-# Option 2: LAN Mode with HTTPS (Recommended)
+## Build Output
 
-**Best for:**  
-- Using LM Studio from phones & tablets  
-- Sharing access inside your home network  
-- A “real app” feeling  
-
-This mode uses **Caddy** to provide **local HTTPS**, including:
-- Automatic LAN IP detection
-- Automatic certificate generation
-- Optional automatic trust (Windows)
-
----
-
-## Windows (HTTPS + LAN)
-
-### Requirements
-- Node.js
-- npm
-- Caddy
-
-### Install
-
-```powershell
-install.cmd
-```
-
-> On first run, Windows may ask for permission to trust a local certificate.
-> This is required for HTTPS inside your LAN.
-
-### Start
-
-```powershell
-start.cmd
-```
-
-### Result
-- `https://localhost:8443/ui`
-- `https://<your-lan-ip>:8443/ui`
-
----
-
-## macOS / Linux (HTTPS + LAN)
-
-### Requirements
-- Node.js
-- npm
-- Caddy
-
-Install Caddy:
-- macOS: `brew install caddy`
-- Linux: use your distro’s package manager or official repo
-
-### Install
-
-```bash
-./install.sh
-```
-
-### Start
-
-```bash
-./start.sh
-```
-
-### Result
-- `https://localhost:8443/ui`
-- `https://<your-lan-ip>:8443/ui`
-
-> ⚠️ Browsers will show a certificate warning on first access.  
-> This is expected for local HTTPS.
-
----
-
-## Build Output (`dist/`)
-
-After `npm run build`:
+After build:
 
 ```
 dist/
@@ -290,7 +265,7 @@ dist/
       *.css
 ```
 
-The entire application can be started with:
+Run with:
 
 ```bash
 node dist/main.js
@@ -300,31 +275,29 @@ node dist/main.js
 
 ## Database & Persistence
 
-- SQLite database is created automatically
-- Schema migrations run automatically on startup
-- To reset local state during development:
+- SQLite database created automatically
+- Schema migrations run on startup
+- Reset local state:
   - Stop the app
   - Delete `data/app.sqlite`
   - Restart
 
 ---
 
-## Philosophy
+## Design Philosophy
 
 This project is intentionally:
 
-- **Local-first**
-- **Network-friendly**
-- **Deterministic**
-- **Transparent**
-- **User-controlled**
+- Local-first
+- Deterministic
+- Transparent
+- Tool-driven
+- User-controlled
 
-It exists because **local LLMs matter**, and because LM Studio makes them accessible.  
-This Web UI simply makes that power available **everywhere in your home**, without compromising control or privacy.
+There is no hidden execution, no implicit web access, and no silent data flow.
 
 ---
 
 ## License
 
 UNLICENSED
-
