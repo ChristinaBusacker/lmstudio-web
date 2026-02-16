@@ -206,7 +206,7 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
     );
 
     const raw = (ctx.params as any)?.toolsEnabled;
-    console.log(ctx.params);
+
     const toolsEnabled =
       typeof raw === 'boolean'
         ? raw

@@ -41,6 +41,13 @@ export class ToolOrchestratorService {
   private baseUrl = 'http://127.0.0.1:1234';
   private readonly controllers = new Map<string, AbortController>();
 
+  private readonly TOOL_SYSTEM_PROMPT = `You have access to external tools for up-to-date information:
+- web_search(q, limit): search the web for recent information.
+- web_read(url): read and extract the main text from a webpage URL.
+- doc_read(assetId): read an uploaded document by assetId.
+
+When the user asks for current events, news, live data, or anything beyond your training cutoff, you MUST use web_search/web_read instead of refusing. Only refuse if the tool results are unavailable or clearly insufficient.`;
+
   constructor(
     private readonly config: ConfigService,
     private readonly sse: SseBusService,
@@ -191,7 +198,6 @@ export class ToolOrchestratorService {
 
     if (name === 'doc_read') {
       const out = await this.docRead.read({
-        url: args.url ? String(args.url) : undefined,
         assetId: args.assetId ? String(args.assetId) : undefined,
         runId,
       });
@@ -211,7 +217,6 @@ export class ToolOrchestratorService {
   ): AsyncGenerator<StreamDelta, { content: string; stats?: any }, void> {
     const controller = new AbortController();
     this.controllers.set(runId, controller);
-
     const tools = this.getToolDefinitions();
     const maxRounds = 8;
 
@@ -226,6 +231,16 @@ export class ToolOrchestratorService {
       }
       return { role: m.role, content: m.content };
     });
+
+    // Ensure the model is explicitly informed about tool access.
+    // Many models will not call tools unless instructed, even if tools are provided in the API payload.
+    if (
+      messages.length === 0 ||
+      messages[0].role !== 'system' ||
+      !String(messages[0].content ?? '').includes('You have access to external tools')
+    ) {
+      messages.unshift({ role: 'system', content: this.TOOL_SYSTEM_PROMPT });
+    }
 
     let full = '';
     let stats: any;

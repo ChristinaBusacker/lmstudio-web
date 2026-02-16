@@ -74,17 +74,12 @@ export class DocReaderService {
     private readonly artifacts: RunArtifactsService,
   ) {}
 
-  async read(params: { url?: string; assetId?: string; runId?: string }): Promise<{
+  async read(params: { assetId?: string; runId?: string }): Promise<{
     sourceUrl: string | null;
     sourceAssetId: string | null;
     entries: ParsedFile[];
     artifactId: string | null;
   }> {
-    if (params.url) {
-      throw new Error(
-        'doc_read no longer supports url. Upload the file as an asset and call doc_read with { assetId }.',
-      );
-    }
     if (!params.assetId) {
       throw new Error(
         'doc_read requires assetId. Upload the file as an asset and call doc_read with { assetId }.',

@@ -823,13 +823,12 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       delete paramsForCall.structuredOutput;
     }
 
-    const useTools = toolsEnabled && !Boolean((paramsForCall as any)?.structuredOutput?.enabled);
+    const useTools = toolsEnabled && !structuredEnabled;
     this.logger.log(
       `Workflow LLM node ${nodeId}: toolsEnabled=${toolsEnabled} structuredEnabled=${structuredEnabled} -> ${useTools ? 'ToolOrchestrator' : 'ChatEngine'}`,
     );
 
     const gen = useTools
-      // IMPORTANT: pass the workflow runId (uuid) so tool artifacts fit the run_artifact schema (36 chars)
       ? this.toolOrchestrator.streamWithTools(runId, messages, paramsForCall)
       : this.engine.streamChat(streamId, messages, paramsForCall);
 
