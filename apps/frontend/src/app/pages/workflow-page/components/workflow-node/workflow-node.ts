@@ -47,6 +47,7 @@ import {
   NODE_LOOP_START,
   NODE_MERGE,
   NODE_PREVIEW,
+  NODE_TOOL,
 } from '../../workflow-diagram.adapter';
 import { WorkflowEditorStateService } from '../../workflow-editor-state.service';
 import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
@@ -199,6 +200,31 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     }
 
     this.model.updateNodeData(n.id, { ...n.data, ...patch });
+  }
+
+  updateToolName(name: string): void {
+    this.patchNodeData({ toolName: name });
+  }
+
+  updateToolField(field: keyof DiagramNodeData, value: any): void {
+    this.patchNodeData({ [field]: value } as any);
+  }
+
+  /**
+   * Convenience helper used by various node editors to update node.data.
+   * Keeps undo/dirty state consistent.
+   */
+  patchNodeData(patch: Partial<DiagramNodeData>): void {
+    const n = this.node();
+    if (!n?.id) return;
+
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+
+    this.model.updateNodeData(n.id, {
+      ...n.data,
+      ...patch,
+    });
   }
 
   async uploadAsset(file: File): Promise<void> {
@@ -473,6 +499,7 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
   protected readonly MERGE_OUT_PORT = MERGE_OUT_PORT;
   protected readonly CONDITION_TRUE_PORT = CONDITION_TRUE_PORT;
   protected readonly CONDITION_FALSE_PORT = CONDITION_FALSE_PORT;
+  protected readonly NODE_TOOL = NODE_TOOL;
   nodeTypeLabel(type: string): string {
     // Return i18n key for the given node type.
     switch (type) {
@@ -492,8 +519,14 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
         return 'workflow.nodeType.loopStart';
       case this.NODE_LOOP_END:
         return 'workflow.nodeType.loopEnd';
+      case this.NODE_TOOL:
+        return 'workflow.nodeType.tool';
       default:
         return type; // fallback
     }
+  }
+
+  isTool(): boolean {
+    return this.node().data.nodeType === NODE_TOOL;
   }
 }

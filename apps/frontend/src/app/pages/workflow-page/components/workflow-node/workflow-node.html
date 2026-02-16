@@ -95,6 +95,7 @@
         <option [value]="NODE_MERGE">{{ 'workflow.nodeType.merge' | i18n | async }}</option>
         <option [value]="NODE_EXPORT">{{ 'workflow.nodeType.export' | i18n | async }}</option>
         <option [value]="NODE_PREVIEW">{{ 'workflow.nodeType.preview' | i18n | async }}</option>
+        <option [value]="NODE_TOOL">{{ 'workflow.nodeType.tool' | i18n | async }}</option>
         <option [value]="NODE_CONDITION">{{ 'workflow.nodeType.condition' | i18n | async }}</option>
         <option [value]="NODE_LOOP_START">{{ 'workflow.nodeType.loopStart' | i18n | async }}</option>
         <option [value]="NODE_LOOP_END">{{ 'workflow.nodeType.loopEnd' | i18n | async }}</option>
@@ -220,7 +221,270 @@
       <div class="hint">{{ 'workflow.node.exportHint' | i18n | async }}</div>
     }
 
-    @if (isPreview()) {
+    
+
+@if (isTool()) {
+  <label class="field">
+    <div class="label">{{ 'workflow.node.toolName' | i18n | async }}</div>
+    <select
+      class="config input"
+      [value]="node().data.toolName ?? 'web_search'"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+      (change)="updateToolName($any($event.target).value)"
+    >
+      <option value="web_search">web_search</option>
+      <option value="web_read">web_read</option>
+      <option value="doc_read">doc_read</option>
+      <option value="current_time">current_time</option>
+      <option value="resolve_relative_date">resolve_relative_date</option>
+      <option value="date_math">date_math</option>
+      <option value="math">math</option>
+      <option value="json_validate">json_validate</option>
+      <option value="json_repair">json_repair</option>
+    </select>
+  </label>
+
+  @let tn = node().data.toolName ?? 'web_search';
+
+  @if (tn === 'web_search') {
+    <label class="field">
+      <div class="label">Query</div>
+      <input
+        class="input"
+        type="text"
+        [value]="node().data.webSearchQuery ?? ''"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('webSearchQuery', $any($event.target).value)"
+      />
+    </label>
+    <label class="field">
+      <div class="label">Limit</div>
+      <input
+        class="input"
+        type="number"
+        min="1"
+        max="50"
+        [value]="node().data.webSearchLimit ?? 5"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('webSearchLimit', Number($any($event.target).value))"
+      />
+    </label>
+  }
+
+  @if (tn === 'web_read') {
+    <label class="field">
+      <div class="label">URL</div>
+      <input
+        class="input"
+        type="text"
+        [value]="node().data.webReadUrl ?? ''"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('webReadUrl', $any($event.target).value)"
+      />
+    </label>
+  }
+
+  @if (tn === 'doc_read') {
+    <label class="field">
+      <div class="label">Asset ID</div>
+      <input
+        class="input"
+        type="text"
+        [value]="node().data.docReadAssetId ?? ''"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('docReadAssetId', $any($event.target).value)"
+      />
+    </label>
+  }
+
+  @if (tn === 'current_time') {
+    <label class="field">
+      <div class="label">Timezone</div>
+      <input
+        class="input"
+        type="text"
+        [value]="node().data.currentTimeTimezone ?? 'Europe/Berlin'"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('currentTimeTimezone', $any($event.target).value)"
+      />
+    </label>
+  }
+
+  @if (tn === 'resolve_relative_date') {
+    <label class="field">
+      <div class="label">Text</div>
+      <input
+        class="input"
+        type="text"
+        [value]="node().data.resolveRelativeText ?? ''"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('resolveRelativeText', $any($event.target).value)"
+      />
+    </label>
+    <label class="field">
+      <div class="label">Timezone</div>
+      <input
+        class="input"
+        type="text"
+        [value]="node().data.resolveRelativeTimezone ?? 'Europe/Berlin'"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('resolveRelativeTimezone', $any($event.target).value)"
+      />
+    </label>
+    <label class="field">
+      <div class="label">Base time (optional ISO)</div>
+      <input
+        class="input"
+        type="text"
+        [value]="node().data.resolveRelativeBaseTime ?? ''"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('resolveRelativeBaseTime', $any($event.target).value)"
+      />
+    </label>
+  }
+
+  @if (tn === 'date_math') {
+    <label class="field">
+      <div class="label">Base time (ISO)</div>
+      <input
+        class="input"
+        type="text"
+        [value]="node().data.dateMathBaseTime ?? ''"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('dateMathBaseTime', $any($event.target).value)"
+      />
+    </label>
+    <label class="field">
+      <div class="label">Operation</div>
+      <select
+        class="config input"
+        [value]="node().data.dateMathOperation ?? 'add'"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (change)="updateToolField('dateMathOperation', $any($event.target).value)"
+      >
+        <option value="add">add</option>
+        <option value="startOfDay">startOfDay</option>
+        <option value="endOfDay">endOfDay</option>
+        <option value="roundToHour">roundToHour</option>
+      </select>
+    </label>
+    <label class="field">
+      <div class="label">Amount</div>
+      <input
+        class="input"
+        type="number"
+        [value]="node().data.dateMathAmount ?? 1"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('dateMathAmount', Number($any($event.target).value))"
+      />
+    </label>
+    <label class="field">
+      <div class="label">Unit</div>
+      <select
+        class="config input"
+        [value]="node().data.dateMathUnit ?? 'days'"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (change)="updateToolField('dateMathUnit', $any($event.target).value)"
+      >
+        <option value="minutes">minutes</option>
+        <option value="hours">hours</option>
+        <option value="days">days</option>
+        <option value="weeks">weeks</option>
+        <option value="months">months</option>
+        <option value="years">years</option>
+      </select>
+    </label>
+  }
+
+  @if (tn === 'math') {
+    <label class="field">
+      <div class="label">Expression</div>
+      <input
+        class="input"
+        type="text"
+        [value]="node().data.mathExpression ?? ''"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('mathExpression', $any($event.target).value)"
+      />
+    </label>
+    <label class="field">
+      <div class="label">Precision</div>
+      <input
+        class="input"
+        type="number"
+        min="0"
+        max="20"
+        [value]="node().data.mathPrecision ?? 8"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('mathPrecision', Number($any($event.target).value))"
+      />
+    </label>
+  }
+
+  @if (tn === 'json_validate') {
+    <label class="field">
+      <div class="label">JSON</div>
+      <textarea
+        class="config input"
+        rows="6"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('jsonInput', $any($event.target).value)"
+      >{{ node().data.jsonInput ?? '' }}</textarea>
+    </label>
+    <label class="field">
+      <div class="label">Schema</div>
+      <textarea
+        class="config input"
+        rows="6"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('jsonSchema', $any($event.target).value)"
+      >{{ node().data.jsonSchema ?? '' }}</textarea>
+    </label>
+  }
+
+  @if (tn === 'json_repair') {
+    <label class="field">
+      <div class="label">Text</div>
+      <textarea
+        class="config input"
+        rows="6"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (input)="updateToolField('jsonInput', $any($event.target).value)"
+      >{{ node().data.jsonInput ?? '' }}</textarea>
+    </label>
+  }
+
+  <details class="hint">
+    <summary>Advanced (raw args JSON)</summary>
+    <textarea
+      class="config input"
+      rows="6"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+      (input)="updateToolField('toolArgsJson', $any($event.target).value)"
+    >{{ node().data.toolArgsJson ?? '' }}</textarea>
+  </details>
+}
+
+@if (isPreview()) {
       <label class="field">
         <div class="label">{{ 'workflow.node.maxLines' | i18n | async }}</div>
         <input

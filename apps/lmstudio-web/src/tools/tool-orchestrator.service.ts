@@ -303,6 +303,31 @@ Rules:
     ];
   }
 
+  /**
+   * Execute a tool deterministically (without an LLM tool_call).
+   * Useful for workflow nodes that explicitly define the tool + args.
+   */
+  async executeToolDirect(args: {
+    runId: string;
+    toolName: string;
+    toolArgs: Record<string, any>;
+  }): Promise<{ result: AnyJson; artifactId?: string | null }> {
+    const runId = args.runId;
+    const name = String(args.toolName ?? '').trim();
+    const toolArgs = (args.toolArgs ?? {}) as AnyJson;
+
+    if (!name) throw new Error('toolName is required');
+
+    // Use a synthetic toolCallId for SSE parity.
+    const syntheticCall: ToolCall = {
+      id: `workflow:${Date.now()}:${Math.random().toString(16).slice(2)}`,
+      type: 'function',
+      function: { name, arguments: JSON.stringify(toolArgs) },
+    };
+
+    return this.execTool(runId, syntheticCall);
+  }
+
   private async execTool(
     runId: string,
     call: ToolCall,

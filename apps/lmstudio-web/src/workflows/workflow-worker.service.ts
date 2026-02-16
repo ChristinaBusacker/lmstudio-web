@@ -646,6 +646,76 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    if (nodeType === 'workflow.tool') {
+      const toolName = String(node?.config?.tool?.name ?? '').trim();
+      if (!toolName) throw new Error(`workflow.tool missing config.tool.name (node ${nodeId})`);
+
+      const rawArgs = node?.config?.tool?.args ?? {};
+
+      const renderDeep = (v: any): any => {
+        if (typeof v === 'string') return this.renderTemplate(v, ctx);
+        if (Array.isArray(v)) return v.map(renderDeep);
+        if (v && typeof v === 'object') {
+          const out: any = {};
+          for (const [k, val] of Object.entries(v)) out[k] = renderDeep(val);
+          return out;
+        }
+        return v;
+      };
+
+      const toolArgs = renderDeep(rawArgs);
+
+      const startedAt = new Date();
+      try {
+        const r = await this.toolOrchestrator.executeToolDirect({
+          runId,
+          toolName,
+          toolArgs,
+        });
+
+        const result = r.result;
+        const outputText = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+
+        await this.workflows.upsertNodeRun(runId, nodeId, {
+          iteration,
+          status: 'completed',
+          startedAt,
+          finishedAt: new Date(),
+          outputText,
+          outputJson: result,
+          primaryArtifactId: r.artifactId ?? null,
+          inputSnapshot: {
+            sources: sourcesSorted,
+            note: `workflow.tool ${toolName}`,
+            toolName,
+            toolArgs,
+          },
+          error: null,
+        });
+
+        ctx.nodes[nodeId] = result;
+        return;
+      } catch (e: any) {
+        await this.workflows.upsertNodeRun(runId, nodeId, {
+          iteration,
+          status: 'failed',
+          startedAt,
+          finishedAt: new Date(),
+          outputText: '',
+          outputJson: null,
+          primaryArtifactId: null,
+          inputSnapshot: {
+            sources: sourcesSorted,
+            note: `workflow.tool ${toolName}`,
+            toolName,
+            toolArgs,
+          },
+          error: String(e?.message ?? e),
+        });
+        throw e;
+      }
+    }
+
     if (nodeType === 'workflow.condition') {
       const profileName = String(node.profileName ?? '').trim();
       if (!profileName) throw new Error(`Node ${nodeId} missing profileName`);

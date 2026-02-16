@@ -15,6 +15,7 @@ export const NODE_LOOP = 'workflow.loop';
 export const NODE_MERGE = 'workflow.merge';
 export const NODE_EXPORT = 'workflow.export';
 export const NODE_PREVIEW = 'ui.preview';
+export const NODE_TOOL = 'workflow.tool';
 
 export const CONDITION_TRUE_PORT = 'cond-true';
 export const CONDITION_FALSE_PORT = 'cond-false';
@@ -83,6 +84,43 @@ export type DiagramNodeData = {
   // Per-node LLM structured output override
   structuredOutputEnabled?: boolean;
   structuredOutputSchema?: string;
+
+  // Tool node
+  toolName?: string;
+  // Generic fallback JSON (advanced)
+  toolArgsJson?: string;
+
+  // web_search
+  webSearchQuery?: string;
+  webSearchLimit?: number;
+
+  // web_read
+  webReadUrl?: string;
+
+  // doc_read
+  docReadAssetId?: string;
+
+  // current_time
+  currentTimeTimezone?: string;
+
+  // resolve_relative_date
+  resolveRelativeText?: string;
+  resolveRelativeTimezone?: string;
+  resolveRelativeBaseTime?: string;
+
+  // date_math
+  dateMathBaseTime?: string;
+  dateMathOperation?: 'add' | 'startOfDay' | 'endOfDay' | 'roundToHour';
+  dateMathAmount?: number;
+  dateMathUnit?: 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'years';
+
+  // math
+  mathExpression?: string;
+  mathPrecision?: number;
+
+  // json tools
+  jsonInput?: string;
+  jsonSchema?: string;
 
   // Asset node
   assetId?: string;
@@ -279,6 +317,22 @@ function nodeDefaultsByType(nodeType: string): Partial<DiagramNodeData> {
     };
   }
 
+  if (nodeType === NODE_TOOL) {
+    return {
+      toolName: 'web_search',
+      webSearchQuery: '',
+      webSearchLimit: 5,
+      currentTimeTimezone: 'Europe/Berlin',
+      resolveRelativeTimezone: 'Europe/Berlin',
+      dateMathOperation: 'add',
+      dateMathAmount: 1,
+      dateMathUnit: 'days',
+      mathPrecision: 8,
+      jsonInput: '',
+      jsonSchema: '{\n  "type": "object"\n}',
+    };
+  }
+
   if (nodeType === NODE_ASSET) {
     return {
       assetId: '',
@@ -393,7 +447,23 @@ export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
         }
       }
 
-      if (nodeType === NODE_ASSET) {
+      if (nodeType === NODE_TOOL) {
+    return {
+      toolName: 'web_search',
+      webSearchQuery: '',
+      webSearchLimit: 5,
+      currentTimeTimezone: 'Europe/Berlin',
+      resolveRelativeTimezone: 'Europe/Berlin',
+      dateMathOperation: 'add',
+      dateMathAmount: 1,
+      dateMathUnit: 'days',
+      mathPrecision: 8,
+      jsonInput: '',
+      jsonSchema: '{\n  "type": "object"\n}',
+    };
+  }
+
+  if (nodeType === NODE_ASSET) {
         config.asset = {
           assetId: String(n.data?.assetId ?? ''),
           extract: true,

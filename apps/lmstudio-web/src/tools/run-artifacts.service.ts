@@ -11,7 +11,12 @@ export class RunArtifactsService {
     private readonly artifacts: Repository<RunArtifactEntity>,
   ) {}
 
-  async createJson(params: { runId: string; toolName?: string | null; json: any; filename?: string }) {
+  async createJson(params: {
+    runId: string;
+    toolName?: string | null;
+    json: any;
+    filename?: string;
+  }) {
     const a = this.artifacts.create({
       runId: params.runId,
       toolName: params.toolName ?? null,
