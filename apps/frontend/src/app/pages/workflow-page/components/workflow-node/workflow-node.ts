@@ -54,7 +54,14 @@ import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 @Component({
   selector: 'app-workflow-node',
   standalone: true,
-  imports: [CommonModule, FormsModule, NgDiagramPortComponent, NgDiagramNodeResizeAdornmentComponent, Icon, I18nPipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    NgDiagramPortComponent,
+    NgDiagramNodeResizeAdornmentComponent,
+    Icon,
+    I18nPipe,
+  ],
   hostDirectives: [{ directive: NgDiagramNodeSelectedDirective, inputs: ['node'] }],
   templateUrl: './workflow-node.html',
   styleUrls: ['./workflow-node.scss'],
@@ -180,6 +187,7 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
       patch.loopConditionPrompt = n.data.loopConditionPrompt ?? 'Are we done?';
       patch.loopJoiner = n.data.loopJoiner ?? '\n\n';
       patch.loopMaxIterations = n.data.loopMaxIterations ?? 10;
+      patch.loopCount = n.data.loopCount ?? 3;
     }
 
     if (value === NODE_ASSET) {
@@ -187,7 +195,7 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
       patch.assetFilename = n.data.assetFilename ?? '';
       patch.assetMimeType = n.data.assetMimeType ?? null;
       patch.assetSha256 = n.data.assetSha256 ?? '';
-      patch.assetExtract = n.data.assetExtract ?? false;
+      patch.assetExtract = true;
     }
 
     this.model.updateNodeData(n.id, { ...n.data, ...patch });
@@ -217,13 +225,6 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     input.value = '';
   }
 
-  updateAssetExtract(value: boolean): void {
-    const n = this.node();
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-    this.model.updateNodeData(n.id, { ...n.data, assetExtract: value });
-  }
-
   updateMergeSeparator(value: string): void {
     const n = this.node();
     this.editorState.requestSnapshot();
@@ -245,7 +246,7 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     this.model.updateNodeData(n.id, { ...n.data, previewMaxLines: value });
   }
 
-  updateLoopMode(value: 'while' | 'until'): void {
+  updateLoopMode(value: 'while' | 'until' | 'count'): void {
     const n = this.node();
     this.editorState.requestSnapshot();
     this.editorState.markDirty();
@@ -274,6 +275,13 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     this.model.updateNodeData(n.id, { ...n.data, loopMaxIterations: v });
   }
 
+  updateLoopCount(value: number): void {
+    const n = this.node();
+    const v = Math.max(1, Math.min(1000, Number(value)));
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+    this.model.updateNodeData(n.id, { ...n.data, loopCount: v });
+  }
 
   updateStructuredOutputEnabled(value: boolean): void {
     const n = this.node();
@@ -488,5 +496,4 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
         return type; // fallback
     }
   }
-
 }

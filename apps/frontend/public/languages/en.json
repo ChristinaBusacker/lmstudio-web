@@ -210,5 +210,7 @@
   "workflow.node.structuredOutput.hint": "Overrides the profile settings for this node only.",
   "workflow.node.asset.file": "File",
   "workflow.node.asset.extract": "Extract content",
-  "workflow.node.asset.extractHint": "If enabled, the backend tries to extract text/JSON from the asset (PDF/DOCX/TXT/JSON/JS/TS). Images and scanned PDFs are not interpreted yet."
+  "workflow.node.asset.extractHint": "The backend extracts text/JSON from the asset when possible (PDF/DOCX/TXT/JSON/JS/TS).",
+  "workflow.node.loop.count": "Repeat N times",
+  "workflow.node.loopCount": "Iterations"
 }

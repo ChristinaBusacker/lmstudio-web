@@ -75,8 +75,9 @@ export type DiagramNodeData = {
 
   // Structural loopStart fields
   loopMaxIterations?: number;
-  loopMode?: 'while' | 'until';
+  loopMode?: 'while' | 'until' | 'count';
   loopConditionPrompt?: string;
+  loopCount?: number;
   previewMaxLines?: number;
 
   // Per-node LLM structured output override
@@ -249,6 +250,7 @@ function nodeDefaultsByType(nodeType: string): Partial<DiagramNodeData> {
       loopConditionPrompt: 'Are we done?',
       loopJoiner: '\n\n',
       loopMaxIterations: 10,
+      loopCount: 3,
     };
   }
 
@@ -280,7 +282,7 @@ function nodeDefaultsByType(nodeType: string): Partial<DiagramNodeData> {
   if (nodeType === NODE_ASSET) {
     return {
       assetId: '',
-      assetExtract: false,
+      assetExtract: true,
     };
   }
 
@@ -320,6 +322,7 @@ export function workflowToDiagramModel(workflow: Workflow): DiagramModel {
           loopJoiner: cfg?.loop?.joiner ?? defaults.loopJoiner,
           loopMaxIterations:
             cfg?.loop?.maxIterations ?? cfg?.loop?.maxItems ?? defaults.loopMaxIterations,
+          loopCount: cfg?.loop?.count ?? defaults.loopCount,
 
           // Legacy loop
           loopItemPath: cfg?.loop?.itemPath ?? defaults.loopItemPath,
@@ -333,7 +336,7 @@ export function workflowToDiagramModel(workflow: Workflow): DiagramModel {
             : '',
 
           assetId: cfg?.asset?.assetId ?? '',
-          assetExtract: cfg?.asset?.extract ?? false,
+          assetExtract: cfg?.asset?.extract ?? true,
         } satisfies DiagramNodeData,
       };
     }),
@@ -393,7 +396,7 @@ export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
       if (nodeType === NODE_ASSET) {
         config.asset = {
           assetId: String(n.data?.assetId ?? ''),
-          extract: Boolean(n.data?.assetExtract ?? false),
+          extract: true,
         };
       }
 
@@ -422,6 +425,7 @@ export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
           conditionPrompt: String(n.data?.loopConditionPrompt ?? ''),
           joiner: String(n.data?.loopJoiner ?? '\n\n'),
           maxIterations: Number(n.data?.loopMaxIterations ?? 10),
+          count: Number(n.data?.loopCount ?? 3),
         };
       }
 

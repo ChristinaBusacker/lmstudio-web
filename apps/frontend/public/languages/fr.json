@@ -204,11 +204,13 @@
   "workflow.runs.none": "Aucune exécution pour le moment.",
   "workflow.runs.selectRun": "Sélectionnez une exécution pour voir ses exports.",
   "workflow.runs.title": "Exécutions",
-  "workflow.node.structuredOutput.enable": "Remplacer la sortie structur\u00e9e",
-  "workflow.node.structuredOutput.schema": "Sch\u00e9ma JSON",
+  "workflow.node.structuredOutput.enable": "Remplacer la sortie structurée",
+  "workflow.node.structuredOutput.schema": "Schéma JSON",
   "workflow.node.structuredOutput.schemaPlaceholder": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  },\n  \"required\": [\"answer\"]\n}",
   "workflow.node.structuredOutput.hint": "Remplace les paramètres du profil uniquement pour ce nœud.",
   "workflow.node.asset.file": "Fichier",
   "workflow.node.asset.extract": "Extraire le contenu",
-  "workflow.node.asset.extractHint": "Si activé, le backend tente d’extraire du texte/JSON de la ressource (PDF/DOCX/TXT/JSON/JS/TS). Les images et les PDF scannés ne sont pas encore interprétés."
+  "workflow.node.asset.extractHint": "Le backend extrait du texte/JSON de l’asset quand c’est possible (PDF/DOCX/TXT/JSON/JS/TS).",
+  "workflow.node.loop.count": "Répéter N fois",
+  "workflow.node.loopCount": "Itérations"
 }
