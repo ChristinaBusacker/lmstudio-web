@@ -106,3 +106,5 @@ Caddyfile.local
 PATH.txt
 data/assets
 data/assets/*
+
+eng.traineddata
