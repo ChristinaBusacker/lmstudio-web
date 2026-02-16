@@ -442,12 +442,30 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       return port === COND_FALSE_PORT;
     });
 
-    const sourcesSorted = edgesIn
+    /**
+     * Data-flow vs control-flow
+     * -----------------------
+     * We treat only "right -> left" edges as *data* inputs that should be automatically
+     * appended/passed to the next node (without requiring {{input}} templating).
+     * Condition branches (cond-true/cond-false) are control edges and should not become input.
+     */
+    const activeSourcesSorted = edgesIn
       .map((e) => e.source)
       .slice()
       .sort((a, b) => a.localeCompare(b));
 
-    if (edgesInAll.length > 0 && sourcesSorted.length === 0) {
+    const dataEdges = edgesIn.filter(
+      (e) =>
+        String(e.sourcePort ?? '') === 'port-right' && String(e.targetPort ?? '') === 'port-left',
+    );
+
+    const sourcesSorted = dataEdges
+      .map((e) => e.source)
+      .slice()
+      .sort((a, b) => a.localeCompare(b));
+
+    // If this node has incoming edges, but none are active (inactive condition branch), skip execution.
+    if (edgesInAll.length > 0 && activeSourcesSorted.length === 0) {
       await this.workflows.upsertNodeRun(runId, nodeId, {
         iteration,
         status: 'completed',
@@ -466,19 +484,24 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    // Build automatic input from upstream *data* dependencies.
+    // - single upstream: pass through raw value
+    // - multiple upstream: append as text blocks in a deterministic order
     if (sourcesSorted.length === 1) {
       const src = sourcesSorted[0];
       if (!(src in ctx.nodes))
         throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
       ctx.input = ctx.nodes[src];
     } else if (sourcesSorted.length > 1) {
-      const obj: Record<string, any> = {};
+      const parts: string[] = [];
       for (const src of sourcesSorted) {
         if (!(src in ctx.nodes))
           throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
-        obj[src] = ctx.nodes[src];
+        const t = this.toText(ctx.nodes[src]).trim();
+        if (!t) continue;
+        parts.push(`### Input from ${src}\n${t}`);
       }
-      ctx.input = obj;
+      ctx.input = parts.join('\n\n---\n\n');
     } else {
       ctx.input = null;
     }
@@ -1587,7 +1610,10 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
           const toolArgs = renderAny(rawArgs) as Record<string, any>;
 
+          const iteration = (ctx as any)?.iteration ?? 0;
+
           await this.workflows.upsertNodeRun(runId, nodeId, {
+            iteration,
             status: 'running',
             startedAt: new Date(),
             inputSnapshot: {
