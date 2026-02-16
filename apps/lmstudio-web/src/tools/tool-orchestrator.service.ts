@@ -46,7 +46,11 @@ export class ToolOrchestratorService {
 - web_read(url): read and extract the main text from a webpage URL.
 - doc_read(assetId): read an uploaded document by assetId.
 
-When the user asks for current events, news, live data, or anything beyond your training cutoff, you MUST use web_search/web_read instead of refusing. Only refuse if the tool results are unavailable or clearly insufficient.`;
+Rules:
+- When the user asks for current events, news, live data, or anything beyond your training cutoff, you MUST use web_search/web_read instead of refusing.
+- If tool results are present in this conversation, treat them as authoritative input and answer using them.
+- Do NOT claim you "can't browse" or "don't have access" when tools and tool results are available.
+- Only refuse if tool execution fails or returns no usable results.`;
 
   constructor(
     private readonly config: ConfigService,
@@ -256,7 +260,9 @@ When the user asks for current events, news, live data, or anything beyond your 
         // Append assistant message that contains tool_calls (OpenAI format)
         messages.push({
           role: 'assistant',
-          content: roundResult.finalContent ?? '',
+          // IMPORTANT: When tool_calls are present, OpenAI-compatible servers often expect content to be null.
+          // Some servers/models ignore tool results if the tool-calling assistant message had an empty string here.
+          content: null,
           tool_calls: roundResult.toolCalls.map((c) => ({
             id: c.id,
             type: 'function',

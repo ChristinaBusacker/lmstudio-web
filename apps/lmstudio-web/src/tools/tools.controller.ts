@@ -41,6 +41,6 @@ export class ToolsController {
     entries: ParsedFile[];
     artifactId: string | null;
   }> {
-    return this.docRead.read({ url: body.url, assetId: body.assetId, runId: body.runId });
+    return this.docRead.read({ assetId: body.assetId, runId: body.runId });
   }
 }
