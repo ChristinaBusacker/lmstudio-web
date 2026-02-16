@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -51,7 +52,7 @@ import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 @Component({
   selector: 'app-workflow-node',
   standalone: true,
-  imports: [CommonModule, NgDiagramPortComponent, NgDiagramNodeResizeAdornmentComponent, Icon, I18nPipe],
+  imports: [CommonModule, FormsModule, NgDiagramPortComponent, NgDiagramNodeResizeAdornmentComponent, Icon, I18nPipe],
   hostDirectives: [{ directive: NgDiagramNodeSelectedDirective, inputs: ['node'] }],
   templateUrl: './workflow-node.html',
   styleUrls: ['./workflow-node.scss'],

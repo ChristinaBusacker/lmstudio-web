@@ -85,10 +85,10 @@
       <div class="label">{{ 'workflow.node.nodeType' | i18n | async }}</div>
       <select
         class="config input"
-        [value]="node().data.nodeType"
+        [ngModel]="node().data.nodeType"
+        (ngModelChange)="updateNodeType($event)"
         (pointerdown)="$event.stopPropagation()"
         (wheel)="$event.stopPropagation()"
-        (change)="updateNodeType($event.target.value)"
       >
         <option [value]="NODE_LLM">{{ 'workflow.nodeType.llm' | i18n | async }}</option>
         <option [value]="NODE_MERGE">{{ 'workflow.nodeType.merge' | i18n | async }}</option>
