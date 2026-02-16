@@ -1587,10 +1587,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
           const toolArgs = renderAny(rawArgs) as Record<string, any>;
 
-          const iteration = (ctx as any)?.iteration ?? 0;
-
           await this.workflows.upsertNodeRun(runId, nodeId, {
-            iteration,
             status: 'running',
             startedAt: new Date(),
             inputSnapshot: {
@@ -1629,7 +1626,6 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           }
 
           await this.workflows.upsertNodeRun(runId, nodeId, {
-            iteration,
             status: 'completed',
             finishedAt: new Date(),
             outputText,
@@ -1644,7 +1640,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           });
 
           ctx.nodes[nodeId] = result;
-          return;
+          continue;
         }
 
         if (nodeType === 'workflow.condition') {
