@@ -52,7 +52,14 @@ import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 @Component({
   selector: 'app-workflow-node',
   standalone: true,
-  imports: [CommonModule, FormsModule, NgDiagramPortComponent, NgDiagramNodeResizeAdornmentComponent, Icon, I18nPipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    NgDiagramPortComponent,
+    NgDiagramNodeResizeAdornmentComponent,
+    Icon,
+    I18nPipe,
+  ],
   hostDirectives: [{ directive: NgDiagramNodeSelectedDirective, inputs: ['node'] }],
   templateUrl: './workflow-node.html',
   styleUrls: ['./workflow-node.scss'],
@@ -231,6 +238,23 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     this.model.updateNodeData(n.id, { ...n.data, loopMaxIterations: v });
   }
 
+  updateStructuredOutputEnabled(value: boolean): void {
+    const n = this.node();
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+    this.model.updateNodeData(n.id, {
+      ...n.data,
+      structuredOutputEnabled: Boolean(value),
+      structuredOutputSchema: n.data.structuredOutputSchema ?? '',
+    });
+  }
+
+  updateStructuredOutputSchema(value: string): void {
+    const n = this.node();
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+    this.model.updateNodeData(n.id, { ...n.data, structuredOutputSchema: String(value) });
+  }
   deleteNode(): void {
     const n = this.node();
     this.editorState.requestSnapshot();
@@ -424,5 +448,4 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
         return type; // fallback
     }
   }
-
 }

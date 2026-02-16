@@ -77,6 +77,10 @@ export type DiagramNodeData = {
   loopMode?: 'while' | 'until';
   loopConditionPrompt?: string;
   previewMaxLines?: number;
+
+  // Per-node LLM structured output override
+  structuredOutputEnabled?: boolean;
+  structuredOutputSchema?: string;
 };
 
 export const WORKFLOW_NODE_TEMPLATE = 'workflowNode';
@@ -306,6 +310,11 @@ export function workflowToDiagramModel(workflow: Workflow): DiagramModel {
           loopMaxItems: cfg?.loop?.maxItems ?? defaults.loopMaxItems,
 
           previewMaxLines: cfg?.preview?.maxLines ?? defaults.previewMaxLines,
+
+          structuredOutputEnabled: cfg?.llm?.structuredOutput?.enabled ?? false,
+          structuredOutputSchema: cfg?.llm?.structuredOutput?.schema
+            ? JSON.stringify(cfg?.llm?.structuredOutput?.schema, null, 2)
+            : '',
         } satisfies DiagramNodeData,
       };
     }),
@@ -337,6 +346,30 @@ export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
       const nodeType = String(n.data?.nodeType ?? NODE_LLM);
 
       const config: any = {};
+
+      if (nodeType === NODE_LLM) {
+        const enabled = Boolean(n.data?.structuredOutputEnabled);
+        const schemaText = String(n.data?.structuredOutputSchema ?? '').trim();
+        if (enabled) {
+          let schema: any = { type: 'object' };
+          if (schemaText) {
+            try {
+              schema = JSON.parse(schemaText);
+            } catch {
+              // Keep a minimal fallback schema if the user entered invalid JSON.
+              schema = { type: 'object' };
+            }
+          }
+          config.llm = {
+            structuredOutput: {
+              enabled: true,
+              strict: true,
+              name: 'node_structured_output',
+              schema,
+            },
+          };
+        }
+      }
 
       if (nodeType === NODE_MERGE) {
         config.merge = {

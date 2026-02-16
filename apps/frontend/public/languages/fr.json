@@ -202,5 +202,9 @@
   "workflow.run.resume": "Reprendre",
   "workflow.runs.none": "Aucune exécution pour le moment.",
   "workflow.runs.selectRun": "Sélectionnez une exécution pour voir ses exports.",
-  "workflow.runs.title": "Exécutions"
+  "workflow.runs.title": "Exécutions",
+  "workflow.node.structuredOutput.enable": "Remplacer la sortie structur\u00e9e",
+  "workflow.node.structuredOutput.schema": "Sch\u00e9ma JSON",
+  "workflow.node.structuredOutput.schemaPlaceholder": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  },\n  \"required\": [\"answer\"]\n}",
+  "workflow.node.structuredOutput.hint": "Remplace les param\u00e8tres du profil uniquement pour ce n\u0153ud."
 }

@@ -189,3 +189,14 @@
     padding-left: 8px;
   }
 }
+
+.field.inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label-inline {
+  font-size: 12px;
+  opacity: 0.9;
+}

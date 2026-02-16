@@ -202,5 +202,9 @@
   "workflow.run.resume": "Resume run",
   "workflow.runs.none": "No runs yet.",
   "workflow.runs.selectRun": "Select a run to see its exports.",
-  "workflow.runs.title": "Runs"
+  "workflow.runs.title": "Runs",
+  "workflow.node.structuredOutput.enable": "Enable structured output override",
+  "workflow.node.structuredOutput.schema": "JSON Schema",
+  "workflow.node.structuredOutput.schemaPlaceholder": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  },\n  \"required\": [\"answer\"]\n}",
+  "workflow.node.structuredOutput.hint": "Overrides the profile settings for this node only."
 }
