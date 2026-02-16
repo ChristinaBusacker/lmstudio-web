@@ -70,6 +70,8 @@
     "unzipper": "^0.12.3",
     "uuid": "^13.0.0",
     "file-type": "^20.0.0"
+    ,
+    "mammoth": "^1.8.0"
   },
   "devDependencies": {
     "@angular/animations": "^21.1.0",

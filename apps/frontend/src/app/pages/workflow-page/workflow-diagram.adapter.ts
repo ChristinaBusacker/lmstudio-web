@@ -4,6 +4,7 @@
 import { Workflow } from '@frontend/src/app/core/state/workflows/workflow.models';
 
 export const NODE_LLM = 'lmstudio.llm';
+export const NODE_ASSET = 'workflow.asset';
 export const NODE_CONDITION = 'workflow.condition';
 // Structural loop nodes (loop body is everything between start and end)
 export const NODE_LOOP_START = 'workflow.loopStart';
@@ -81,6 +82,13 @@ export type DiagramNodeData = {
   // Per-node LLM structured output override
   structuredOutputEnabled?: boolean;
   structuredOutputSchema?: string;
+
+  // Asset node
+  assetId?: string;
+  assetFilename?: string;
+  assetMimeType?: string | null;
+  assetSha256?: string;
+  assetExtract?: boolean;
 };
 
 export const WORKFLOW_NODE_TEMPLATE = 'workflowNode';
@@ -268,6 +276,14 @@ function nodeDefaultsByType(nodeType: string): Partial<DiagramNodeData> {
       previewMaxLines: 10,
     };
   }
+
+  if (nodeType === NODE_ASSET) {
+    return {
+      assetId: '',
+      assetExtract: false,
+    };
+  }
+
   return {};
 }
 
@@ -315,6 +331,9 @@ export function workflowToDiagramModel(workflow: Workflow): DiagramModel {
           structuredOutputSchema: cfg?.llm?.structuredOutput?.schema
             ? JSON.stringify(cfg?.llm?.structuredOutput?.schema, null, 2)
             : '',
+
+          assetId: cfg?.asset?.assetId ?? '',
+          assetExtract: cfg?.asset?.extract ?? false,
         } satisfies DiagramNodeData,
       };
     }),
@@ -369,6 +388,13 @@ export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
             },
           };
         }
+      }
+
+      if (nodeType === NODE_ASSET) {
+        config.asset = {
+          assetId: String(n.data?.assetId ?? ''),
+          extract: Boolean(n.data?.assetExtract ?? false),
+        };
       }
 
       if (nodeType === NODE_MERGE) {

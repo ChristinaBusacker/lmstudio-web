@@ -191,6 +191,7 @@
   "workflow.nodeType.condition": "Condition",
   "workflow.nodeType.export": "Exporter",
   "workflow.nodeType.llm": "LLM",
+  "workflow.nodeType.asset": "Ressource",
   "workflow.nodeType.loopEnd": "Fin de boucle",
   "workflow.nodeType.loopStart": "Début de boucle",
   "workflow.nodeType.merge": "Fusionner",
@@ -206,5 +207,8 @@
   "workflow.node.structuredOutput.enable": "Remplacer la sortie structur\u00e9e",
   "workflow.node.structuredOutput.schema": "Sch\u00e9ma JSON",
   "workflow.node.structuredOutput.schemaPlaceholder": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  },\n  \"required\": [\"answer\"]\n}",
-  "workflow.node.structuredOutput.hint": "Remplace les param\u00e8tres du profil uniquement pour ce n\u0153ud."
+  "workflow.node.structuredOutput.hint": "Remplace les paramètres du profil uniquement pour ce nœud.",
+  "workflow.node.asset.file": "Fichier",
+  "workflow.node.asset.extract": "Extraire le contenu",
+  "workflow.node.asset.extractHint": "Si activé, le backend tente d’extraire du texte/JSON de la ressource (PDF/DOCX/TXT/JSON/JS/TS). Les images et les PDF scannés ne sont pas encore interprétés."
 }

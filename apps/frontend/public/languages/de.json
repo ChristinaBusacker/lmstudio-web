@@ -191,6 +191,7 @@
   "workflow.nodeType.condition": "Bedingung",
   "workflow.nodeType.export": "Export",
   "workflow.nodeType.llm": "LLM",
+  "workflow.nodeType.asset": "Asset",
   "workflow.nodeType.loopEnd": "Loop end",
   "workflow.nodeType.loopStart": "Loop start",
   "workflow.nodeType.merge": "Zusammenführen",
@@ -206,5 +207,8 @@
   "workflow.node.structuredOutput.enable": "Structured Output \u00fcberschreiben",
   "workflow.node.structuredOutput.schema": "JSON Schema",
   "workflow.node.structuredOutput.schemaPlaceholder": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  },\n  \"required\": [\"answer\"]\n}",
-  "workflow.node.structuredOutput.hint": "\u00dcberschreibt die Profileinstellungen nur f\u00fcr diesen Node."
+  "workflow.node.structuredOutput.hint": "\u00dcberschreibt die Profileinstellungen nur f\u00fcr diesen Node.",
+  "workflow.node.asset.file": "Datei",
+  "workflow.node.asset.extract": "Inhalt extrahieren",
+  "workflow.node.asset.extractHint": "Wenn aktiviert, versucht das Backend Text/JSON aus dem Asset zu extrahieren (PDF/DOCX/TXT/JSON/JS/TS). Bilder und gescannte PDFs werden noch nicht interpretiert."
 }

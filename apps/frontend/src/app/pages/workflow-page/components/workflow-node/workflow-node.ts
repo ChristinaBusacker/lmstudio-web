@@ -19,6 +19,7 @@ import { WorkflowsState } from '@frontend/src/app/core/state/workflows/workflow.
 import { shortId } from '@frontend/src/app/core/utils/shortId.util';
 import { Icon } from '@frontend/src/app/ui/icon/icon';
 import { Store } from '@ngxs/store';
+import { AssetsApi, type AssetDto } from '@frontend/src/app/core/api/assets.api';
 import {
   NgDiagramModelService,
   NgDiagramNodeResizeAdornmentComponent,
@@ -28,7 +29,7 @@ import {
   type NgDiagramNodeTemplate,
   type Node,
 } from 'ng-diagram';
-import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
 import {
   CONDITION_FALSE_PORT,
   CONDITION_TRUE_PORT,
@@ -37,6 +38,7 @@ import {
   DiagramNodeData,
   MERGE_IN_PREFIX,
   MERGE_OUT_PORT,
+  NODE_ASSET,
   NODE_CONDITION,
   NODE_EXPORT,
   NODE_LLM,
@@ -52,14 +54,7 @@ import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 @Component({
   selector: 'app-workflow-node',
   standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    NgDiagramPortComponent,
-    NgDiagramNodeResizeAdornmentComponent,
-    Icon,
-    I18nPipe,
-  ],
+  imports: [CommonModule, FormsModule, NgDiagramPortComponent, NgDiagramNodeResizeAdornmentComponent, Icon, I18nPipe],
   hostDirectives: [{ directive: NgDiagramNodeSelectedDirective, inputs: ['node'] }],
   templateUrl: './workflow-node.html',
   styleUrls: ['./workflow-node.scss'],
@@ -68,6 +63,7 @@ import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeData> {
   private readonly model = inject(NgDiagramModelService);
   private readonly store = inject(Store);
+  private readonly assetsApi = inject(AssetsApi);
   private readonly editorState = inject(WorkflowEditorStateService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -97,6 +93,7 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
   nodeType = computed(() => this.node().data.nodeType);
 
   readonly isLlm = computed(() => this.nodeType() === NODE_LLM);
+  readonly isAsset = computed(() => this.nodeType() === NODE_ASSET);
   readonly isCondition = computed(() => this.nodeType() === NODE_CONDITION);
   readonly isMerge = computed(() => this.nodeType() === NODE_MERGE);
   readonly isExport = computed(() => this.nodeType() === NODE_EXPORT);
@@ -185,7 +182,46 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
       patch.loopMaxIterations = n.data.loopMaxIterations ?? 10;
     }
 
+    if (value === NODE_ASSET) {
+      patch.assetId = n.data.assetId ?? '';
+      patch.assetFilename = n.data.assetFilename ?? '';
+      patch.assetMimeType = n.data.assetMimeType ?? null;
+      patch.assetSha256 = n.data.assetSha256 ?? '';
+      patch.assetExtract = n.data.assetExtract ?? false;
+    }
+
     this.model.updateNodeData(n.id, { ...n.data, ...patch });
+  }
+
+  async uploadAsset(file: File): Promise<void> {
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+
+    const dto: AssetDto = await firstValueFrom(this.assetsApi.upload(file));
+    const n = this.node();
+    this.model.updateNodeData(n.id, {
+      ...n.data,
+      assetId: dto.id,
+      assetFilename: dto.originalFilename,
+      assetMimeType: dto.mimeType,
+      assetSha256: dto.sha256,
+    });
+  }
+
+  async onAssetFileSelected(evt: Event): Promise<void> {
+    const input = evt.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    await this.uploadAsset(file);
+    // Reset so selecting the same file again still triggers change.
+    input.value = '';
+  }
+
+  updateAssetExtract(value: boolean): void {
+    const n = this.node();
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+    this.model.updateNodeData(n.id, { ...n.data, assetExtract: value });
   }
 
   updateMergeSeparator(value: string): void {
@@ -237,6 +273,7 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     this.editorState.markDirty();
     this.model.updateNodeData(n.id, { ...n.data, loopMaxIterations: v });
   }
+
 
   updateStructuredOutputEnabled(value: boolean): void {
     const n = this.node();
@@ -417,6 +454,7 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
   }
 
   protected readonly NODE_LLM = NODE_LLM;
+  protected readonly NODE_ASSET = NODE_ASSET;
   protected readonly NODE_CONDITION = NODE_CONDITION;
   protected readonly NODE_LOOP = NODE_LOOP;
   protected readonly NODE_LOOP_START = NODE_LOOP_START;
@@ -432,6 +470,8 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     switch (type) {
       case this.NODE_LLM:
         return 'workflow.nodeType.llm';
+      case this.NODE_ASSET:
+        return 'workflow.nodeType.asset';
       case this.NODE_MERGE:
         return 'workflow.nodeType.merge';
       case this.NODE_EXPORT:
@@ -448,4 +488,5 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
         return type; // fallback
     }
   }
+
 }

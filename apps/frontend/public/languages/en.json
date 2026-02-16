@@ -195,6 +195,7 @@
   "workflow.nodeType.loopStart": "Loop start",
   "workflow.nodeType.merge": "Merge",
   "workflow.nodeType.preview": "Preview",
+  "workflow.nodeType.asset": "Asset",
   "workflow.port.out": "out",
   "workflow.run.cancel": "Cancel run",
   "workflow.run.inProgress": "Run in progress",
@@ -206,5 +207,8 @@
   "workflow.node.structuredOutput.enable": "Enable structured output override",
   "workflow.node.structuredOutput.schema": "JSON Schema",
   "workflow.node.structuredOutput.schemaPlaceholder": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"answer\": { \"type\": \"string\" }\n  },\n  \"required\": [\"answer\"]\n}",
-  "workflow.node.structuredOutput.hint": "Overrides the profile settings for this node only."
+  "workflow.node.structuredOutput.hint": "Overrides the profile settings for this node only.",
+  "workflow.node.asset.file": "File",
+  "workflow.node.asset.extract": "Extract content",
+  "workflow.node.asset.extractHint": "If enabled, the backend tries to extract text/JSON from the asset (PDF/DOCX/TXT/JSON/JS/TS). Images and scanned PDFs are not interpreted yet."
 }

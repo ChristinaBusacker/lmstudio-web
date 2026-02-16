@@ -91,16 +91,46 @@
         (wheel)="$event.stopPropagation()"
       >
         <option [value]="NODE_LLM">{{ 'workflow.nodeType.llm' | i18n | async }}</option>
+        <option [value]="NODE_ASSET">{{ 'workflow.nodeType.asset' | i18n | async }}</option>
         <option [value]="NODE_MERGE">{{ 'workflow.nodeType.merge' | i18n | async }}</option>
         <option [value]="NODE_EXPORT">{{ 'workflow.nodeType.export' | i18n | async }}</option>
         <option [value]="NODE_PREVIEW">{{ 'workflow.nodeType.preview' | i18n | async }}</option>
         <option [value]="NODE_CONDITION">{{ 'workflow.nodeType.condition' | i18n | async }}</option>
-        <option [value]="NODE_LOOP_START">
-          {{ 'workflow.nodeType.loopStart' | i18n | async }}
-        </option>
+        <option [value]="NODE_LOOP_START">{{ 'workflow.nodeType.loopStart' | i18n | async }}</option>
         <option [value]="NODE_LOOP_END">{{ 'workflow.nodeType.loopEnd' | i18n | async }}</option>
       </select>
     </label>
+
+    @if (isAsset()) {
+      <label class="field">
+        <div class="label">{{ 'workflow.node.asset.file' | i18n | async }}</div>
+        <input
+          class="config input"
+          type="file"
+          (pointerdown)="$event.stopPropagation()"
+          (change)="onAssetFileSelected($event)"
+        />
+        @if (node().data.assetId) {
+          <div class="hint">
+            <div><strong>{{ node().data.assetFilename }}</strong></div>
+            <div>ID: <code>{{ node().data.assetId }}</code></div>
+            @if (node().data.assetSha256) { <div>SHA256: <code>{{ node().data.assetSha256 }}</code></div> }
+          </div>
+        }
+      </label>
+
+      <label class="field inline">
+        <input
+          type="checkbox"
+          [checked]="node().data.assetExtract ?? false"
+          (pointerdown)="$event.stopPropagation()"
+          (change)="updateAssetExtract($any($event.target).checked)"
+        />
+        <span class="label-inline">{{ 'workflow.node.asset.extract' | i18n | async }}</span>
+      </label>
+
+      <div class="hint">{{ 'workflow.node.asset.extractHint' | i18n | async }}</div>
+    }
 
     @if (isLlm() || isCondition() || isLoopStart()) {
       <label class="field">
@@ -144,9 +174,7 @@
               (pointerdown)="$event.stopPropagation()"
               (change)="updateStructuredOutputEnabled($any($event.target).checked)"
             />
-            <span class="label-inline">{{
-              'workflow.node.structuredOutput.enable' | i18n | async
-            }}</span>
+            <span class="label-inline">{{ 'workflow.node.structuredOutput.enable' | i18n | async }}</span>
           </label>
 
           @if (node().data.structuredOutputEnabled) {
@@ -304,8 +332,7 @@
       <div class="hint">
         {{ 'workflow.node.loopHint.before' | i18n | async }} <code>{{ '{{loop.index}}' }}</code>
         {{ 'workflow.node.loopHint.middle' | i18n | async }} <code>{{ '{{loop.iteration}}' }}</code>
-        {{ 'workflow.node.loopHint.after' | i18n | async }} <code>{{ '{{index}}' }}</code> /
-        <code>{{ '{{iteration}}' }}</code>
+        {{ 'workflow.node.loopHint.after' | i18n | async }} <code>{{ '{{index}}' }}</code> / <code>{{ '{{iteration}}' }}</code>
         {{ 'workflow.node.loopHint.tail' | i18n | async }}
       </div>
     }
@@ -317,10 +344,7 @@
     <div class="controls">
       @if (canRerunFromHere()) {
         <button (pointerdown)="$event.stopPropagation()" (click)="rerunFromHere()">
-          <app-icon
-            name="restart-line"
-            [attr.title]="'workflow.node.action.rerunFromHere' | i18n | async"
-          />
+          <app-icon name="restart-line" [attr.title]="'workflow.node.action.rerunFromHere' | i18n | async" />
         </button>
       }
       <button (pointerdown)="$event.stopPropagation()" (click)="duplicateNode()">
@@ -330,10 +354,7 @@
         <app-icon name="delete-bin-line" [attr.title]="'common.delete' | i18n | async" />
       </button>
       <button (pointerdown)="$event.stopPropagation()" (click)="addLinkedNode()">
-        <app-icon
-          name="add-line"
-          [attr.title]="'workflow.node.action.addConnected' | i18n | async"
-        />
+        <app-icon name="add-line" [attr.title]="'workflow.node.action.addConnected' | i18n | async" />
       </button>
     </div>
   </div>
