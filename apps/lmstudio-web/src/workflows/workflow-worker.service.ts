@@ -716,6 +716,89 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
+    if (nodeType === 'workflow.tool') {
+      const toolName = String((node as any)?.config?.tool?.name ?? '').trim();
+      if (!toolName) throw new Error(`workflow.tool missing config.tool.name (node ${nodeId})`);
+
+      const rawArgs = ((node as any)?.config?.tool?.args ?? {}) as any;
+
+      // Allow template rendering in string fields inside args.
+      ctx.__depsForRender = new Set(sourcesSorted);
+
+      const isPlainObject = (v: unknown): v is Record<string, any> =>
+        typeof v === 'object' && v !== null && !Array.isArray(v);
+
+      const renderAny = (v: any): any => {
+        if (typeof v === 'string') return this.renderTemplate(v, ctx);
+        if (Array.isArray(v)) return v.map((x) => renderAny(x));
+        if (isPlainObject(v)) {
+          const out: Record<string, any> = {};
+          for (const [k, vv] of Object.entries(v)) out[k] = renderAny(vv);
+          return out;
+        }
+        return v;
+      };
+
+      const toolArgs = renderAny(rawArgs) as Record<string, any>;
+
+      await this.workflows.upsertNodeRun(runId, nodeId, {
+        iteration,
+        status: 'running',
+        startedAt: new Date(),
+        inputSnapshot: {
+          sources: sourcesSorted,
+          toolName,
+          toolArgs,
+          note: 'workflow.tool',
+        },
+        error: null,
+      });
+
+      const { result, artifactId } = await this.toolOrchestrator.executeToolDirect({
+        runId,
+        toolName,
+        toolArgs,
+      });
+
+      const outputText = this.toText(result);
+      let primaryArtifactId: string | null = artifactId ? String(artifactId) : null;
+
+      if (!primaryArtifactId) {
+        // Persist the tool output for inspection in the UI.
+        const artifact =
+          typeof result === 'string'
+            ? await this.workflows.createArtifact(runId, null, {
+                kind: 'text',
+                mimeType: 'text/plain',
+                contentText: String(result),
+              })
+            : await this.workflows.createArtifact(runId, null, {
+                kind: 'json',
+                mimeType: 'application/json',
+                contentJson: result,
+              });
+        primaryArtifactId = artifact.id;
+      }
+
+      await this.workflows.upsertNodeRun(runId, nodeId, {
+        iteration,
+        status: 'completed',
+        finishedAt: new Date(),
+        outputText,
+        outputJson: typeof result === 'string' ? null : (result as any),
+        primaryArtifactId,
+        inputSnapshot: {
+          sources: sourcesSorted,
+          toolName,
+          note: 'workflow.tool',
+        },
+        error: null,
+      });
+
+      ctx.nodes[nodeId] = result;
+      return;
+    }
+
     if (nodeType === 'workflow.condition') {
       const profileName = String(node.profileName ?? '').trim();
       if (!profileName) throw new Error(`Node ${nodeId} missing profileName`);
@@ -1478,6 +1561,92 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         // ----------------------------
         // Condition node (boolean, branch selector)
         // ----------------------------
+
+        if (nodeType === 'workflow.tool') {
+          const toolName = String((node as any)?.config?.tool?.name ?? '').trim();
+          if (!toolName) throw new Error(`workflow.tool missing config.tool.name (node ${nodeId})`);
+
+          const rawArgs = ((node as any)?.config?.tool?.args ?? {}) as any;
+
+          // Allow template rendering in string fields inside args.
+          ctx.__depsForRender = new Set(sourcesSorted);
+
+          const isPlainObject = (v: unknown): v is Record<string, any> =>
+            typeof v === 'object' && v !== null && !Array.isArray(v);
+
+          const renderAny = (v: any): any => {
+            if (typeof v === 'string') return this.renderTemplate(v, ctx);
+            if (Array.isArray(v)) return v.map((x) => renderAny(x));
+            if (isPlainObject(v)) {
+              const out: Record<string, any> = {};
+              for (const [k, vv] of Object.entries(v)) out[k] = renderAny(vv);
+              return out;
+            }
+            return v;
+          };
+
+          const toolArgs = renderAny(rawArgs) as Record<string, any>;
+
+          const iteration = (ctx as any)?.iteration ?? 0;
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            iteration,
+            status: 'running',
+            startedAt: new Date(),
+            inputSnapshot: {
+              sources: sourcesSorted,
+              toolName,
+              toolArgs,
+              note: 'workflow.tool',
+            },
+            error: null,
+          });
+
+          const { result, artifactId } = await this.toolOrchestrator.executeToolDirect({
+            runId,
+            toolName,
+            toolArgs,
+          });
+
+          const outputText = this.toText(result);
+          let primaryArtifactId: string | null = artifactId ? String(artifactId) : null;
+
+          if (!primaryArtifactId) {
+            // Persist the tool output for inspection in the UI.
+            const artifact =
+              typeof result === 'string'
+                ? await this.workflows.createArtifact(runId, null, {
+                    kind: 'text',
+                    mimeType: 'text/plain',
+                    contentText: String(result),
+                  })
+                : await this.workflows.createArtifact(runId, null, {
+                    kind: 'json',
+                    mimeType: 'application/json',
+                    contentJson: result,
+                  });
+            primaryArtifactId = artifact.id;
+          }
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            iteration,
+            status: 'completed',
+            finishedAt: new Date(),
+            outputText,
+            outputJson: typeof result === 'string' ? null : (result as any),
+            primaryArtifactId,
+            inputSnapshot: {
+              sources: sourcesSorted,
+              toolName,
+              note: 'workflow.tool',
+            },
+            error: null,
+          });
+
+          ctx.nodes[nodeId] = result;
+          return;
+        }
+
         if (nodeType === 'workflow.condition') {
           const profileName = String(node.profileName ?? '').trim();
           if (!profileName) throw new Error(`Node ${nodeId} missing profileName`);

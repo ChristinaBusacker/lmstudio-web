@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -351,6 +352,96 @@ export function workflowToDiagramModel(workflow: Workflow): DiagramModel {
       const cfg = n.config ?? {};
       const defaults = nodeDefaultsByType(n.type);
 
+      // ---- Tool node config -> form fields ----
+      const toolName: string = String(cfg?.tool?.name ?? defaults.toolName ?? 'web_search');
+      const toolArgs: any = cfg?.tool?.args ?? {};
+
+      const toolFields: Partial<DiagramNodeData> = {};
+      if (n.type === NODE_TOOL) {
+        toolFields.toolName = toolName;
+        toolFields.toolArgsJson = toolArgs ? JSON.stringify(toolArgs, null, 2) : '';
+
+        if (toolName === 'web_search') {
+          toolFields.webSearchQuery = String(
+            toolArgs?.q ?? toolArgs?.query ?? defaults.webSearchQuery ?? '',
+          );
+          toolFields.webSearchLimit = Number(toolArgs?.limit ?? defaults.webSearchLimit ?? 5);
+        }
+
+        if (toolName === 'web_read') {
+          toolFields.webReadUrl = String(toolArgs?.url ?? defaults.webReadUrl ?? '');
+        }
+
+        if (toolName === 'doc_read') {
+          toolFields.docReadAssetId = String(toolArgs?.assetId ?? defaults.docReadAssetId ?? '');
+        }
+
+        if (toolName === 'current_time') {
+          toolFields.currentTimeTimezone = String(
+            toolArgs?.timezone ?? defaults.currentTimeTimezone ?? 'Europe/Berlin',
+          );
+        }
+
+        if (toolName === 'resolve_relative_date') {
+          toolFields.resolveRelativeText = String(
+            toolArgs?.text ?? defaults.resolveRelativeText ?? '',
+          );
+          toolFields.resolveRelativeTimezone = String(
+            toolArgs?.timezone ?? defaults.resolveRelativeTimezone ?? 'Europe/Berlin',
+          );
+          toolFields.resolveRelativeBaseTime = toolArgs?.baseTime
+            ? String(toolArgs.baseTime)
+            : (defaults.resolveRelativeBaseTime ?? '');
+        }
+
+        if (toolName === 'date_math') {
+          toolFields.dateMathBaseTime = toolArgs?.base
+            ? String(toolArgs.base)
+            : (defaults.dateMathBaseTime ?? '');
+          // The form UI uses a simplified operation enum, but the tool supports multiple fields.
+          // If multiple are present, prefer add > startOf > endOf > roundTo.
+          if (toolArgs?.add) toolFields.dateMathOperation = 'add';
+          else if (toolArgs?.startOf) toolFields.dateMathOperation = 'startOfDay';
+          else if (toolArgs?.endOf) toolFields.dateMathOperation = 'endOfDay';
+          else if (toolArgs?.roundTo) toolFields.dateMathOperation = 'roundToHour';
+          else toolFields.dateMathOperation = (defaults.dateMathOperation as any) ?? 'add';
+
+          // Flatten add into amount+unit for the UI when possible.
+          const addObj = toolArgs?.add ?? {};
+          type DateUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'years';
+
+          const unitOrder: DateUnit[] = ['years', 'months', 'weeks', 'days', 'hours', 'minutes'];
+          let pickedUnit: any = defaults.dateMathUnit ?? 'days';
+          let pickedAmount: any = defaults.dateMathAmount ?? 1;
+
+          for (const u of unitOrder) {
+            if (typeof addObj?.[u] === 'number') {
+              pickedUnit = u;
+              pickedAmount = Number(addObj[u]);
+              break;
+            }
+          }
+          toolFields.dateMathUnit = pickedUnit;
+          toolFields.dateMathAmount = pickedAmount;
+        }
+
+        if (toolName === 'math') {
+          toolFields.mathExpression = String(toolArgs?.expression ?? defaults.mathExpression ?? '');
+          toolFields.mathPrecision = Number(toolArgs?.precision ?? defaults.mathPrecision ?? 8);
+        }
+
+        if (toolName === 'json_validate') {
+          toolFields.jsonInput = String(toolArgs?.data ?? defaults.jsonInput ?? '');
+          toolFields.jsonSchema = String(
+            toolArgs?.schema ?? defaults.jsonSchema ?? '{\n  "type": "object"\n}',
+          );
+        }
+
+        if (toolName === 'json_repair') {
+          toolFields.jsonInput = String(toolArgs?.text ?? defaults.jsonInput ?? '');
+        }
+      }
+
       return {
         id: n.id,
         position: n.position!,
@@ -391,6 +482,8 @@ export function workflowToDiagramModel(workflow: Workflow): DiagramModel {
 
           assetId: cfg?.asset?.assetId ?? '',
           assetExtract: cfg?.asset?.extract ?? true,
+
+          ...toolFields,
         } satisfies DiagramNodeData,
       };
     }),
@@ -448,22 +541,85 @@ export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
       }
 
       if (nodeType === NODE_TOOL) {
-    return {
-      toolName: 'web_search',
-      webSearchQuery: '',
-      webSearchLimit: 5,
-      currentTimeTimezone: 'Europe/Berlin',
-      resolveRelativeTimezone: 'Europe/Berlin',
-      dateMathOperation: 'add',
-      dateMathAmount: 1,
-      dateMathUnit: 'days',
-      mathPrecision: 8,
-      jsonInput: '',
-      jsonSchema: '{\n  "type": "object"\n}',
-    };
-  }
+        const toolName = String(n.data?.toolName ?? 'web_search').trim() || 'web_search';
 
-  if (nodeType === NODE_ASSET) {
+        // Prefer advanced JSON args if provided and valid.
+        let toolArgs: any = {};
+        const rawArgs = String(n.data?.toolArgsJson ?? '').trim();
+        if (rawArgs) {
+          try {
+            toolArgs = JSON.parse(rawArgs);
+          } catch {
+            // Ignore invalid advanced JSON and fall back to form fields.
+            toolArgs = {};
+          }
+        }
+
+        // If advanced args were empty/invalid, build args from tool-specific form fields.
+        if (!rawArgs || (rawArgs && Object.keys(toolArgs ?? {}).length === 0)) {
+          if (toolName === 'web_search') {
+            toolArgs = {
+              q: String(n.data?.webSearchQuery ?? ''),
+              limit: Number(n.data?.webSearchLimit ?? 5),
+            };
+          } else if (toolName === 'web_read') {
+            toolArgs = { url: String(n.data?.webReadUrl ?? '') };
+          } else if (toolName === 'doc_read') {
+            toolArgs = { assetId: String(n.data?.docReadAssetId ?? '') };
+          } else if (toolName === 'current_time') {
+            const tz = String(n.data?.currentTimeTimezone ?? 'Europe/Berlin');
+            toolArgs = tz ? { timezone: tz } : {};
+          } else if (toolName === 'resolve_relative_date') {
+            const text = String(n.data?.resolveRelativeText ?? '');
+            const tz = String(n.data?.resolveRelativeTimezone ?? 'Europe/Berlin');
+            const baseTime = String(n.data?.resolveRelativeBaseTime ?? '').trim();
+            toolArgs = {
+              text,
+              timezone: tz,
+              ...(baseTime ? { baseTime } : {}),
+            };
+          } else if (toolName === 'date_math') {
+            const base = String(n.data?.dateMathBaseTime ?? '').trim();
+            const op = String(n.data?.dateMathOperation ?? 'add');
+            const amount = Number(n.data?.dateMathAmount ?? 1);
+            const unit = String(n.data?.dateMathUnit ?? 'days');
+
+            const args: any = {};
+            if (base) args.base = base;
+
+            if (op === 'add') {
+              args.add = { [unit]: amount };
+            } else if (op === 'startOfDay') {
+              args.startOf = 'day';
+            } else if (op === 'endOfDay') {
+              args.endOf = 'day';
+            } else if (op === 'roundToHour') {
+              args.roundTo = 'hour';
+            }
+
+            toolArgs = args;
+          } else if (toolName === 'math') {
+            toolArgs = {
+              expression: String(n.data?.mathExpression ?? ''),
+              precision: Number(n.data?.mathPrecision ?? 8),
+            };
+          } else if (toolName === 'json_validate') {
+            toolArgs = {
+              data: String(n.data?.jsonInput ?? ''),
+              schema: String(n.data?.jsonSchema ?? ''),
+            };
+          } else if (toolName === 'json_repair') {
+            toolArgs = { text: String(n.data?.jsonInput ?? '') };
+          }
+        }
+
+        config.tool = {
+          name: toolName,
+          args: toolArgs ?? {},
+        };
+      }
+
+      if (nodeType === NODE_ASSET) {
         config.asset = {
           assetId: String(n.data?.assetId ?? ''),
           extract: true,

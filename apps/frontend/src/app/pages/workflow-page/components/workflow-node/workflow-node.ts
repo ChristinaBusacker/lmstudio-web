@@ -156,6 +156,15 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
 
   // ---- Editing ----
 
+  /**
+   * Angular templates don't reliably access global `Number(...)`.
+   * Use this helper for numeric inputs.
+   */
+  toNumber(value: any, fallback = 0): number {
+    const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+    return Number.isFinite(n) ? n : fallback;
+  }
+
   updateProfileName(value: string): void {
     this.editorState.requestSnapshot();
     this.editorState.markDirty();

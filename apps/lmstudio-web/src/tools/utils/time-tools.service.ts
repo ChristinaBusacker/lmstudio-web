@@ -116,7 +116,7 @@ function zonedComponentsToInstant(
   // Because offsets can change (DST), do a small correction loop.
   const guessUtc = Date.UTC(c.year, c.month - 1, c.day, c.hour, c.minute, c.second);
   let utc = guessUtc;
-  let off = getOffsetMinutes(new Date(utc), timeZone);
+  const off = getOffsetMinutes(new Date(utc), timeZone);
   utc = guessUtc - off * 60_000;
   const off2 = getOffsetMinutes(new Date(utc), timeZone);
   if (off2 !== off) {
@@ -125,7 +125,10 @@ function zonedComponentsToInstant(
   return new Date(utc);
 }
 
-function getZonedParts(instant: Date, timeZone: string): {
+function getZonedParts(
+  instant: Date,
+  timeZone: string,
+): {
   year: number;
   month: number;
   day: number;
@@ -241,6 +244,26 @@ export class TimeToolsService {
       };
     }
 
+    const pickComponents = (c: any) => {
+      if (!c) return null;
+      const keys = [
+        'year',
+        'month',
+        'day',
+        'hour',
+        'minute',
+        'second',
+        'millisecond',
+        'timezoneOffset',
+      ];
+      const out: Record<string, number | null> = {};
+      for (const k of keys) {
+        const v = c.get ? c.get(k) : undefined;
+        out[k] = typeof v === 'number' ? v : null;
+      }
+      return out;
+    };
+
     return {
       ok: true,
       timezone: timeZone,
@@ -249,8 +272,8 @@ export class TimeToolsService {
       endIso: end ? instantToZonedIso(end, timeZone) : null,
       // Useful for debugging why the model got it wrong.
       components: {
-        start: result.start.knownValues,
-        end: result.end?.knownValues ?? null,
+        start: pickComponents(result.start),
+        end: pickComponents(result.end),
       },
     };
   }
@@ -295,7 +318,7 @@ export class TimeToolsService {
     // endOf is startOf(next unit) - 1 second.
     if (args.endOf) {
       const start = startOfUnit(parts, args.endOf);
-      let next = { ...start };
+      const next = { ...start };
       if (args.endOf === 'day') next.day += 1;
       if (args.endOf === 'week') next.day += 7;
       if (args.endOf === 'month') next.month += 1;

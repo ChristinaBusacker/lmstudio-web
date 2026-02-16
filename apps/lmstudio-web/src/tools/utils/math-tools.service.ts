@@ -247,6 +247,10 @@ function toRpn(tokens: Token[]): RpnItem[] {
         // argc is commas + 1, unless empty args: "f()" => 0
         const prevTok = tokens[idx - 1];
         const argc = prevTok?.t === 'lp' ? 0 : (func.argc ?? 0) + 1;
+
+        if (!func.v) {
+          throw new Error('Invalid function token: missing name');
+        }
         output.push({ k: 'call', name: func.v, argc });
       }
 

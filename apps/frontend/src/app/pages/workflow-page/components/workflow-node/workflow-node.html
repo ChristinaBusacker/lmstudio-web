@@ -269,7 +269,7 @@
         [value]="node().data.webSearchLimit ?? 5"
         (pointerdown)="$event.stopPropagation()"
         (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('webSearchLimit', Number($any($event.target).value))"
+        (input)="updateToolField('webSearchLimit', toNumber($any($event.target).value, 5))"
       />
     </label>
   }
@@ -387,7 +387,7 @@
         [value]="node().data.dateMathAmount ?? 1"
         (pointerdown)="$event.stopPropagation()"
         (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('dateMathAmount', Number($any($event.target).value))"
+        (input)="updateToolField('dateMathAmount', toNumber($any($event.target).value, 1))"
       />
     </label>
     <label class="field">
@@ -431,7 +431,7 @@
         [value]="node().data.mathPrecision ?? 8"
         (pointerdown)="$event.stopPropagation()"
         (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('mathPrecision', Number($any($event.target).value))"
+        (input)="updateToolField('mathPrecision', toNumber($any($event.target).value, 8))"
       />
     </label>
   }
@@ -495,7 +495,7 @@
           [value]="node().data.previewMaxLines ?? 10"
           (pointerdown)="$event.stopPropagation()"
           (wheel)="$event.stopPropagation()"
-          (input)="updatePreviewMaxLines(Number($any($event.target).value))"
+          (input)="updatePreviewMaxLines(toNumber($any($event.target).value, 10))"
         />
       </label>
 
@@ -553,7 +553,7 @@
           [value]="node().data.loopMaxIterations ?? 10"
           (pointerdown)="$event.stopPropagation()"
           (wheel)="$event.stopPropagation()"
-          (input)="updateLoopMaxIterations(Number($any($event.target).value))"
+          (input)="updateLoopMaxIterations(toNumber($any($event.target).value, 10))"
         />
       </label>
     } @else {
@@ -567,7 +567,7 @@
           [value]="node().data.loopCount ?? 3"
           (pointerdown)="$event.stopPropagation()"
           (wheel)="$event.stopPropagation()"
-          (input)="updateLoopCount(Number($any($event.target).value))"
+          (input)="updateLoopCount(toNumber($any($event.target).value, 3))"
         />
       </label>
     }
