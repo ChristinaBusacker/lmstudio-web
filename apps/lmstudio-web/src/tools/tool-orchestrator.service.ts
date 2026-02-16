@@ -7,6 +7,9 @@ import { SseBusService } from '../sse/sse-bus.service';
 import { WebSearchService } from './web/web-search.service';
 import { WebReaderService } from './web/web-reader.service';
 import { DocReaderService } from './docs/doc-reader.service';
+import { TimeToolsService } from './utils/time-tools.service';
+import { MathToolsService } from './utils/math-tools.service';
+import { JsonToolsService } from './utils/json-tools.service';
 
 type AnyJson = Record<string, any>;
 
@@ -45,6 +48,12 @@ export class ToolOrchestratorService {
 - web_search(q, limit): search the web for recent information.
 - web_read(url): read and extract the main text from a webpage URL.
 - doc_read(assetId): read an uploaded document by assetId.
+ - current_time(timezone?): get the current time and timezone-aware ISO string.
+ - resolve_relative_date(text, timezone?): resolve relative expressions like "yesterday" or "next Friday" to a concrete ISO datetime.
+ - date_math(base, add/subtract, startOf/endOf, timezone?): deterministic date arithmetic.
+ - math(expression, variables?, precision?): deterministic calculator.
+ - json_validate(json, schema): validate JSON against JSON Schema.
+ - json_repair(text): repair JSON-ish text into valid JSON when possible.
 
 Rules:
 - When the user asks for current events, news, live data, or anything beyond your training cutoff, you MUST use web_search/web_read instead of refusing.
@@ -59,6 +68,9 @@ Rules:
     private readonly webSearch: WebSearchService,
     private readonly webRead: WebReaderService,
     private readonly docRead: DocReaderService,
+    private readonly timeTools: TimeToolsService,
+    private readonly mathTools: MathToolsService,
+    private readonly jsonTools: JsonToolsService,
   ) {
     this.baseUrl = this.config.get<string>('LMSTUDIO_BASE_URL', 'http://127.0.0.1:1234');
   }
@@ -69,6 +81,172 @@ Rules:
 
   getToolDefinitions(): ToolDef[] {
     return [
+      {
+        type: 'function',
+        function: {
+          name: 'current_time',
+          description:
+            'Return the current date/time with timezone info. Use this before interpreting relative phrases like "yesterday".',
+          parameters: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              timezone: {
+                type: 'string',
+                description: 'IANA timezone, e.g. Europe/Berlin. Defaults to Europe/Berlin.',
+              },
+            },
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'resolve_relative_date',
+          description:
+            'Resolve a human time expression (e.g., "yesterday", "next Friday 5pm", "in 3 hours") into a concrete ISO datetime.',
+          parameters: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              text: {
+                type: 'string',
+                description: 'The relative date/time expression to resolve.',
+              },
+              timezone: {
+                type: 'string',
+                description: 'IANA timezone, e.g. Europe/Berlin. Defaults to Europe/Berlin.',
+              },
+              baseTime: {
+                type: 'string',
+                description:
+                  'Optional ISO datetime used as reference instead of now. If provided, should include timezone offset.',
+              },
+              forwardDate: {
+                type: 'boolean',
+                description:
+                  'If true, ambiguous dates will be interpreted as future dates when possible. Default: true.',
+                default: true,
+              },
+            },
+            required: ['text'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'date_math',
+          description:
+            'Perform deterministic date math (add/subtract, startOf/endOf, rounding) in a given timezone.',
+          parameters: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              base: {
+                type: 'string',
+                description:
+                  'Base ISO datetime. If omitted, uses now in the given timezone. Prefer including timezone offset.',
+              },
+              timezone: {
+                type: 'string',
+                description: 'IANA timezone, e.g. Europe/Berlin. Defaults to Europe/Berlin.',
+              },
+              add: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  years: { type: 'integer' },
+                  months: { type: 'integer' },
+                  weeks: { type: 'integer' },
+                  days: { type: 'integer' },
+                  hours: { type: 'integer' },
+                  minutes: { type: 'integer' },
+                  seconds: { type: 'integer' },
+                },
+              },
+              startOf: {
+                type: 'string',
+                enum: ['day', 'week', 'month', 'year'],
+              },
+              endOf: {
+                type: 'string',
+                enum: ['day', 'week', 'month', 'year'],
+              },
+              roundTo: {
+                type: 'string',
+                enum: ['second', 'minute', 'hour', 'day'],
+                description: 'Round to nearest unit in the given timezone.',
+              },
+            },
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'math',
+          description:
+            'Evaluate a mathematical expression deterministically. Supports +, -, *, /, %, **, parentheses, and common functions.',
+          parameters: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              expression: { type: 'string', description: 'Math expression, e.g. "(2+3)*4"' },
+              variables: {
+                type: 'object',
+                description: 'Optional variables map used in the expression.',
+                additionalProperties: { type: ['number', 'string'] },
+              },
+              precision: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 12,
+                description: 'Optional rounding precision (decimal places).',
+              },
+            },
+            required: ['expression'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'json_validate',
+          description:
+            'Validate JSON data against a JSON Schema and return detailed errors when invalid.',
+          parameters: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              json: {
+                description: 'JSON value to validate (object/array/primitive) or a JSON string.',
+              },
+              schema: {
+                type: 'object',
+                description: 'JSON Schema (draft 7/2019-09 compatible via AJV).',
+              },
+            },
+            required: ['schema', 'json'],
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'json_repair',
+          description:
+            'Repair JSON-ish text (single quotes, trailing commas, unquoted keys) into valid JSON when possible.',
+          parameters: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              text: { type: 'string', description: 'JSON-ish text to repair.' },
+            },
+            required: ['text'],
+          },
+        },
+      },
       {
         type: 'function',
         function: {
@@ -194,6 +372,57 @@ Rules:
       });
       console.log('[TOOL RESULT]', call.function.name, JSON.stringify(out).slice(0, 200));
       return { result: out as AnyJson, artifactId: out.artifactId };
+    }
+
+    if (name === 'current_time') {
+      const out = this.timeTools.currentTime({
+        timezone: args.timezone ? String(args.timezone) : undefined,
+      });
+      return { result: out as AnyJson, artifactId: null };
+    }
+
+    if (name === 'resolve_relative_date') {
+      const out = this.timeTools.resolveRelativeDate({
+        text: String(args.text ?? ''),
+        timezone: args.timezone ? String(args.timezone) : undefined,
+        baseTime: args.baseTime ? String(args.baseTime) : undefined,
+        forwardDate: typeof args.forwardDate === 'boolean' ? args.forwardDate : true,
+      });
+      return { result: out as AnyJson, artifactId: null };
+    }
+
+    if (name === 'date_math') {
+      const out = this.timeTools.dateMath({
+        base: args.base ? String(args.base) : undefined,
+        timezone: args.timezone ? String(args.timezone) : undefined,
+        add: typeof args.add === 'object' && args.add ? (args.add as AnyJson) : undefined,
+        startOf: args.startOf ? String(args.startOf) : undefined,
+        endOf: args.endOf ? String(args.endOf) : undefined,
+        roundTo: args.roundTo ? String(args.roundTo) : undefined,
+      });
+      return { result: out as AnyJson, artifactId: null };
+    }
+
+    if (name === 'math') {
+      const out = this.mathTools.evaluate({
+        expression: String(args.expression ?? ''),
+        variables:
+          typeof args.variables === 'object' && args.variables
+            ? (args.variables as AnyJson)
+            : undefined,
+        precision: typeof args.precision === 'number' ? args.precision : undefined,
+      });
+      return { result: out as AnyJson, artifactId: null };
+    }
+
+    if (name === 'json_validate') {
+      const out = this.jsonTools.validate({ json: args.json, schema: args.schema as AnyJson });
+      return { result: out as AnyJson, artifactId: null };
+    }
+
+    if (name === 'json_repair') {
+      const out = this.jsonTools.repair({ text: String(args.text ?? '') });
+      return { result: out as AnyJson, artifactId: null };
     }
 
     if (name === 'web_read') {
@@ -479,7 +708,7 @@ Rules:
 
     // Pattern 1: [TOOL CALL] toolName {json}
     {
-      const re = /\[TOOL CALL\]\s*([a-zA-Z0-9_\\.]+)\s*([\s\S]*?\{[\s\S]*\})/g;
+      const re = /\[TOOL CALL\]\s*([a-zA-Z0-9_\.]+)\s*([\s\S]*?\{[\s\S]*\})/g;
       let m: RegExpExecArray | null;
       while ((m = re.exec(text))) {
         push(m[1], m[2].trim(), m[0]);
@@ -489,7 +718,7 @@ Rules:
     // Pattern 2: "to=browser.search" (or browser.open) style with JSON payload
     // Example: <|channel|>commentary to=browser.search code<|message|>{"query":"...","topn":10}
     {
-      const re = /to=(browser\.(search|open)|web_search|web_read|doc_read)\b[^\\{]*?(\{[\s\S]*\})/g;
+      const re = /to=(browser\.(search|open)|web_search|web_read|doc_read)\b[^\{]*?(\{[\s\S]*\})/g;
       let m: RegExpExecArray | null;
       while ((m = re.exec(text))) {
         push(m[1], m[3].trim(), m[0]);

@@ -69,6 +69,8 @@ export default tseslint.config(
       // Angular often uses function refs; this rule is useful but can be noisy:
       '@typescript-eslint/unbound-method': 'off',
 
+      "no-useless-escape": 'off',
+
       // You already had this:
       '@typescript-eslint/no-explicit-any': 'off',
 
