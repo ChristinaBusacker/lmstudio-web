@@ -5,6 +5,7 @@ import { ChatsModule } from '../chats/chats.module';
 import { RunsModule } from '../runs/runs.module';
 import { AssetsModule } from '../assets/assets.module';
 import { SseModule } from '../sse/sse.module';
+import { ToolsModule } from '../tools/tools.module';
 import { WorkflowsController } from './workflows.controller';
 import { WorkflowsService } from './workflows.service';
 import { WorkflowWorkerService } from './workflow-worker.service';
@@ -26,6 +27,7 @@ import { ArtifactEntity } from './entities/artifact.entity';
     SettingsModule,
     ChatsModule,
     SseModule,
+    ToolsModule,
   ],
   controllers: [WorkflowsController],
   providers: [WorkflowsService, WorkflowWorkerService],

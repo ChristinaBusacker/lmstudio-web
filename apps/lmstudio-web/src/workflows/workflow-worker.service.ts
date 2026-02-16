@@ -6,6 +6,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { WorkflowsService } from './workflows.service';
 import { SettingsService } from '../settings/settings.service';
 import { ChatEngineService } from '../chats/chat-engine.service';
+import { ToolOrchestratorService } from '../tools/tool-orchestrator.service';
 import { AssetsService } from '../assets/assets.service';
 import { AssetExtractService } from '../assets/asset-extract.service';
 import type { LmMessage } from '../common/types/llm.types';
@@ -55,9 +56,18 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly workflows: WorkflowsService,
     private readonly settings: SettingsService,
     private readonly engine: ChatEngineService,
+    private readonly toolOrchestrator: ToolOrchestratorService,
     private readonly assets: AssetsService,
     private readonly assetExtract: AssetExtractService,
   ) {}
+
+  private parseToolsEnabled(raw: unknown): boolean {
+    if (typeof raw === 'boolean') return raw;
+    if (typeof raw === 'string') return raw.toLowerCase() !== 'false';
+    if (typeof raw === 'number') return raw !== 0;
+    // Default to enabled (matches chat-run behavior)
+    return true;
+  }
 
   onModuleInit() {
     this.timer = setInterval(() => void this.tick(), this.POLL_MS);
@@ -800,11 +810,28 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       error: null,
     });
 
-    const gen = this.engine.streamChat(
-      `${runId}:${nodeId}:${iteration}`,
-      this.buildMessages(systemPrompt, renderedPrompt),
-      params,
+    const streamId = `${runId}:${nodeId}:${iteration}`;
+    const messages = this.buildMessages(systemPrompt, renderedPrompt);
+
+    const toolsEnabled = this.parseToolsEnabled((params as any)?.toolsEnabled);
+    const structuredEnabled = Boolean((params as any)?.structuredOutput?.enabled);
+
+    // Tools + schema-enforced structured output are not reliably supported by many servers/models.
+    // If tools are enabled, prefer tool calling and fall back to "soft JSON" parsing afterwards.
+    const paramsForCall: any = { ...params };
+    if (toolsEnabled && structuredEnabled) {
+      delete paramsForCall.structuredOutput;
+    }
+
+    const useTools = toolsEnabled && !Boolean((paramsForCall as any)?.structuredOutput?.enabled);
+    this.logger.log(
+      `Workflow LLM node ${nodeId}: toolsEnabled=${toolsEnabled} structuredEnabled=${structuredEnabled} -> ${useTools ? 'ToolOrchestrator' : 'ChatEngine'}`,
     );
+
+    const gen = useTools
+      // IMPORTANT: pass the workflow runId (uuid) so tool artifacts fit the run_artifact schema (36 chars)
+      ? this.toolOrchestrator.streamWithTools(runId, messages, paramsForCall)
+      : this.engine.streamChat(streamId, messages, paramsForCall);
 
     let full = '';
     while (true) {
