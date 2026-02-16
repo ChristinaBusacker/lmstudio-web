@@ -96,6 +96,25 @@ export class SettingsService {
   }
 
   /**
+   * Resolves a generation settings profile by "name" with special handling for the sentinel "Default".
+   *
+   * UX semantics (mirrors the chat UI):
+   * - profileName === "Default" means "use whatever profile is marked as default for this ownerKey".
+   * - If no default exists yet, one is created/assigned via ensureDefaultProfile().
+   */
+  async resolveProfile(ownerKey: string, profileName: string) {
+    const ok = this.normalizeOwnerKey(ownerKey);
+    const n = (profileName ?? '').trim();
+    if (!n) return null;
+
+    if (n.toLowerCase() === 'default') {
+      return this.ensureDefaultProfile(ok);
+    }
+
+    return this.getByName(ok, n);
+  }
+
+  /**
    * Creates a new generation settings profile.
    *
    * If isDefault=true, the service ensures this becomes the ONLY default for the ownerKey.

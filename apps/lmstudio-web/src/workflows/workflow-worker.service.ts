@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/restrict-plus-operands */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -192,6 +190,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       if (!incoming.has(e.target)) incoming.set(e.target, []);
       incoming.get(e.target)!.push(e);
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const [k, arr] of incoming) arr.sort((a, b) => a.id.localeCompare(b.id));
 
     const nodeById = new Map<string, any>();
@@ -642,7 +641,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       if (!profileName) throw new Error(`Node ${nodeId} missing profileName`);
       if (!rawPrompt) throw new Error(`Node ${nodeId} missing prompt`);
 
-      const profile = await this.settings.getByName(this.ownerKey, profileName);
+      const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
       if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
       const params: any = { ...(profile.params ?? {}) };
@@ -770,7 +769,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       if (blocks.length) renderedPrompt = `${blocks.join('\n')}\n\n${renderedPrompt}`;
     }
 
-    const profile = await this.settings.getByName(this.ownerKey, profileName);
+    const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
     if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
     const params: any = { ...(profile.params ?? {}) };
@@ -934,74 +933,96 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         const node = nodeById.get(nodeId);
         if (!node) continue;
 
+        const existing = (await this.workflows.getRun(this.ownerKey, runId)).nodeRuns.find(
+          (r) => r.nodeId === nodeId,
+        );
+        if (existing && existing.status === 'completed') continue;
+
+        await this.workflows.setCurrentNode(runId, nodeId);
+
         const nodeType = String(node.type ?? 'lmstudio.llm');
 
         // Loop bodies are executed by their corresponding loopStart node.
         if (nodeType === LOOP_END) continue;
         if (nodeType !== LOOP_START && loopBodyIds.has(nodeId)) continue;
 
-        if (nodeType === LOOP_START) {
-          // LoopStart needs the same input resolution rules as normal nodes (including condition-branch gating).
-          const edgesInAll = (incoming.get(nodeId) ?? []).slice();
-          const edgesIn = edgesInAll.filter((e) => {
-            const srcNode = nodeById.get(e.source);
-            const srcType = String(srcNode?.type ?? 'lmstudio.llm');
-            if (srcType !== 'workflow.condition') return true;
+        const rawPrompt = String(node.prompt ?? '').trim();
 
-            const condOut = ctx.nodes?.[e.source];
-            if (typeof condOut !== 'boolean') {
-              throw new Error(`Missing/invalid condition output for node ${e.source}`);
-            }
+        const edgesInAll = (incoming.get(nodeId) ?? []).slice();
 
-            const port = String(e.sourcePort ?? COND_TRUE_PORT);
-            if (condOut === true) return port === COND_TRUE_PORT;
-            return port === COND_FALSE_PORT;
-          });
+        /**
+         * Determine "active" incoming edges for this node.
+         *
+         * For condition branches, only the selected branch edge is considered active:
+         * - sourcePort === COND_TRUE_PORT  -> active when condition output is true
+         * - sourcePort === COND_FALSE_PORT -> active when condition output is false
+         *
+         * Edges without a sourcePort from condition nodes are treated as true-branch for backward compatibility.
+         */
+        const edgesIn = edgesInAll.filter((e) => {
+          const srcNode = nodeById.get(e.source);
+          const srcType = String(srcNode?.type ?? 'lmstudio.llm');
+          if (srcType !== 'workflow.condition') return true;
 
-          const sourcesSorted = edgesIn
-            .map((e) => e.source)
-            .slice()
-            .sort((a, b) => a.localeCompare(b));
-
-          // If this node only has condition-branch inputs and none are active, skip it.
-          if (edgesInAll.length > 0 && sourcesSorted.length === 0) {
-            await this.workflows.upsertNodeRun(runId, nodeId, {
-              iteration: 0,
-              status: 'completed',
-              startedAt: new Date(),
-              finishedAt: new Date(),
-              outputText: '',
-              outputJson: null,
-              primaryArtifactId: null,
-              inputSnapshot: {
-                sources: [],
-                note: 'skipped (inactive condition branch)',
-              },
-              error: null,
-            });
-            ctx.nodes[nodeId] = '';
-            continue;
+          const condOut = ctx.nodes?.[e.source];
+          if (typeof condOut !== 'boolean') {
+            // Condition outputs must be boolean for branching.
+            throw new Error(`Missing/invalid condition output for node ${e.source}`);
           }
 
-          if (sourcesSorted.length === 1) {
-            const src = sourcesSorted[0];
+          const port = String(e.sourcePort ?? COND_TRUE_PORT);
+          if (condOut === true) return port === COND_TRUE_PORT;
+          return port === COND_FALSE_PORT;
+        });
+
+        // default upstream resolution: sorted by source id
+        const sourcesSorted = edgesIn
+          .map((e) => e.source)
+          .slice()
+          .sort((a, b) => a.localeCompare(b));
+
+        // If this node has incoming edges, but none are active (inactive branch), skip execution.
+        if (edgesInAll.length > 0 && sourcesSorted.length === 0) {
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'completed',
+            startedAt: new Date(),
+            finishedAt: new Date(),
+            outputText: '',
+            outputJson: null,
+            primaryArtifactId: null,
+            inputSnapshot: {
+              sources: [],
+              note: 'skipped (inactive condition branch)',
+            },
+            error: null,
+          });
+          ctx.nodes[nodeId] = '';
+          continue;
+        }
+
+        if (sourcesSorted.length === 1) {
+          const src = sourcesSorted[0];
+          if (!(src in ctx.nodes)) {
+            throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
+          }
+          ctx.input = ctx.nodes[src];
+        } else if (sourcesSorted.length > 1) {
+          const obj: Record<string, any> = {};
+          for (const src of sourcesSorted) {
             if (!(src in ctx.nodes)) {
               throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
             }
-            ctx.input = ctx.nodes[src];
-          } else if (sourcesSorted.length > 1) {
-            const obj: Record<string, any> = {};
-            for (const src of sourcesSorted) {
-              if (!(src in ctx.nodes)) {
-                throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
-              }
-              obj[src] = ctx.nodes[src];
-            }
-            ctx.input = obj;
-          } else {
-            ctx.input = null;
+            obj[src] = ctx.nodes[src];
           }
+          ctx.input = obj;
+        } else {
+          ctx.input = null;
+        }
 
+        // ----------------------------
+        // LoopStart/LoopEnd (structural loop)
+        // ----------------------------
+        if (nodeType === LOOP_START) {
           const range = loopRanges.get(nodeId);
           if (!range) throw new Error(`LoopStart ${nodeId} has no range metadata`);
 
@@ -1011,7 +1032,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           const mode = String(loopCfg.mode ?? 'until') as LoopMode;
           const conditionPrompt = String(loopCfg.conditionPrompt ?? '').trim();
 
-          if (!['while', 'until', 'count'].includes(mode)) {
+          if (mode !== 'while' && mode !== 'until' && mode !== 'count') {
             throw new Error(`LoopStart ${nodeId} has invalid mode: ${String(loopCfg.mode)}`);
           }
           if (!conditionPrompt) throw new Error(`LoopStart ${nodeId} missing loop.conditionPrompt`);
@@ -1019,13 +1040,22 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           const profileName = String(node.profileName ?? '').trim();
           if (!profileName) throw new Error(`LoopStart ${nodeId} missing profileName`);
 
-          const profile = await this.settings.getByName(this.ownerKey, profileName);
+          const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
           if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
           const params: any = { ...(profile.params ?? {}) };
           if (!params.modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
-          // Enforce a strict boolean result via JSON schema for the loop condition evaluation.
+          const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
+          if (nodeStructured?.enabled) {
+            params.structuredOutput = {
+              enabled: true,
+              strict: Boolean(nodeStructured.strict ?? true),
+              name: String(nodeStructured.name ?? 'node_structured_output'),
+              schema: nodeStructured.schema ?? { type: 'object' },
+            };
+          }
+
           params.structuredOutput = {
             enabled: true,
             strict: true,
@@ -1088,6 +1118,8 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
                 );
               }
 
+              // Reuse the normal execution path by temporarily setting current node.
+              // We do this by running the same code through a small helper.
               await this.executeSingleNode({
                 runId,
                 nodeId: bodyNodeId,
@@ -1202,18 +1234,424 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
           ctx.loop = null;
           continue;
+        }
+
+        // ----------------------------
+        // UI preview node (no-op-ish, but allowed in runs)
+        // ----------------------------
+        if (nodeType === 'ui.preview') {
+          const text = this.toText(ctx.input);
+
+          const artifact = await this.workflows.createArtifact(runId, null, {
+            kind: 'text',
+            mimeType: 'text/plain',
+            contentText: text,
+          });
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'completed',
+            startedAt: new Date(),
+            finishedAt: new Date(),
+            outputText: text,
+            outputJson: null,
+            primaryArtifactId: artifact.id,
+            inputSnapshot: {
+              sources: sourcesSorted,
+              note: 'ui.preview pass-through',
+            },
+            error: null,
+          });
+
+          ctx.nodes[nodeId] = text;
           continue;
         }
 
-        await this.executeSingleNode({
-          runId,
-          nodeId,
-          node,
-          nodeById,
-          incoming,
-          ctx,
-          iteration: 0,
+        // ----------------------------
+        // Merge node (ordered concatenation by targetPort in-1..in-n)
+        // ----------------------------
+        if (nodeType === 'workflow.merge') {
+          // Sort sources by targetPort index, then id.
+          const edges = (incoming.get(nodeId) ?? []).slice();
+          edges.sort((a, b) => {
+            const ai = this.portIndex(a.targetPort);
+            const bi = this.portIndex(b.targetPort);
+            if (ai !== null && bi !== null && ai !== bi) return ai - bi;
+            if (ai !== null && bi === null) return -1;
+            if (ai === null && bi !== null) return 1;
+            return a.id.localeCompare(b.id);
+          });
+
+          const sources = edges.map((e) => e.source);
+          if (sources.length === 0) {
+            await this.workflows.upsertNodeRun(runId, nodeId, {
+              status: 'completed',
+              startedAt: new Date(),
+              finishedAt: new Date(),
+              outputText: '',
+              outputJson: null,
+              primaryArtifactId: null,
+              inputSnapshot: { sources: [], note: 'workflow.merge (no inputs)' },
+              error: null,
+            });
+            ctx.nodes[nodeId] = '';
+            continue;
+          }
+
+          const parts: string[] = [];
+          for (const src of sources) {
+            if (!(src in ctx.nodes))
+              throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
+            parts.push(this.toText(ctx.nodes[src]));
+          }
+
+          const sep = (node?.config?.merge?.separator ?? '\n\n') as string;
+          const text = parts.join(String(sep));
+
+          const artifact = await this.workflows.createArtifact(runId, null, {
+            kind: 'text',
+            mimeType: 'text/plain',
+            contentText: text,
+          });
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'completed',
+            startedAt: new Date(),
+            finishedAt: new Date(),
+            outputText: text,
+            outputJson: null,
+            primaryArtifactId: artifact.id,
+            inputSnapshot: {
+              sources,
+              separator: String(sep),
+              note: 'workflow.merge',
+            },
+            error: null,
+          });
+
+          ctx.nodes[nodeId] = text;
+          continue;
+        }
+
+        // ----------------------------
+        // Export node (creates an artifact download)
+        // ----------------------------
+        if (nodeType === 'workflow.export') {
+          if (sourcesSorted.length !== 1) {
+            throw new Error(
+              `workflow.export requires exactly 1 input (got ${sourcesSorted.length})`,
+            );
+          }
+
+          const src = sourcesSorted[0];
+          if (!(src in ctx.nodes))
+            throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
+
+          const text = this.toText(ctx.nodes[src]);
+
+          const filename = (node?.config?.export?.filename ??
+            node?.exportFilename ??
+            `export-${runId}-${nodeId}.txt`) as string;
+
+          const artifact = await this.workflows.createArtifact(runId, null, {
+            kind: 'text',
+            mimeType: 'text/plain',
+            filename: String(filename),
+            contentText: text,
+          });
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'completed',
+            startedAt: new Date(),
+            finishedAt: new Date(),
+            outputText: text,
+            outputJson: null,
+            primaryArtifactId: artifact.id,
+            inputSnapshot: {
+              sources: sourcesSorted,
+              filename: String(filename),
+              note: 'workflow.export',
+            },
+            error: null,
+          });
+
+          // Export can also be used as a pass-through output for downstream steps.
+          ctx.nodes[nodeId] = text;
+          continue;
+        }
+
+        // ----------------------------
+        // Condition node (boolean, branch selector)
+        // ----------------------------
+        if (nodeType === 'workflow.condition') {
+          const profileName = String(node.profileName ?? '').trim();
+          if (!profileName) throw new Error(`Node ${nodeId} missing profileName`);
+          if (!rawPrompt) throw new Error(`Node ${nodeId} missing prompt`);
+
+          const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
+          if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
+
+          const params: any = { ...(profile.params ?? {}) };
+          if (!params.modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
+
+          const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
+          if (nodeStructured?.enabled) {
+            params.structuredOutput = {
+              enabled: true,
+              strict: Boolean(nodeStructured.strict ?? true),
+              name: String(nodeStructured.name ?? 'node_structured_output'),
+              schema: nodeStructured.schema ?? { type: 'object' },
+            };
+          }
+
+          // Enforce a strict boolean result via JSON schema.
+          params.structuredOutput = {
+            enabled: true,
+            strict: true,
+            name: 'workflow_condition',
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                result: { type: 'boolean' },
+              },
+              required: ['result'],
+            },
+          };
+
+          const systemPrompt = String((profile as any).systemPrompt ?? '').trim();
+
+          // Render prompt after ctx.input is set.
+          ctx.__depsForRender = new Set(sourcesSorted);
+          let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
+
+          if (sourcesSorted.length > 0) {
+            const inputText = this.toText(ctx.input);
+            renderedPrompt =
+              `You are given upstream context from previous workflow steps.\n` +
+              `---\nUPSTREAM_INPUT:\n${inputText}\n---\n\n` +
+              renderedPrompt;
+          }
+
+          const finalPrompt =
+            `Decide whether the condition is satisfied.\n` +
+            `Return ONLY a JSON object that matches this schema: {"result": true|false}.\n` +
+            `Do not include any other keys, text, or explanation.\n\n` +
+            renderedPrompt;
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'running',
+            startedAt: new Date(),
+            inputSnapshot: {
+              sources: sourcesSorted,
+              profileName,
+              modelKey: params.modelKey,
+              note: 'workflow.condition',
+            },
+            error: null,
+          });
+
+          const gen = this.engine.streamChat(
+            `${runId}:${nodeId}`,
+            this.buildMessages(systemPrompt, finalPrompt),
+            params,
+          );
+
+          let full = '';
+          while (true) {
+            const { value, done } = await gen.next();
+            if (done) break;
+            if (value?.delta) full += value.delta;
+          }
+
+          const parsed = this.safeJsonParse(full.trim());
+          if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') {
+            await this.workflows.upsertNodeRun(runId, nodeId, {
+              status: 'failed',
+              finishedAt: new Date(),
+              error: `Condition did not return valid JSON: ${parsed.ok ? 'invalid object' : parsed.error}`,
+            });
+            throw new Error(`Condition node ${nodeId} did not return valid JSON`);
+          }
+
+          const result = parsed.value.result;
+          if (typeof result !== 'boolean') {
+            await this.workflows.upsertNodeRun(runId, nodeId, {
+              status: 'failed',
+              finishedAt: new Date(),
+              error: `Condition JSON missing boolean field "result"`,
+            });
+            throw new Error(`Condition node ${nodeId} missing boolean result`);
+          }
+
+          const artifact = await this.workflows.createArtifact(runId, null, {
+            kind: 'json',
+            mimeType: 'application/json',
+            contentJson: { result },
+          });
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'completed',
+            finishedAt: new Date(),
+            outputText: String(result),
+            outputJson: { result },
+            primaryArtifactId: artifact.id,
+            inputSnapshot: {
+              sources: sourcesSorted,
+              note: 'workflow.condition',
+            },
+            error: null,
+          });
+
+          ctx.nodes[nodeId] = result;
+          continue;
+        }
+
+        // ----------------------------
+        // Existing pass-through nodes
+        // ----------------------------
+        if (nodeType === 'workflow.loop') {
+          const text = this.toText(ctx.input);
+
+          const artifact = await this.workflows.createArtifact(runId, null, {
+            kind: 'text',
+            mimeType: 'text/plain',
+            contentText: text,
+          });
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'completed',
+            startedAt: new Date(),
+            finishedAt: new Date(),
+            outputText: text,
+            outputJson: null,
+            primaryArtifactId: artifact.id,
+            inputSnapshot: {
+              sources: sourcesSorted,
+              note: 'pass-through v2',
+            },
+            error: null,
+          });
+
+          ctx.nodes[nodeId] = text;
+          continue;
+        }
+
+        // ----------------------------
+        // LLM nodes
+        // ----------------------------
+
+        if (nodeType !== 'lmstudio.llm') {
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'failed',
+            error: `Unsupported node type: ${nodeType}`,
+            finishedAt: new Date(),
+          });
+          throw new Error(`Unsupported node type: ${nodeType}`);
+        }
+
+        const profileName = String(node.profileName ?? '').trim();
+        if (!profileName) throw new Error(`Node ${nodeId} missing profileName`);
+        if (!rawPrompt) throw new Error(`Node ${nodeId} missing prompt`);
+
+        // Render prompt after ctx.input is set.
+        ctx.__depsForRender = new Set(sourcesSorted);
+        let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
+
+        if (sourcesSorted.length > 0) {
+          const inputText = this.toText(ctx.input);
+          renderedPrompt =
+            `You are given upstream context from previous workflow steps.\n` +
+            `---\nUPSTREAM_INPUT:\n${inputText}\n---\n\n` +
+            renderedPrompt;
+        }
+
+        const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
+        if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
+
+        const params: any = { ...(profile.params ?? {}) };
+        if (!params.modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
+
+        const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
+        if (nodeStructured?.enabled) {
+          params.structuredOutput = {
+            enabled: true,
+            strict: Boolean(nodeStructured.strict ?? true),
+            name: String(nodeStructured.name ?? 'node_structured_output'),
+            schema: nodeStructured.schema ?? { type: 'object' },
+          };
+        }
+
+        const systemPrompt = String((profile as any).systemPrompt ?? '').trim();
+
+        await this.workflows.upsertNodeRun(runId, nodeId, {
+          status: 'running',
+          startedAt: new Date(),
+          inputSnapshot: {
+            sources: sourcesSorted,
+            profileName,
+            modelKey: params.modelKey,
+            note: 'lmstudio.llm',
+          },
+          error: null,
         });
+
+        const gen = this.engine.streamChat(
+          `${runId}:${nodeId}`,
+          this.buildMessages(systemPrompt, renderedPrompt),
+          params,
+        );
+
+        let full = '';
+        while (true) {
+          const { value, done } = await gen.next();
+          if (done) break;
+          if (value?.delta) full += value.delta;
+        }
+
+        const parsed = this.safeJsonParse(full.trim());
+        if (parsed.ok) {
+          const artifact = await this.workflows.createArtifact(runId, null, {
+            kind: 'json',
+            mimeType: 'application/json',
+            contentJson: parsed.value,
+          });
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'completed',
+            finishedAt: new Date(),
+            outputText: null,
+            outputJson: parsed.value,
+            primaryArtifactId: artifact.id,
+            inputSnapshot: {
+              sources: sourcesSorted,
+              note: 'lmstudio.llm (json)',
+            },
+            error: null,
+          });
+
+          ctx.nodes[nodeId] = parsed.value;
+        } else {
+          const artifact = await this.workflows.createArtifact(runId, null, {
+            kind: 'text',
+            mimeType: 'text/plain',
+            contentText: full,
+          });
+
+          await this.workflows.upsertNodeRun(runId, nodeId, {
+            status: 'completed',
+            finishedAt: new Date(),
+            outputText: full,
+            outputJson: null,
+            primaryArtifactId: artifact.id,
+            inputSnapshot: {
+              sources: sourcesSorted,
+              note: 'lmstudio.llm (text)',
+            },
+            error: null,
+          });
+
+          ctx.nodes[nodeId] = full;
+        }
       }
 
       await this.workflows.markRunCompleted(runId);
