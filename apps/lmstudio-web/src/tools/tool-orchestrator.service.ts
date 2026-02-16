@@ -50,6 +50,7 @@ Rules:
 - When the user asks for current events, news, live data, or anything beyond your training cutoff, you MUST use web_search/web_read instead of refusing.
 - If tool results are present in this conversation, treat them as authoritative input and answer using them.
 - Do NOT claim you "can't browse" or "don't have access" when tools and tool results are available.
+- Do NOT print tool-call syntax as plain text (e.g. "<|channel|>... to=browser.search ..." or "browser.search(...)"). Use the provided tools via tool calling.
 - Only refuse if tool execution fails or returns no usable results.`;
 
   constructor(
@@ -426,30 +427,17 @@ Rules:
     let toolCalls = Array.from(toolCallsByIndex.values()).filter((c) => !!c.function?.name);
 
     // Fallback: some models print tool calls into content instead of emitting structured tool_calls.
-    // Example: "[TOOL CALL] doc_read { ...json... }"
-    if (
-      toolCalls.length === 0 &&
-      typeof finalContent === 'string' &&
-      finalContent.includes('[TOOL CALL]')
-    ) {
-      const re = /\[TOOL CALL\]\s*([a-zA-Z0-9_]+)\s*([\s\S]*?\{[\s\S]*\})/g;
-      const matches: Array<{ name: string; args: string; full: string }> = [];
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(finalContent))) {
-        matches.push({ name: m[1], args: m[2].trim(), full: m[0] });
-      }
-
-      if (matches.length > 0) {
-        toolCalls = matches.map((x, idx) => ({
-          id: `call_fallback_${idx}`,
-          type: 'function' as const,
-          function: { name: x.name, arguments: x.args },
-        }));
-
-        // Strip the tool-call text from the assistant content to avoid polluting the chat output.
-        for (const x of matches) {
-          finalContent = finalContent.replace(x.full, '').trim();
-        }
+    // We support multiple common formats to avoid being OpenAI-format dependent.
+    //
+    // Supported examples:
+    // - "[TOOL CALL] web_search {\"q\":\"...\"}"
+    // - "<|channel|>commentary to=browser.search code<|message|>{\"query\":\"...\",\"topn\":10}"
+    // - "to=web_search { ... }" (some fine-tunes)
+    if (toolCalls.length === 0 && typeof finalContent === 'string') {
+      const extracted = this.extractToolCallsFromText(finalContent);
+      if (extracted.toolCalls.length > 0) {
+        toolCalls = extracted.toolCalls;
+        finalContent = extracted.cleanedContent;
       }
     }
 
@@ -458,5 +446,121 @@ Rules:
       toolCalls,
       usage,
     };
+  }
+
+  /**
+   * Extract tool calls from plain-text outputs.
+   *
+   * Many models (especially ones trained on other tool syntaxes) will output
+   * "tool calls" as plain text instead of emitting OpenAI-style `tool_calls`.
+   *
+   * We try to recognize those patterns and convert them into our internal ToolCall format.
+   */
+  private extractToolCallsFromText(text: string): {
+    toolCalls: ToolCall[];
+    cleanedContent: string;
+  } {
+    let cleanedContent = text;
+    const toolCalls: ToolCall[] = [];
+    let counter = 0;
+
+    const push = (nameRaw: string, argsRaw: string, fullMatch: string) => {
+      const name = this.normalizeToolName(nameRaw);
+      if (!name) return;
+
+      const args = this.normalizeToolArgs(name, argsRaw);
+      toolCalls.push({
+        id: `call_text_${counter++}`,
+        type: 'function',
+        function: { name, arguments: args },
+      });
+      cleanedContent = cleanedContent.replace(fullMatch, '').trim();
+    };
+
+    // Pattern 1: [TOOL CALL] toolName {json}
+    {
+      const re = /\[TOOL CALL\]\s*([a-zA-Z0-9_\\.]+)\s*([\s\S]*?\{[\s\S]*\})/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(text))) {
+        push(m[1], m[2].trim(), m[0]);
+      }
+    }
+
+    // Pattern 2: "to=browser.search" (or browser.open) style with JSON payload
+    // Example: <|channel|>commentary to=browser.search code<|message|>{"query":"...","topn":10}
+    {
+      const re = /to=(browser\.(search|open)|web_search|web_read|doc_read)\b[^\\{]*?(\{[\s\S]*\})/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(text))) {
+        push(m[1], m[3].trim(), m[0]);
+      }
+    }
+
+    return { toolCalls, cleanedContent };
+  }
+
+  private normalizeToolName(nameRaw: string): string | null {
+    const n = String(nameRaw ?? '').trim();
+    if (!n) return null;
+
+    // Normalize common non-OpenAI syntaxes
+    if (n === 'browser.search') return 'web_search';
+    if (n === 'browser.open') return 'web_read';
+
+    // Already supported
+    if (n === 'web_search' || n === 'web_read' || n === 'doc_read') return n;
+    return null;
+  }
+
+  /**
+   * Normalize arguments from non-standard tool syntaxes to our tool schemas.
+   *
+   * - browser.search often uses { query, topn }
+   * - browser.open often uses { url } (or sometimes { ref_id } – ignored here)
+   */
+  private normalizeToolArgs(toolName: string, argsRaw: string): string {
+    const parseLoose = (raw: string): AnyJson => {
+      const s = String(raw ?? '').trim();
+      if (!s) return {};
+      try {
+        return JSON.parse(s) as AnyJson;
+      } catch {
+        // Try to extract a JSON object from noise
+        const m = /\{[\s\S]*\}/.exec(s);
+        if (m?.[0]) {
+          try {
+            return JSON.parse(m[0]) as AnyJson;
+          } catch {
+            return {};
+          }
+        }
+        return {};
+      }
+    };
+
+    const obj = parseLoose(argsRaw);
+
+    if (toolName === 'web_search') {
+      const q = String(obj.q ?? obj.query ?? '').trim();
+      const limit =
+        typeof obj.limit === 'number'
+          ? obj.limit
+          : typeof obj.topn === 'number'
+            ? obj.topn
+            : undefined;
+      return JSON.stringify({ q, ...(limit ? { limit } : {}) });
+    }
+
+    if (toolName === 'web_read') {
+      const url = String(obj.url ?? obj.href ?? '').trim();
+      return JSON.stringify({ url });
+    }
+
+    if (toolName === 'doc_read') {
+      const assetId = String(obj.assetId ?? obj.asset_id ?? '').trim();
+      return JSON.stringify({ assetId });
+    }
+
+    return JSON.stringify(obj);
   }
 }
