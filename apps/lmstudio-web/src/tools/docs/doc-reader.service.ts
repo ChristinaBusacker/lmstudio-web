@@ -80,61 +80,25 @@ export class DocReaderService {
     entries: ParsedFile[];
     artifactId: string | null;
   }> {
-    if (!params.url && !params.assetId) {
-      throw new Error('Either url or assetId must be provided');
+    if (params.url) {
+      throw new Error(
+        'doc_read no longer supports url. Upload the file as an asset and call doc_read with { assetId }.',
+      );
+    }
+    if (!params.assetId) {
+      throw new Error(
+        'doc_read requires assetId. Upload the file as an asset and call doc_read with { assetId }.',
+      );
     }
 
-    let bytes: Buffer;
-    let sourceUrl: string | null = null;
+    const sourceUrl: string | null = null;
     let sourceAssetId: string | null = null;
     let filenameHint: string | null = null;
 
-    const extractUuid = (s: string): string | null => {
-      const m = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(s);
-      return m?.[1] ?? null;
-    };
-
-    // Normalize inputs: if the model passes an internal /assets URL, prefer reading via assetId.
-    // This avoids failing fetches against the backend API and keeps tool usage consistent.
-    if (params.url) {
-      const urlUuid = extractUuid(params.url);
-      if (params.assetId && urlUuid && params.assetId === urlUuid) {
-        params.url = undefined;
-      } else if (
-        urlUuid &&
-        (params.url.includes('/assets/') || params.url.includes('/api/assets/'))
-      ) {
-        params.assetId = params.assetId ?? urlUuid;
-        params.url = undefined;
-      }
-    }
-
-    // Asset-first: if both are provided, prefer assetId.
-    if (params.assetId) {
-      params.url = undefined;
-    }
-
-    if (params.url) {
-      sourceUrl = params.url;
-      const res = await fetch(params.url, {
-        redirect: 'follow',
-        headers: { 'User-Agent': 'lmstudio-web/1.0 (+tool doc_read)' },
-      });
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`Fetch failed: ${res.status} ${res.statusText} ${body}`);
-      }
-      const arr = new Uint8Array(await res.arrayBuffer());
-      bytes = Buffer.from(arr);
-      const cd = res.headers.get('content-disposition') ?? '';
-      const m = /filename\*=UTF-8''([^;]+)/i.exec(cd) || /filename="?([^";]+)"?/i.exec(cd);
-      filenameHint = m?.[1] ? decodeURIComponent(m[1]) : null;
-    } else {
-      sourceAssetId = params.assetId ?? null;
-      const asset = await this.assets.getById(params.assetId!);
-      filenameHint = asset.originalFilename;
-      bytes = await this.assets.readBytes(params.assetId!);
-    }
+    sourceAssetId = params.assetId ?? null;
+    const asset = await this.assets.getById(params.assetId!);
+    filenameHint = asset.originalFilename;
+    const bytes = await this.assets.readBytes(params.assetId!);
 
     const mime = await detectMime(bytes, filenameHint ?? undefined);
     const isZip = mime === 'application/zip' || (filenameHint ?? '').toLowerCase().endsWith('.zip');
