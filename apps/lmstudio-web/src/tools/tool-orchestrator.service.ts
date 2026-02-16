@@ -95,13 +95,13 @@ export class ToolOrchestratorService {
         function: {
           name: 'doc_read',
           description:
-            'Read a document from an URL or an uploaded assetId. Supports ZIP archives (returns multiple files).',
+            'Read a document from an uploaded assetId (preferred) or a public URL. Supports ZIP archives (returns multiple entries). Returns a structured extraction result (text/json/code/pdf/docx/image).',
           parameters: {
             type: 'object',
             additionalProperties: false,
             description:
-              'Provide exactly one of: url (public http/https) OR assetId (uploaded asset). Do NOT pass an internal API /assets URL.',
-            oneOf: [{ required: ['url'] }, { required: ['assetId'] }],
+              'Prefer assetId whenever possible. Provide exactly one of: assetId (uploaded asset) OR url (public http/https). Do NOT pass an internal API /assets URL.',
+            oneOf: [{ required: ['assetId'] }, { required: ['url'] }],
             properties: {
               url: {
                 type: 'string',

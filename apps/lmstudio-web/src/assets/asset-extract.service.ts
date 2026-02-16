@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
 import { fileTypeFromBuffer } from 'file-type';
 import mammoth from 'mammoth';
@@ -15,13 +17,21 @@ export type AssetExtractKind =
   | 'binary'
   | 'unknown';
 
+export type AssetExtractStats = {
+  bytes: number;
+  chars: number;
+  extractMs: number;
+  ocr: boolean;
+};
+
 export type AssetExtractResult = {
   kind: AssetExtractKind;
   mimeType: string | null;
   filename: string;
   text: string | null;
   json: unknown | null;
-  warning: string | null;
+  warnings: string[];
+  stats: AssetExtractStats;
 };
 
 function bytesToUtf8(buf: Buffer): string {
@@ -32,6 +42,26 @@ function looksLikeScannedPdf(text: string): boolean {
   // Heuristic: extracted PDF text is tiny or mostly whitespace.
   const t = (text ?? '').replace(/\s+/g, ' ').trim();
   return t.length < 40;
+}
+
+async function tryOcrImage(bytes: Buffer): Promise<{ text: string; warnings: string[] } | null> {
+  if (process.env.LMSTUDIO_WEB_ENABLE_OCR !== 'true') return null;
+
+  try {
+    // Dynamic import so installs that don't want OCR can still run.
+    // tesseract.js is WASM-based and does not require an external binary.
+    const mod: any = await import('tesseract.js');
+    const Tesseract = mod?.default ?? mod;
+    if (!Tesseract?.recognize) return null;
+
+    const lang = (process.env.LMSTUDIO_WEB_OCR_LANG ?? 'eng').trim() || 'eng';
+    const res = await Tesseract.recognize(bytes, lang);
+    const text = String(res?.data?.text ?? '').trim();
+    if (!text) return { text: '', warnings: ['OCR produced empty text'] };
+    return { text, warnings: [] };
+  } catch (e: any) {
+    return { text: '', warnings: [`OCR failed: ${String(e?.message ?? e)}`] };
+  }
 }
 
 @Injectable()
@@ -49,10 +79,17 @@ export class AssetExtractService {
     filename: string,
     mimeTypeHint: string | null = null,
   ): Promise<AssetExtractResult> {
+    const started = Date.now();
     const lower = (filename ?? '').toLowerCase();
 
     const ft = await fileTypeFromBuffer(bytes).catch(() => null);
     const mimeType = mimeTypeHint ?? ft?.mime ?? null;
+    const baseStats: AssetExtractStats = {
+      bytes: bytes.length,
+      chars: 0,
+      extractMs: 0,
+      ocr: false,
+    };
 
     // Plain text + code
     const isTextLike =
@@ -69,69 +106,93 @@ export class AssetExtractService {
 
     if (isTextLike) {
       const text = bytesToUtf8(bytes);
+      baseStats.chars = text.length;
 
       if (lower.endsWith('.json') || mimeType === 'application/json') {
         try {
           const parsed = JSON.parse(text);
+          baseStats.extractMs = Date.now() - started;
           return {
             kind: 'json',
             mimeType: mimeType ?? 'application/json',
             filename,
             text,
             json: parsed,
-            warning: null,
+            warnings: [],
+            stats: baseStats,
           };
         } catch (e: any) {
+          baseStats.extractMs = Date.now() - started;
           return {
             kind: 'json',
             mimeType: mimeType ?? 'application/json',
             filename,
             text,
             json: null,
-            warning: `Invalid JSON: ${String(e?.message ?? e)}`,
+            warnings: [`Invalid JSON: ${String(e?.message ?? e)}`],
+            stats: baseStats,
           };
         }
       }
 
       if (lower.endsWith('.js') || lower.endsWith('.ts')) {
+        baseStats.extractMs = Date.now() - started;
         return {
           kind: 'code',
           mimeType: mimeType ?? 'text/plain',
           filename,
           text,
           json: null,
-          warning: null,
+          warnings: [],
+          stats: baseStats,
         };
       }
 
       if (lower.endsWith('.html') || lower.endsWith('.htm') || mimeType === 'text/html') {
+        baseStats.extractMs = Date.now() - started;
         return {
           kind: 'html',
           mimeType: mimeType ?? 'text/html',
           filename,
           text,
           json: null,
-          warning: null,
+          warnings: [],
+          stats: baseStats,
         };
       }
 
+      baseStats.extractMs = Date.now() - started;
       return {
         kind: 'text',
         mimeType: mimeType ?? 'text/plain',
         filename,
         text,
         json: null,
-        warning: null,
+        warnings: [],
+        stats: baseStats,
       };
     }
 
     // PDF
     if (mimeType === 'application/pdf' || lower.endsWith('.pdf')) {
       const text = await pdfBytesToText(bytes);
-      const warning = looksLikeScannedPdf(text)
-        ? 'PDF text extraction returned very little content. This likely is a scanned PDF. OCR is not implemented yet.'
-        : null;
-      return { kind: 'pdf', mimeType: 'application/pdf', filename, text, json: null, warning };
+      baseStats.chars = (text ?? '').length;
+      baseStats.extractMs = Date.now() - started;
+      const warnings: string[] = [];
+      if (looksLikeScannedPdf(text)) {
+        warnings.push(
+          'PDF text extraction returned very little content. This likely is a scanned PDF. OCR is not enabled/implemented for PDFs.',
+        );
+      }
+      return {
+        kind: 'pdf',
+        mimeType: 'application/pdf',
+        filename,
+        text,
+        json: null,
+        warnings,
+        stats: baseStats,
+      };
     }
 
     // DOCX
@@ -141,9 +202,11 @@ export class AssetExtractService {
     ) {
       const r = await mammoth.extractRawText({ buffer: bytes });
       const text = (r.value ?? '').trim();
-      const warning = r.messages?.length
-        ? `DOCX extraction warnings: ${r.messages.map((m) => m.message).join(' | ')}`
-        : null;
+      baseStats.chars = text.length;
+      baseStats.extractMs = Date.now() - started;
+      const warnings = r.messages?.length
+        ? [`DOCX extraction warnings: ${r.messages.map((m) => m.message).join(' | ')}`]
+        : [];
       return {
         kind: 'docx',
         mimeType:
@@ -151,7 +214,8 @@ export class AssetExtractService {
         filename,
         text,
         json: null,
-        warning,
+        warnings,
+        stats: baseStats,
       };
     }
 
@@ -160,26 +224,42 @@ export class AssetExtractService {
       (mimeType?.startsWith('image/') ?? false) ||
       lower.match(/\.(png|jpg|jpeg|webp|gif|bmp|tiff)$/)
     ) {
-      // NOTE: "Interpreting" images properly requires OCR or a vision model.
-      // For now, we expose metadata so the workflow can pass assetId to tools/models later.
+      const warnings: string[] = [];
+      let text: string | null = null;
+
+      const ocr = await tryOcrImage(bytes);
+      if (ocr) {
+        baseStats.ocr = true;
+        text = ocr.text || null;
+        warnings.push(...ocr.warnings);
+      } else {
+        warnings.push(
+          'Image OCR is disabled. Set LMSTUDIO_WEB_ENABLE_OCR=true to enable built-in OCR for images, or use a vision-capable model/tool.',
+        );
+      }
+
+      baseStats.chars = (text ?? '').length;
+      baseStats.extractMs = Date.now() - started;
       return {
         kind: 'image',
         mimeType: mimeType ?? ft?.mime ?? 'image/*',
         filename,
-        text: null,
+        text,
         json: null,
-        warning:
-          'Image interpretation (OCR/vision) is not implemented yet. Use the assetId with a vision-capable model/tool.',
+        warnings,
+        stats: baseStats,
       };
     }
 
+    baseStats.extractMs = Date.now() - started;
     return {
       kind: 'binary',
       mimeType,
       filename,
       text: null,
       json: null,
-      warning: 'Unsupported binary file type',
+      warnings: ['Unsupported binary file type'],
+      stats: baseStats,
     };
   }
 }

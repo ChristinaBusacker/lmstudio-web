@@ -72,6 +72,8 @@
     "file-type": "^20.0.0"
     ,
     "mammoth": "^1.8.0"
+    ,
+    "tesseract.js": "^5.0.5"
   },
   "devDependencies": {
     "@angular/animations": "^21.1.0",

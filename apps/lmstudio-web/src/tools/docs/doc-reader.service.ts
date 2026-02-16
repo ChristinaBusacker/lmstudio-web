@@ -8,11 +8,21 @@ import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import sanitizeHtml from 'sanitize-html';
 
-type ParsedFile = {
+export type ParsedFile = {
   name: string;
   mimeType: string | null;
-  text: string | null;
-  error: string | null;
+  kind: string;
+  content: {
+    text?: string | null;
+    json?: unknown | null;
+  };
+  warnings: string[];
+  stats: {
+    bytes: number;
+    chars: number;
+    extractMs: number;
+    ocr: boolean;
+  };
 };
 
 async function detectMime(buf: Buffer, fallbackName?: string): Promise<string | null> {
@@ -67,7 +77,7 @@ export class DocReaderService {
   async read(params: { url?: string; assetId?: string; runId?: string }): Promise<{
     sourceUrl: string | null;
     sourceAssetId: string | null;
-    files: ParsedFile[];
+    entries: ParsedFile[];
     artifactId: string | null;
   }> {
     if (!params.url && !params.assetId) {
@@ -99,6 +109,11 @@ export class DocReaderService {
       }
     }
 
+    // Asset-first: if both are provided, prefer assetId.
+    if (params.assetId) {
+      params.url = undefined;
+    }
+
     if (params.url) {
       sourceUrl = params.url;
       const res = await fetch(params.url, {
@@ -124,7 +139,7 @@ export class DocReaderService {
     const mime = await detectMime(bytes, filenameHint ?? undefined);
     const isZip = mime === 'application/zip' || (filenameHint ?? '').toLowerCase().endsWith('.zip');
 
-    const files: ParsedFile[] = isZip
+    const entries: ParsedFile[] = isZip
       ? await this.readZip(bytes)
       : [await this.readSingle(bytes, filenameHint ?? 'document', sourceUrl ?? 'about:blank')];
 
@@ -138,13 +153,13 @@ export class DocReaderService {
           sourceUrl,
           sourceAssetId,
           readAt: new Date().toISOString(),
-          files,
+          entries,
         },
       });
       artifactId = a.id;
     }
 
-    return { sourceUrl, sourceAssetId, files, artifactId };
+    return { sourceUrl, sourceAssetId, entries, artifactId };
   }
 
   private async readZip(zipBytes: Buffer): Promise<ParsedFile[]> {
@@ -164,8 +179,10 @@ export class DocReaderService {
           out.push({
             name,
             mimeType: await detectMime(Buffer.alloc(0), name),
-            text: null,
-            error: `Skipped (file too large: ${entry.uncompressedSize} bytes)`,
+            kind: 'binary',
+            content: { text: null, json: null },
+            warnings: [`Skipped (file too large: ${entry.uncompressedSize} bytes)`],
+            stats: { bytes: 0, chars: 0, extractMs: 0, ocr: false },
           });
           continue;
         }
@@ -176,8 +193,10 @@ export class DocReaderService {
         out.push({
           name,
           mimeType: await detectMime(Buffer.alloc(0), name),
-          text: null,
-          error: String(e?.message ?? e),
+          kind: 'unknown',
+          content: { text: null, json: null },
+          warnings: [String(e?.message ?? e)],
+          stats: { bytes: 0, chars: 0, extractMs: 0, ocr: false },
         });
       }
     }
@@ -194,17 +213,34 @@ export class DocReaderService {
 
       if (extracted.kind === 'html' && extracted.text) {
         const text = htmlToText(extracted.text, urlForHtml);
-        return { name, mimeType: extracted.mimeType ?? 'text/html', text, error: extracted.warning };
+        return {
+          name,
+          mimeType: extracted.mimeType ?? 'text/html',
+          kind: extracted.kind,
+          content: { text, json: null },
+          warnings: extracted.warnings,
+          stats: extracted.stats,
+        };
       }
 
-      if (extracted.text) {
-        return { name, mimeType: extracted.mimeType, text: extracted.text, error: extracted.warning };
-      }
-
-      return { name, mimeType: extracted.mimeType, text: null, error: extracted.warning ?? 'Unsupported file type' };
+      return {
+        name,
+        mimeType: extracted.mimeType,
+        kind: extracted.kind,
+        content: { text: extracted.text, json: extracted.json },
+        warnings: extracted.warnings,
+        stats: extracted.stats,
+      };
     } catch (e: any) {
       const mimeType = await detectMime(bytes, name);
-      return { name, mimeType, text: null, error: String(e?.message ?? e) };
+      return {
+        name,
+        mimeType,
+        kind: 'unknown',
+        content: { text: null, json: null },
+        warnings: [String(e?.message ?? e)],
+        stats: { bytes: bytes.length, chars: 0, extractMs: 0, ocr: false },
+      };
     }
   }
 }

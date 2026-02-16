@@ -506,14 +506,16 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
       let extractedText: string | null = null;
       let extractedJson: unknown | null = null;
-      let extractWarning: string | null = null;
+      let extractWarnings: string[] = [];
+      let extractStats: any = null;
       let kind: string | null = null;
 
       if (extract) {
         const r = await this.assetExtract.extractByAssetId(assetId);
         extractedText = r.text;
         extractedJson = r.json;
-        extractWarning = r.warning;
+        extractWarnings = r.warnings;
+        extractStats = r.stats;
         kind = r.kind;
       }
 
@@ -529,7 +531,8 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         kind,
         extractedText,
         extractedJson,
-        extractWarning,
+        extractWarnings,
+        extractStats,
       };
 
       await this.workflows.upsertNodeRun(runId, nodeId, {
