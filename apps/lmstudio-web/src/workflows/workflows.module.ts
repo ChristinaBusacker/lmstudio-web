@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SettingsModule } from '../settings/settings.module';
 import { ChatsModule } from '../chats/chats.module';
 import { RunsModule } from '../runs/runs.module';
+import { AssetsModule } from '../assets/assets.module';
 import { SseModule } from '../sse/sse.module';
 import { WorkflowsController } from './workflows.controller';
 import { WorkflowsService } from './workflows.service';
@@ -21,6 +22,7 @@ import { ArtifactEntity } from './entities/artifact.entity';
       ArtifactEntity,
     ]),
     RunsModule,
+    AssetsModule,
     SettingsModule,
     ChatsModule,
     SseModule,

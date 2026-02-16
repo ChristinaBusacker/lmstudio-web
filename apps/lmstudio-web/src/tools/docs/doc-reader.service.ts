@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { fileTypeFromBuffer } from 'file-type';
 import unzipper from 'unzipper';
 import { AssetsService } from '../../assets/assets.service';
+import { AssetExtractService } from '../../assets/asset-extract.service';
 import { RunArtifactsService } from '../run-artifacts.service';
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import sanitizeHtml from 'sanitize-html';
-import { pdfBytesToText } from '@backend/src/utils/pdfBytesToText';
 
 type ParsedFile = {
   name: string;
@@ -15,10 +15,6 @@ type ParsedFile = {
   error: string | null;
 };
 
-function bytesToUtf8(buf: Buffer): string {
-  return buf.toString('utf8');
-}
-
 async function detectMime(buf: Buffer, fallbackName?: string): Promise<string | null> {
   const ft = await fileTypeFromBuffer(buf);
   if (ft?.mime) return ft.mime;
@@ -26,8 +22,12 @@ async function detectMime(buf: Buffer, fallbackName?: string): Promise<string | 
   if (name.endsWith('.md')) return 'text/markdown';
   if (name.endsWith('.txt')) return 'text/plain';
   if (name.endsWith('.json')) return 'application/json';
+  if (name.endsWith('.js')) return 'text/javascript';
+  if (name.endsWith('.ts')) return 'text/plain';
   if (name.endsWith('.html') || name.endsWith('.htm')) return 'text/html';
   if (name.endsWith('.pdf')) return 'application/pdf';
+  if (name.endsWith('.docx'))
+    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   if (name.endsWith('.zip')) return 'application/zip';
   return null;
 }
@@ -60,6 +60,7 @@ export function htmlToText(html: string, urlForDom = 'about:blank'): string {
 export class DocReaderService {
   constructor(
     private readonly assets: AssetsService,
+    private readonly extract: AssetExtractService,
     private readonly artifacts: RunArtifactsService,
   ) {}
 
@@ -185,33 +186,24 @@ export class DocReaderService {
   }
 
   private async readSingle(bytes: Buffer, name: string, urlForHtml: string): Promise<ParsedFile> {
-    const mimeType = await detectMime(bytes, name);
-    const lower = name.toLowerCase();
-
     try {
-      if (mimeType === 'application/pdf' || lower.endsWith('.pdf')) {
-        const text = await pdfBytesToText(bytes);
-        return { name, mimeType: 'application/pdf', text, error: null };
+      const mimeType = await detectMime(bytes, name);
+
+      // Run extraction (handles txt/json/js/ts/pdf/docx/images)
+      const extracted = await this.extract.extractBytes(bytes, name, mimeType);
+
+      if (extracted.kind === 'html' && extracted.text) {
+        const text = htmlToText(extracted.text, urlForHtml);
+        return { name, mimeType: extracted.mimeType ?? 'text/html', text, error: extracted.warning };
       }
 
-      if (mimeType === 'text/html' || lower.endsWith('.html') || lower.endsWith('.htm')) {
-        const text = htmlToText(bytesToUtf8(bytes), urlForHtml);
-        return { name, mimeType: 'text/html', text, error: null };
+      if (extracted.text) {
+        return { name, mimeType: extracted.mimeType, text: extracted.text, error: extracted.warning };
       }
 
-      if (
-        mimeType?.startsWith('text/') ||
-        lower.endsWith('.md') ||
-        lower.endsWith('.txt') ||
-        lower.endsWith('.json')
-      ) {
-        const text = bytesToUtf8(bytes);
-        return { name, mimeType: mimeType ?? 'text/plain', text, error: null };
-      }
-
-      // Unknown binary: don't attempt to decode
-      return { name, mimeType, text: null, error: 'Unsupported file type' };
+      return { name, mimeType: extracted.mimeType, text: null, error: extracted.warning ?? 'Unsupported file type' };
     } catch (e: any) {
+      const mimeType = await detectMime(bytes, name);
       return { name, mimeType, text: null, error: String(e?.message ?? e) };
     }
   }

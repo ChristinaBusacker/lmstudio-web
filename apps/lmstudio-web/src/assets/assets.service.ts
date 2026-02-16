@@ -24,6 +24,12 @@ export class AssetsService {
 
   async saveUpload(file: Express.Multer.File): Promise<AssetEntity> {
     const sha256 = createHash('sha256').update(file.buffer).digest('hex');
+
+    // De-dup: if we already have an identical file (by hash), reuse it.
+    // This keeps the DB tidy and avoids wasting disk space.
+    const existing = await this.assets.findOne({ where: { sha256 } });
+    if (existing) return existing;
+
     const root = this.assetsRoot();
     await this.ensureDir(root);
 

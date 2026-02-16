@@ -6,6 +6,8 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { WorkflowsService } from './workflows.service';
 import { SettingsService } from '../settings/settings.service';
 import { ChatEngineService } from '../chats/chat-engine.service';
+import { AssetsService } from '../assets/assets.service';
+import { AssetExtractService } from '../assets/asset-extract.service';
 import type { LmMessage } from '../common/types/llm.types';
 
 type Graph = {
@@ -53,6 +55,8 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly workflows: WorkflowsService,
     private readonly settings: SettingsService,
     private readonly engine: ChatEngineService,
+    private readonly assets: AssetsService,
+    private readonly assetExtract: AssetExtractService,
   ) {}
 
   onModuleInit() {
@@ -82,9 +86,10 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async shouldStopRun(
-    runId: string,
-  ): Promise<{ stop: true; reason: 'paused' | 'canceled' | 'finished' } | { stop: false }> {
+  private async shouldStopRun(runId: string): Promise<
+    | { stop: true; reason: 'paused' | 'canceled' | 'finished' }
+    | { stop: false }
+  > {
     const status = await this.workflows.getRunStatus(this.ownerKey, runId);
     if (!status) return { stop: false };
 
@@ -489,6 +494,57 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       });
 
       ctx.nodes[nodeId] = text;
+      return;
+    }
+
+    if (nodeType === 'workflow.asset') {
+      const assetId = String(node?.config?.asset?.assetId ?? '').trim();
+      if (!assetId) throw new Error(`workflow.asset missing config.asset.assetId (node ${nodeId})`);
+
+      const asset = await this.assets.getById(assetId);
+      const extract = Boolean(node?.config?.asset?.extract ?? false);
+
+      let extractedText: string | null = null;
+      let extractedJson: unknown | null = null;
+      let extractWarning: string | null = null;
+      let kind: string | null = null;
+
+      if (extract) {
+        const r = await this.assetExtract.extractByAssetId(assetId);
+        extractedText = r.text;
+        extractedJson = r.json;
+        extractWarning = r.warning;
+        kind = r.kind;
+      }
+
+      const out = {
+        assetId,
+        filename: asset.originalFilename,
+        mimeType: asset.mimeType,
+        sizeBytes: asset.sizeBytes,
+        sha256: asset.sha256,
+        // Tool-call compatible args for doc_read
+        docRead: { assetId },
+        // Optional derived content
+        kind,
+        extractedText,
+        extractedJson,
+        extractWarning,
+      };
+
+      await this.workflows.upsertNodeRun(runId, nodeId, {
+        iteration,
+        status: 'completed',
+        startedAt: new Date(),
+        finishedAt: new Date(),
+        outputText: extractedText ?? '',
+        outputJson: out,
+        primaryArtifactId: null,
+        inputSnapshot: { sources: sourcesSorted, note: 'workflow.asset' },
+        error: null,
+      });
+
+      ctx.nodes[nodeId] = out;
       return;
     }
 
@@ -987,15 +1043,15 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           const params: any = { ...(profile.params ?? {}) };
           if (!params.modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
-          const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
-          if (nodeStructured?.enabled) {
-            params.structuredOutput = {
-              enabled: true,
-              strict: Boolean(nodeStructured.strict ?? true),
-              name: String(nodeStructured.name ?? 'node_structured_output'),
-              schema: nodeStructured.schema ?? { type: 'object' },
-            };
-          }
+    const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
+    if (nodeStructured?.enabled) {
+      params.structuredOutput = {
+        enabled: true,
+        strict: Boolean(nodeStructured.strict ?? true),
+        name: String(nodeStructured.name ?? 'node_structured_output'),
+        schema: nodeStructured.schema ?? { type: 'object' },
+      };
+    }
 
           params.structuredOutput = {
             enabled: true,
@@ -1334,15 +1390,15 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           const params: any = { ...(profile.params ?? {}) };
           if (!params.modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
-          const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
-          if (nodeStructured?.enabled) {
-            params.structuredOutput = {
-              enabled: true,
-              strict: Boolean(nodeStructured.strict ?? true),
-              name: String(nodeStructured.name ?? 'node_structured_output'),
-              schema: nodeStructured.schema ?? { type: 'object' },
-            };
-          }
+    const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
+    if (nodeStructured?.enabled) {
+      params.structuredOutput = {
+        enabled: true,
+        strict: Boolean(nodeStructured.strict ?? true),
+        name: String(nodeStructured.name ?? 'node_structured_output'),
+        schema: nodeStructured.schema ?? { type: 'object' },
+      };
+    }
 
           // Enforce a strict boolean result via JSON schema.
           params.structuredOutput = {
@@ -1363,7 +1419,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
           // Render prompt after ctx.input is set.
           ctx.__depsForRender = new Set(sourcesSorted);
-          let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
+    let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
 
           if (sourcesSorted.length > 0) {
             const inputText = this.toText(ctx.input);
@@ -1496,7 +1552,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
         // Render prompt after ctx.input is set.
         ctx.__depsForRender = new Set(sourcesSorted);
-        let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
+    let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
 
         if (sourcesSorted.length > 0) {
           const inputText = this.toText(ctx.input);
@@ -1512,15 +1568,15 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         const params: any = { ...(profile.params ?? {}) };
         if (!params.modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
-        const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
-        if (nodeStructured?.enabled) {
-          params.structuredOutput = {
-            enabled: true,
-            strict: Boolean(nodeStructured.strict ?? true),
-            name: String(nodeStructured.name ?? 'node_structured_output'),
-            schema: nodeStructured.schema ?? { type: 'object' },
-          };
-        }
+    const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
+    if (nodeStructured?.enabled) {
+      params.structuredOutput = {
+        enabled: true,
+        strict: Boolean(nodeStructured.strict ?? true),
+        name: String(nodeStructured.name ?? 'node_structured_output'),
+        schema: nodeStructured.schema ?? { type: 'object' },
+      };
+    }
 
         const systemPrompt = String((profile as any).systemPrompt ?? '').trim();
 
