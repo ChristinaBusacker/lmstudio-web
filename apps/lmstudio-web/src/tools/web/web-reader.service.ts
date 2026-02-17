@@ -82,7 +82,6 @@ export class WebReaderService {
     const siteName = pickMetaProp(doc, 'og:site_name') ?? null;
     const lang = doc.documentElement?.getAttribute('lang')?.trim() || null;
 
-    // Readability gives us HTML content; sanitize and turn into plain-ish text.
     const contentHtml = parsed?.content ?? '';
     const cleanHtml = sanitizeHtml(contentHtml, {
       allowedTags: [
@@ -102,7 +101,6 @@ export class WebReaderService {
       allowedAttributes: {},
     });
 
-    // Convert HTML to text (simple): keep newlines for block tags.
     const text = cleanHtml
       .replace(/<\s*br\s*\/?>/gi, '\n')
       .replace(/<\s*\/?p\s*>/gi, '\n')

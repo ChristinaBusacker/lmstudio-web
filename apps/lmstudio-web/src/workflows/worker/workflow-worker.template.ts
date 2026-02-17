@@ -33,7 +33,8 @@ export function renderTemplate(input: string, ctx: any): string {
         cur = cur[p];
       }
       if (cur === undefined || cur === null) return '';
-      if (typeof cur === 'string' || typeof cur === 'number' || typeof cur === 'boolean') return String(cur);
+      if (typeof cur === 'string' || typeof cur === 'number' || typeof cur === 'boolean')
+        return String(cur);
       return JSON.stringify(cur);
     },
   );
@@ -54,7 +55,8 @@ export function renderTemplate(input: string, ctx: any): string {
         cur = cur[p];
       }
       if (cur === undefined || cur === null) return '';
-      if (typeof cur === 'string' || typeof cur === 'number' || typeof cur === 'boolean') return String(cur);
+      if (typeof cur === 'string' || typeof cur === 'number' || typeof cur === 'boolean')
+        return String(cur);
       return JSON.stringify(cur);
     },
   );
