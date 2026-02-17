@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/restrict-plus-operands */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { WorkflowsService } from './workflows.service';
 import { SettingsService } from '../settings/settings.service';
@@ -11,27 +7,15 @@ import { AssetsService } from '../assets/assets.service';
 import { AssetExtractService } from '../assets/asset-extract.service';
 import type { LmMessage } from '../common/types/llm.types';
 
-type Graph = {
-  nodes?: any[];
-  edges?: Array<{
-    id?: string;
-    source?: string;
-    target?: string;
-    sourcePort?: string;
-    targetPort?: string;
-    [key: string]: any;
-  }>;
-};
-
-type Edge = {
-  id: string;
-  source: string;
-  target: string;
-  sourcePort?: string;
-  targetPort?: string;
-};
-
-type IncomingEdge = Edge;
+import type { IncomingEdge, WorkflowGraph, WorkflowGraphNode } from './engine/graph-types';
+import { buildDependencies, topoSort } from './engine/dependency-graph';
+import {
+  renderTemplate,
+  safeJsonParse,
+  toPrettyText,
+  type WorkflowRenderContext,
+} from './engine/template-renderer';
+import { asJsonObject, getNumber, getPath, getString, isJsonObject } from './engine/typed-access';
 
 const COND_TRUE_PORT = 'cond-true';
 const COND_FALSE_PORT = 'cond-false';
@@ -89,8 +73,9 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.log(`Claimed workflow run ${run.id}`);
       await this.executeRun(run.id, run.workflowId);
-    } catch (err: any) {
-      this.logger.error(err?.message ?? String(err));
+    } catch (err: unknown) {
+      const msg = isJsonObject(err) ? getString(err.message, String(err)) : String(err);
+      this.logger.error(msg);
     } finally {
       this.isTickRunning = false;
     }
@@ -109,273 +94,11 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     return { stop: false };
   }
 
-  // ----------------------------
-  // Graph normalization (v2 + legacy)
-  // ----------------------------
-
-  private normalizeEdges(graph: Graph, nodeIds: Set<string>): Edge[] {
-    const raw = Array.isArray(graph.edges) ? graph.edges : [];
-    const out: Edge[] = [];
-
-    for (const e of raw) {
-      const source = String(e?.source ?? '').trim();
-      const target = String(e?.target ?? '').trim();
-      if (!source || !target) continue;
-      if (source === target) continue;
-      if (!nodeIds.has(source) || !nodeIds.has(target)) continue;
-
-      out.push({
-        id: String(e?.id ?? `${source}->${target}`),
-        source,
-        target,
-        sourcePort: e?.sourcePort ? String(e.sourcePort) : undefined,
-        targetPort: e?.targetPort ? String(e.targetPort) : undefined,
-      });
-    }
-
-    // dedupe + stable
-    const seen = new Set<string>();
-    const deduped: Edge[] = [];
-    for (const e of out) {
-      const k = `${e.source}->${e.target}|${e.sourcePort ?? ''}|${e.targetPort ?? ''}`;
-      if (seen.has(k)) continue;
-      seen.add(k);
-      deduped.push(e);
-    }
-
-    return deduped.sort((a, b) => a.id.localeCompare(b.id));
-  }
-
-  private deriveEdgesFromLegacyInputFrom(nodes: any[], nodeIds: Set<string>): Edge[] {
-    const out: Edge[] = [];
-    for (const n of nodes) {
-      const target = String(n?.id ?? '').trim();
-      const source = typeof n?.inputFrom === 'string' ? n.inputFrom.trim() : '';
-      if (!source || !target) continue;
-      if (source === target) continue;
-      if (!nodeIds.has(source) || !nodeIds.has(target)) continue;
-      out.push({
-        id: `${source}->${target}`,
-        source,
-        target,
-        sourcePort: 'port-right',
-        targetPort: 'port-left',
-      });
-    }
-    return out.sort((a, b) => a.id.localeCompare(b.id));
-  }
-
-  private getNormalizedGraph(graph: Graph) {
-    const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
-    const ids = nodes.map((n) => String(n?.id ?? '')).filter(Boolean);
-    const nodeIds = new Set(ids);
-
-    const edges = this.normalizeEdges(graph, nodeIds);
-    const finalEdges = edges.length ? edges : this.deriveEdgesFromLegacyInputFrom(nodes, nodeIds);
-
-    return { nodes, ids, nodeIds, edges: finalEdges };
-  }
+  // Graph parsing + dependency ordering moved to ./engine/* to keep this service readable.
 
   // ----------------------------
-  // Dependency detection
+  // Execution helpers
   // ----------------------------
-
-  private extractNodeRefs(prompt: string): string[] {
-    // supports {{nodes.X}} and {{steps.X}} (+ optional .path)
-    const txt = String(prompt ?? '');
-    const out: string[] = [];
-
-    const rx = /\{\{\s*(?:nodes|steps)\.([a-zA-Z0-9_-]+)(?:\.[^}]+)?\s*\}\}/g;
-    let m: RegExpExecArray | null;
-    while ((m = rx.exec(txt))) out.push(m[1]);
-
-    return out;
-  }
-
-  private buildDependencies(graph: Graph) {
-    const { nodes, ids, nodeIds, edges } = this.getNormalizedGraph(graph);
-
-    const incoming = new Map<string, IncomingEdge[]>();
-    for (const e of edges) {
-      if (!incoming.has(e.target)) incoming.set(e.target, []);
-      incoming.get(e.target)!.push(e);
-    }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const [k, arr] of incoming) arr.sort((a, b) => a.id.localeCompare(b.id));
-
-    const nodeById = new Map<string, any>();
-    for (const n of nodes) if (n?.id) nodeById.set(String(n.id), n);
-
-    const deps = new Map<string, Set<string>>();
-    for (const id of ids) deps.set(id, new Set());
-
-    for (const id of ids) {
-      const n = nodeById.get(id);
-      if (!n) continue;
-
-      const prompt = String(n.prompt ?? '');
-
-      for (const e of incoming.get(id) ?? []) {
-        const src = e.source;
-        if (nodeIds.has(src) && src !== id) deps.get(id)!.add(src);
-      }
-
-      for (const ref of this.extractNodeRefs(prompt)) {
-        if (nodeIds.has(ref) && ref !== id) deps.get(id)!.add(ref);
-      }
-    }
-
-    return { ids, nodeById, deps, incoming };
-  }
-
-  /**
-   * Topological order derived from computed deps.
-   * - If cycle/missing -> fall back to declared node order.
-   */
-  private topoSort(graph: Graph): string[] {
-    const { ids, deps } = this.buildDependencies(graph);
-
-    const indeg = new Map<string, number>();
-    const adj = new Map<string, Set<string>>();
-
-    for (const id of ids) indeg.set(id, 0);
-
-    for (const [to, fromSet] of deps) {
-      for (const from of fromSet) {
-        indeg.set(to, (indeg.get(to) ?? 0) + 1);
-        if (!adj.has(from)) adj.set(from, new Set());
-        adj.get(from)!.add(to);
-      }
-    }
-
-    const q: string[] = [];
-    for (const [id, d] of indeg) if (d === 0) q.push(id);
-    q.sort((a, b) => a.localeCompare(b));
-
-    const out: string[] = [];
-    while (q.length) {
-      const cur = q.shift()!;
-      out.push(cur);
-      for (const nx of adj.get(cur) ?? []) {
-        indeg.set(nx, (indeg.get(nx) ?? 0) - 1);
-        if (indeg.get(nx) === 0) {
-          q.push(nx);
-          q.sort((a, b) => a.localeCompare(b));
-        }
-      }
-    }
-
-    if (out.length !== ids.length) return ids;
-    return out;
-  }
-
-  // ----------------------------
-  // Templating and execution
-  // ----------------------------
-
-  private renderTemplate(input: string, ctx: any): string {
-    const alias = input.replace(/\{\{\s*steps\./g, '{{nodes.');
-
-    // Loop helpers
-    const loopIndex = Number.isFinite(Number(ctx?.loop?.index)) ? Number(ctx.loop.index) : null;
-    const loopIteration = Number.isFinite(Number(ctx?.loop?.iteration))
-      ? Number(ctx.loop.iteration)
-      : loopIndex !== null
-        ? loopIndex + 1
-        : null;
-
-    const withLoopVars = alias
-      .replace(/\{\{\s*(?:loop\.)?index\s*\}\}/g, () =>
-        loopIndex === null ? '' : String(loopIndex),
-      )
-      .replace(/\{\{\s*(?:loop\.)?iteration\s*\}\}/g, () =>
-        loopIteration === null ? '' : String(loopIteration),
-      );
-
-    const withInput = withLoopVars.replace(
-      /\{\{\s*input(?:\.([a-zA-Z0-9_$. -]+))?\s*\}\}/g,
-      (_m, rest) => {
-        const base = ctx?.input;
-        if (base === undefined || base === null) return '';
-        if (!rest) return typeof base === 'string' ? base : JSON.stringify(base);
-        const parts = String(rest)
-          .split('.')
-          .map((s) => s.trim())
-          .filter(Boolean);
-        let cur: any = base;
-        for (const p of parts) {
-          if (!cur || typeof cur !== 'object') return '';
-          cur = cur[p];
-        }
-        if (cur === undefined || cur === null) return '';
-        if (typeof cur === 'string' || typeof cur === 'number' || typeof cur === 'boolean')
-          return String(cur);
-        return JSON.stringify(cur);
-      },
-    );
-
-    const withNodes = withInput.replace(
-      /\{\{\s*nodes\.([a-zA-Z0-9_-]+)(?:\.([a-zA-Z0-9_$. -]+))?\s*\}\}/g,
-      (_m, nodeId, rest) => {
-        const base = ctx?.nodes?.[nodeId];
-        if (!base) return '';
-        if (!rest) return typeof base === 'string' ? base : JSON.stringify(base);
-        const parts = String(rest)
-          .split('.')
-          .map((s) => s.trim())
-          .filter(Boolean);
-        let cur: any = base;
-        for (const p of parts) {
-          if (!cur || typeof cur !== 'object') return '';
-          cur = cur[p];
-        }
-        if (cur === undefined || cur === null) return '';
-        if (typeof cur === 'string' || typeof cur === 'number' || typeof cur === 'boolean')
-          return String(cur);
-        return JSON.stringify(cur);
-      },
-    );
-
-    const deps: Set<string> | null =
-      ctx?.__depsForRender instanceof Set ? (ctx.__depsForRender as Set<string>) : null;
-
-    // Shortcut: {{nodeId.prop}} for *direct dependencies only* (prevents accidental global access).
-    return withNodes.replace(
-      /\{\{\s*([a-zA-Z0-9_-]+)(?:\.([a-zA-Z0-9_$. -]+))?\s*\}\}/g,
-      (m, nodeId, rest) => {
-        // Don't touch known namespaces
-        if (nodeId === 'nodes' || nodeId === 'steps' || nodeId === 'input' || nodeId === 'loop')
-          return m;
-        if (!deps || !deps.has(String(nodeId))) return m;
-
-        const base = ctx?.nodes?.[nodeId];
-        if (base === undefined || base === null) return '';
-        if (!rest) return typeof base === 'string' ? base : JSON.stringify(base);
-
-        const parts = String(rest)
-          .split('.')
-          .map((s) => s.trim())
-          .filter(Boolean);
-        let cur: any = base;
-        for (const p of parts) {
-          if (!cur || typeof cur !== 'object') return '';
-          cur = cur[p];
-        }
-        if (cur === undefined || cur === null) return '';
-        if (typeof cur === 'string' || typeof cur === 'number' || typeof cur === 'boolean')
-          return String(cur);
-        return JSON.stringify(cur);
-      },
-    );
-  }
-
-  private safeJsonParse(text: string) {
-    try {
-      return { ok: true as const, value: JSON.parse(text) };
-    } catch (e: any) {
-      return { ok: false as const, error: e?.message ? String(e.message) : 'Invalid JSON' };
-    }
-  }
 
   private buildMessages(systemPrompt: string, prompt: string): LmMessage[] {
     const msgs: LmMessage[] = [];
@@ -394,36 +117,40 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     return Number.isFinite(n) ? n : null;
   }
 
-  private toText(value: any): string {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'string') return value;
-    return JSON.stringify(value, null, 2);
+  private toText(value: unknown): string {
+    return toPrettyText(value);
   }
 
   private async executeSingleNode(args: {
     runId: string;
     nodeId: string;
-    node: any;
-    nodeById: Map<string, any>;
+    node: WorkflowGraphNode;
+    nodeById: Map<string, WorkflowGraphNode>;
     incoming: Map<string, IncomingEdge[]>;
-    ctx: any;
+    ctx: WorkflowRenderContext;
     iteration: number;
   }) {
     const { runId, nodeId, node, nodeById, incoming, ctx, iteration } = args;
 
-    const existing = (await this.workflows.getRun(this.ownerKey, runId)).nodeRuns.find(
-      (r: any) => r.nodeId === nodeId && Number(r.iteration ?? 0) === iteration,
-    );
-    if (existing && existing.status === 'completed') return;
+    const run = await this.workflows.getRun(this.ownerKey, runId);
+    const nodeRunsRaw = getPath(run as unknown, 'nodeRuns');
+    const nodeRuns = Array.isArray(nodeRunsRaw) ? (nodeRunsRaw as unknown[]) : [];
+    const existing = nodeRuns.find((r) => {
+      if (!isJsonObject(r)) return false;
+      const rid = getString(r.nodeId).trim();
+      const it = getNumber(r.iteration) ?? 0;
+      return rid === nodeId && it === iteration;
+    });
+    if (existing && isJsonObject(existing) && getString(existing.status) === 'completed') return;
 
     await this.workflows.setCurrentNode(runId, nodeId);
 
-    const nodeType = String(node.type ?? 'lmstudio.llm');
-    const rawPrompt = String(node.prompt ?? '').trim();
+    const nodeType = getString(node.type, 'lmstudio.llm');
+    const rawPrompt = getString(node.prompt).trim();
 
     const loopLast =
-      iteration > 0 && typeof ctx?.loop?.last === 'string' && ctx.loop.last.trim().length > 0
-        ? String(ctx.loop.last)
+      iteration > 0 && typeof ctx.loop?.last === 'string' && ctx.loop.last.trim().length > 0
+        ? ctx.loop.last
         : null;
 
     const edgesInAll = (incoming.get(nodeId) ?? []).slice();
@@ -531,16 +258,16 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (nodeType === 'workflow.asset') {
-      const assetId = String(node?.config?.asset?.assetId ?? '').trim();
+      const assetId = getString(getPath(node, 'config', 'asset', 'assetId')).trim();
       if (!assetId) throw new Error(`workflow.asset missing config.asset.assetId (node ${nodeId})`);
 
       const asset = await this.assets.getById(assetId);
-      const extract = Boolean(node?.config?.asset?.extract ?? false);
+      const extract = getPath(node, 'config', 'asset', 'extract') === true;
 
       let extractedText: string | null = null;
       let extractedJson: unknown | null = null;
       let extractWarnings: string[] = [];
-      let extractStats: any = null;
+      let extractStats: unknown | null = null;
       let kind: string | null = null;
 
       if (extract) {
@@ -603,7 +330,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         parts.push(this.toText(ctx.nodes[src]));
       }
 
-      const sep = (node?.config?.merge?.separator ?? '\n\n') as string;
+      const sep = getString(getPath(node, 'config', 'merge', 'separator'), '\n\n');
       const text = parts.join(String(sep));
 
       const artifact = await this.workflows.createArtifact(runId, null, {
@@ -638,9 +365,10 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
 
       const text = this.toText(ctx.nodes[src]);
-      const filename = (node?.config?.export?.filename ??
-        node?.exportFilename ??
-        `export-${runId}-${nodeId}.txt`) as string;
+      const filename =
+        getString(getPath(node, 'config', 'export', 'filename')).trim() ||
+        getString((node as unknown as Record<string, unknown>).exportFilename).trim() ||
+        `export-${runId}-${nodeId}.txt`;
 
       const artifact = await this.workflows.createArtifact(runId, null, {
         kind: 'text',
@@ -670,99 +398,30 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (nodeType === 'workflow.tool') {
-      const toolName = String(node?.config?.tool?.name ?? '').trim();
+      const toolName = getString(getPath(node, 'config', 'tool', 'name')).trim();
       if (!toolName) throw new Error(`workflow.tool missing config.tool.name (node ${nodeId})`);
 
-      const rawArgs = node?.config?.tool?.args ?? {};
-
-      const renderDeep = (v: any): any => {
-        if (typeof v === 'string') return this.renderTemplate(v, ctx);
-        if (Array.isArray(v)) return v.map(renderDeep);
-        if (v && typeof v === 'object') {
-          const out: any = {};
-          for (const [k, val] of Object.entries(v)) out[k] = renderDeep(val);
-          return out;
-        }
-        return v;
-      };
-
-      const toolArgs = renderDeep(rawArgs);
-
-      const startedAt = new Date();
-      try {
-        const r = await this.toolOrchestrator.executeToolDirect({
-          runId,
-          toolName,
-          toolArgs,
-        });
-
-        const result = r.result;
-        const outputText = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
-
-        await this.workflows.upsertNodeRun(runId, nodeId, {
-          iteration,
-          status: 'completed',
-          startedAt,
-          finishedAt: new Date(),
-          outputText,
-          outputJson: result,
-          primaryArtifactId: r.artifactId ?? null,
-          inputSnapshot: {
-            sources: sourcesSorted,
-            note: `workflow.tool ${toolName}`,
-            toolName,
-            toolArgs,
-          },
-          error: null,
-        });
-
-        ctx.nodes[nodeId] = result;
-        return;
-      } catch (e: any) {
-        await this.workflows.upsertNodeRun(runId, nodeId, {
-          iteration,
-          status: 'failed',
-          startedAt,
-          finishedAt: new Date(),
-          outputText: '',
-          outputJson: null,
-          primaryArtifactId: null,
-          inputSnapshot: {
-            sources: sourcesSorted,
-            note: `workflow.tool ${toolName}`,
-            toolName,
-            toolArgs,
-          },
-          error: String(e?.message ?? e),
-        });
-        throw e;
-      }
-    }
-
-    if (nodeType === 'workflow.tool') {
-      const toolName = String((node as any)?.config?.tool?.name ?? '').trim();
-      if (!toolName) throw new Error(`workflow.tool missing config.tool.name (node ${nodeId})`);
-
-      const rawArgs = ((node as any)?.config?.tool?.args ?? {}) as any;
+      const rawArgs = getPath(node, 'config', 'tool', 'args');
 
       // Allow template rendering in string fields inside args.
       ctx.__depsForRender = new Set(sourcesSorted);
 
-      const isPlainObject = (v: unknown): v is Record<string, any> =>
+      const isPlainObject = (v: unknown): v is Record<string, unknown> =>
         typeof v === 'object' && v !== null && !Array.isArray(v);
 
-      const renderAny = (v: any): any => {
-        if (typeof v === 'string') return this.renderTemplate(v, ctx);
+      const renderAny = (v: unknown): unknown => {
+        if (typeof v === 'string') return renderTemplate(v, ctx);
         if (Array.isArray(v)) return v.map((x) => renderAny(x));
         if (isPlainObject(v)) {
-          const out: Record<string, any> = {};
+          const out: Record<string, unknown> = {};
           for (const [k, vv] of Object.entries(v)) out[k] = renderAny(vv);
           return out;
         }
         return v;
       };
 
-      const toolArgs = renderAny(rawArgs) as Record<string, any>;
+      const renderedArgs = renderAny(rawArgs);
+      const toolArgs: Record<string, unknown> = isPlainObject(renderedArgs) ? renderedArgs : {};
 
       await this.workflows.upsertNodeRun(runId, nodeId, {
         iteration,
@@ -808,7 +467,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         status: 'completed',
         finishedAt: new Date(),
         outputText,
-        outputJson: typeof result === 'string' ? null : (result as any),
+        outputJson: typeof result === 'string' ? null : result,
         primaryArtifactId,
         inputSnapshot: {
           sources: sourcesSorted,
@@ -830,8 +489,10 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
       if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-      const params: any = { ...(profile.params ?? {}) };
-      if (!params.modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
+      const profileObj = asJsonObject(profile as unknown);
+      const params: Record<string, unknown> = { ...asJsonObject(profileObj.params) };
+      const modelKey = getString(params.modelKey).trim();
+      if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
       params.structuredOutput = {
         enabled: true,
@@ -845,10 +506,10 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         },
       };
 
-      const systemPrompt = String((profile as any).systemPrompt ?? '').trim();
+      const systemPrompt = getString(profileObj.systemPrompt).trim();
 
       ctx.__depsForRender = new Set(sourcesSorted);
-      let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
+      let renderedPrompt = renderTemplate(rawPrompt, ctx);
       const blocks: string[] = [];
       if (loopLast) {
         blocks.push(
@@ -877,7 +538,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         inputSnapshot: {
           sources: sourcesSorted,
           profileName,
-          modelKey: params.modelKey,
+          modelKey,
           note: 'workflow.condition',
         },
         error: null,
@@ -896,14 +557,14 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         if (value?.delta) full += value.delta;
       }
 
-      const parsed = this.safeJsonParse(full.trim());
+      const parsed = safeJsonParse(full.trim());
       if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') {
         throw new Error(
           `Condition did not return valid JSON: ${parsed.ok ? 'invalid object' : parsed.error}`,
         );
       }
 
-      const result = (parsed.value as any).result;
+      const result = getPath(parsed.value, 'result');
       if (typeof result !== 'boolean')
         throw new Error(`Condition JSON missing boolean field "result"`);
 
@@ -937,7 +598,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     if (!rawPrompt) throw new Error(`Node ${nodeId} missing prompt`);
 
     ctx.__depsForRender = new Set(sourcesSorted);
-    let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
+    let renderedPrompt = renderTemplate(rawPrompt, ctx);
     {
       const blocks: string[] = [];
       if (loopLast) {
@@ -958,20 +619,25 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
     if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-    const params: any = { ...(profile.params ?? {}) };
-    if (!params.modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
+    const profileObj = asJsonObject(profile as unknown);
+    const params: Record<string, unknown> = { ...asJsonObject(profileObj.params) };
+    const modelKey = getString(params.modelKey).trim();
+    if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
-    const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
-    if (nodeStructured?.enabled) {
+    const nodeStructured = getPath(node, 'config', 'llm', 'structuredOutput');
+    const nodeStructuredObj = asJsonObject(nodeStructured);
+    if (nodeStructuredObj.enabled === true) {
       params.structuredOutput = {
         enabled: true,
-        strict: Boolean(nodeStructured.strict ?? true),
-        name: String(nodeStructured.name ?? 'node_structured_output'),
-        schema: nodeStructured.schema ?? { type: 'object' },
+        strict: nodeStructuredObj.strict === false ? false : true,
+        name: getString(nodeStructuredObj.name, 'node_structured_output'),
+        schema: isJsonObject(nodeStructuredObj.schema)
+          ? nodeStructuredObj.schema
+          : { type: 'object' },
       };
     }
 
-    const systemPrompt = String((profile as any).systemPrompt ?? '').trim();
+    const systemPrompt = getString(profileObj.systemPrompt).trim();
 
     await this.workflows.upsertNodeRun(runId, nodeId, {
       iteration,
@@ -980,7 +646,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       inputSnapshot: {
         sources: sourcesSorted,
         profileName,
-        modelKey: params.modelKey,
+        modelKey,
         note: 'lmstudio.llm',
       },
       error: null,
@@ -989,12 +655,12 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     const streamId = `${runId}:${nodeId}:${iteration}`;
     const messages = this.buildMessages(systemPrompt, renderedPrompt);
 
-    const toolsEnabled = this.parseToolsEnabled((params as any)?.toolsEnabled);
-    const structuredEnabled = Boolean((params as any)?.structuredOutput?.enabled);
+    const toolsEnabled = this.parseToolsEnabled(getPath(params, 'toolsEnabled'));
+    const structuredEnabled = getPath(params, 'structuredOutput', 'enabled') === true;
 
     // Tools + schema-enforced structured output are not reliably supported by many servers/models.
     // If tools are enabled, prefer tool calling and fall back to "soft JSON" parsing afterwards.
-    const paramsForCall: any = { ...params };
+    const paramsForCall: Record<string, unknown> = { ...params };
     if (toolsEnabled && structuredEnabled) {
       delete paramsForCall.structuredOutput;
     }
@@ -1015,7 +681,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       if (value?.delta) full += value.delta;
     }
 
-    const parsed = this.safeJsonParse(full.trim());
+    const parsed = safeJsonParse(full.trim());
     if (parsed.ok) {
       const artifact = await this.workflows.createArtifact(runId, null, {
         kind: 'json',
@@ -1060,10 +726,11 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
   private async executeRun(runId: string, workflowId: string) {
     try {
       const wf = await this.workflows.get(this.ownerKey, workflowId);
-      const graph: Graph = wf.graph ?? {};
+      const graphRaw = getPath(wf as unknown, 'graph');
+      const graph: WorkflowGraph = isJsonObject(graphRaw) ? (graphRaw as WorkflowGraph) : {};
 
-      const nodeOrder = this.topoSort(graph);
-      const { nodeById, incoming } = this.buildDependencies(graph);
+      const nodeOrder = topoSort(graph as WorkflowGraph);
+      const { nodeById, incoming } = buildDependencies(graph as WorkflowGraph);
 
       // Pre-compute loop ranges (loop body = everything between loopStart and the next loopEnd in topo order).
       const loopRanges = new Map<
@@ -1100,27 +767,32 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         i = endIdx; // skip scanning inside the loop body
       }
 
-      const ctx: any = { nodes: {}, input: null, loop: null };
+      const ctx: WorkflowRenderContext = { nodes: {}, input: null, loop: null };
 
       // Restore context from already completed node runs (rerun-from support).
       // For nodes with multiple iterations (loops), we keep the latest iteration output.
       const details = await this.workflows.getRun(this.ownerKey, runId);
-      const latestByNode = new Map<string, any>();
+      const latestByNode = new Map<string, unknown>();
       const bestKey = new Map<string, { iteration: number; createdAt: string }>();
 
-      for (const nr of details.nodeRuns) {
-        if (nr.status !== 'completed') continue;
-        const it = Number.isFinite(Number((nr as any).iteration))
-          ? Number((nr as any).iteration)
-          : 0;
-        const createdAt = String((nr as any).createdAt ?? '');
-        const prev = bestKey.get(nr.nodeId);
+      const nodeRunsRaw = getPath(details as unknown, 'nodeRuns');
+      const nodeRuns = Array.isArray(nodeRunsRaw) ? (nodeRunsRaw as unknown[]) : [];
+      for (const nr of nodeRuns) {
+        if (!isJsonObject(nr)) continue;
+        if (getString(nr.status) !== 'completed') continue;
+
+        const nodeId = getString(nr.nodeId).trim();
+        if (!nodeId) continue;
+
+        const it = getNumber(nr.iteration) ?? 0;
+        const createdAt = getString(nr.createdAt);
+        const prev = bestKey.get(nodeId);
         if (!prev || it > prev.iteration || (it === prev.iteration && createdAt > prev.createdAt)) {
-          bestKey.set(nr.nodeId, { iteration: it, createdAt });
-          if (nr.outputJson !== null && nr.outputJson !== undefined)
-            latestByNode.set(nr.nodeId, nr.outputJson);
-          else if (nr.outputText !== null && nr.outputText !== undefined)
-            latestByNode.set(nr.nodeId, nr.outputText);
+          bestKey.set(nodeId, { iteration: it, createdAt });
+          const outJson = getPath(nr, 'outputJson');
+          const outText = getPath(nr, 'outputText');
+          if (outJson !== null && outJson !== undefined) latestByNode.set(nodeId, outJson);
+          else if (outText !== null && outText !== undefined) latestByNode.set(nodeId, outText);
         }
       }
       for (const [k, v] of latestByNode) ctx.nodes[k] = v;
@@ -1135,10 +807,17 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         const node = nodeById.get(nodeId);
         if (!node) continue;
 
-        const existing = (await this.workflows.getRun(this.ownerKey, runId)).nodeRuns.find(
-          (r) => r.nodeId === nodeId,
-        );
-        if (existing && existing.status === 'completed') continue;
+        const existingRun = await this.workflows.getRun(this.ownerKey, runId);
+        const existingNodeRunsRaw = getPath(existingRun as unknown, 'nodeRuns');
+        const existingNodeRuns = Array.isArray(existingNodeRunsRaw)
+          ? (existingNodeRunsRaw as unknown[])
+          : [];
+        const existing = existingNodeRuns.find((r) => {
+          if (!isJsonObject(r)) return false;
+          return getString(r.nodeId).trim() === nodeId;
+        });
+        if (existing && isJsonObject(existing) && getString(existing.status) === 'completed')
+          continue;
 
         await this.workflows.setCurrentNode(runId, nodeId);
 
@@ -1209,7 +888,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           }
           ctx.input = ctx.nodes[src];
         } else if (sourcesSorted.length > 1) {
-          const obj: Record<string, any> = {};
+          const obj: Record<string, unknown> = {};
           for (const src of sourcesSorted) {
             if (!(src in ctx.nodes)) {
               throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
@@ -1228,14 +907,15 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           const range = loopRanges.get(nodeId);
           if (!range) throw new Error(`LoopStart ${nodeId} has no range metadata`);
 
-          const loopCfg = node?.config?.loop ?? {};
-          const maxIterations = Math.max(1, Math.min(1000, Number(loopCfg.maxIterations ?? 10)));
-          const joiner = String(loopCfg.joiner ?? '\n\n');
-          const mode = String(loopCfg.mode ?? 'until') as LoopMode;
-          const conditionPrompt = String(loopCfg.conditionPrompt ?? '').trim();
+          const loopCfg = asJsonObject(getPath(node, 'config', 'loop'));
+          const maxItRaw = getNumber(loopCfg.maxIterations) ?? 10;
+          const maxIterations = Math.max(1, Math.min(1000, maxItRaw));
+          const joiner = getString(loopCfg.joiner, '\n\n');
+          const mode = getString(loopCfg.mode, 'until') as LoopMode;
+          const conditionPrompt = getString(loopCfg.conditionPrompt).trim();
 
           if (mode !== 'while' && mode !== 'until' && mode !== 'count') {
-            throw new Error(`LoopStart ${nodeId} has invalid mode: ${String(loopCfg.mode)}`);
+            throw new Error(`LoopStart ${nodeId} has invalid mode: ${getString(loopCfg.mode)}`);
           }
           if (!conditionPrompt) throw new Error(`LoopStart ${nodeId} missing loop.conditionPrompt`);
 
@@ -1245,16 +925,21 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
           if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-          const params: any = { ...(profile.params ?? {}) };
-          if (!params.modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
+          const profileObj = asJsonObject(profile as unknown);
+          const params: Record<string, unknown> = { ...asJsonObject(profileObj.params) };
+          const modelKey = getString(params.modelKey).trim();
+          if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
-          const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
-          if (nodeStructured?.enabled) {
+          const nodeStructured = getPath(node, 'config', 'llm', 'structuredOutput');
+          const nodeStructuredObj = asJsonObject(nodeStructured);
+          if (nodeStructuredObj.enabled === true) {
             params.structuredOutput = {
               enabled: true,
-              strict: Boolean(nodeStructured.strict ?? true),
-              name: String(nodeStructured.name ?? 'node_structured_output'),
-              schema: nodeStructured.schema ?? { type: 'object' },
+              strict: nodeStructuredObj.strict === false ? false : true,
+              name: getString(nodeStructuredObj.name, 'node_structured_output'),
+              schema: isJsonObject(nodeStructuredObj.schema)
+                ? nodeStructuredObj.schema
+                : { type: 'object' },
             };
           }
 
@@ -1270,7 +955,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             },
           };
 
-          const systemPrompt = String((profile as any).systemPrompt ?? '').trim();
+          const systemPrompt = getString(profileObj.systemPrompt).trim();
 
           // Make the upstream input available under {{input}} for the first iteration if needed.
           ctx.nodes[nodeId] = ctx.input;
@@ -1284,7 +969,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             inputSnapshot: {
               sources: sourcesSorted,
               profileName,
-              modelKey: params.modelKey,
+              modelKey,
               loop: { maxIterations, joiner, mode },
               note: 'workflow.loopStart',
             },
@@ -1350,7 +1035,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
               loop: loopState,
             });
 
-            const renderedCond = this.renderTemplate(conditionPrompt, {
+            const renderedCond = renderTemplate(conditionPrompt, {
               ...ctx,
               input: loopState,
             });
@@ -1380,13 +1065,13 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
               if (value?.delta) full += value.delta;
             }
 
-            const parsed = this.safeJsonParse(full.trim());
+            const parsed = safeJsonParse(full.trim());
             if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') {
               throw new Error(
                 `Loop condition did not return valid JSON: ${parsed.ok ? 'invalid object' : parsed.error}`,
               );
             }
-            const result = (parsed.value as any).result;
+            const result = getPath(parsed.value, 'result');
             if (typeof result !== 'boolean') {
               throw new Error(`Loop condition JSON missing boolean field "result"`);
             }
@@ -1506,7 +1191,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             parts.push(this.toText(ctx.nodes[src]));
           }
 
-          const sep = (node?.config?.merge?.separator ?? '\n\n') as string;
+          const sep = getString(getPath(node, 'config', 'merge', 'separator'), '\n\n');
           const text = parts.join(String(sep));
 
           const artifact = await this.workflows.createArtifact(runId, null, {
@@ -1550,9 +1235,10 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
           const text = this.toText(ctx.nodes[src]);
 
-          const filename = (node?.config?.export?.filename ??
-            node?.exportFilename ??
-            `export-${runId}-${nodeId}.txt`) as string;
+          const filename =
+            getString(getPath(node, 'config', 'export', 'filename')).trim() ||
+            getString((node as unknown as Record<string, unknown>).exportFilename).trim() ||
+            `export-${runId}-${nodeId}.txt`;
 
           const artifact = await this.workflows.createArtifact(runId, null, {
             kind: 'text',
@@ -1586,31 +1272,32 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         // ----------------------------
 
         if (nodeType === 'workflow.tool') {
-          const toolName = String((node as any)?.config?.tool?.name ?? '').trim();
+          const toolName = getString(getPath(node, 'config', 'tool', 'name')).trim();
           if (!toolName) throw new Error(`workflow.tool missing config.tool.name (node ${nodeId})`);
 
-          const rawArgs = ((node as any)?.config?.tool?.args ?? {}) as any;
+          const rawArgs = getPath(node, 'config', 'tool', 'args');
 
           // Allow template rendering in string fields inside args.
           ctx.__depsForRender = new Set(sourcesSorted);
 
-          const isPlainObject = (v: unknown): v is Record<string, any> =>
+          const isPlainObject = (v: unknown): v is Record<string, unknown> =>
             typeof v === 'object' && v !== null && !Array.isArray(v);
 
-          const renderAny = (v: any): any => {
-            if (typeof v === 'string') return this.renderTemplate(v, ctx);
+          const renderAny = (v: unknown): unknown => {
+            if (typeof v === 'string') return renderTemplate(v, ctx);
             if (Array.isArray(v)) return v.map((x) => renderAny(x));
             if (isPlainObject(v)) {
-              const out: Record<string, any> = {};
+              const out: Record<string, unknown> = {};
               for (const [k, vv] of Object.entries(v)) out[k] = renderAny(vv);
               return out;
             }
             return v;
           };
 
-          const toolArgs = renderAny(rawArgs) as Record<string, any>;
+          const renderedArgs = renderAny(rawArgs);
+          const toolArgs: Record<string, unknown> = isPlainObject(renderedArgs) ? renderedArgs : {};
 
-          const iteration = (ctx as any)?.iteration ?? 0;
+          const iteration = typeof ctx.loop?.iteration === 'number' ? ctx.loop.iteration : 0;
 
           await this.workflows.upsertNodeRun(runId, nodeId, {
             iteration,
@@ -1655,7 +1342,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             status: 'completed',
             finishedAt: new Date(),
             outputText,
-            outputJson: typeof result === 'string' ? null : (result as any),
+            outputJson: typeof result === 'string' ? null : result,
             primaryArtifactId,
             inputSnapshot: {
               sources: sourcesSorted,
@@ -1677,16 +1364,21 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
           if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-          const params: any = { ...(profile.params ?? {}) };
-          if (!params.modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
+          const profileObj = asJsonObject(profile as unknown);
+          const params: Record<string, unknown> = { ...asJsonObject(profileObj.params) };
+          const modelKey = getString(params.modelKey).trim();
+          if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
-          const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
-          if (nodeStructured?.enabled) {
+          const nodeStructured = getPath(node, 'config', 'llm', 'structuredOutput');
+          const nodeStructuredObj = asJsonObject(nodeStructured);
+          if (nodeStructuredObj.enabled === true) {
             params.structuredOutput = {
               enabled: true,
-              strict: Boolean(nodeStructured.strict ?? true),
-              name: String(nodeStructured.name ?? 'node_structured_output'),
-              schema: nodeStructured.schema ?? { type: 'object' },
+              strict: nodeStructuredObj.strict === false ? false : true,
+              name: getString(nodeStructuredObj.name, 'node_structured_output'),
+              schema: isJsonObject(nodeStructuredObj.schema)
+                ? nodeStructuredObj.schema
+                : { type: 'object' },
             };
           }
 
@@ -1705,11 +1397,11 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             },
           };
 
-          const systemPrompt = String((profile as any).systemPrompt ?? '').trim();
+          const systemPrompt = getString(profileObj.systemPrompt).trim();
 
           // Render prompt after ctx.input is set.
           ctx.__depsForRender = new Set(sourcesSorted);
-          let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
+          let renderedPrompt = renderTemplate(rawPrompt, ctx);
 
           if (sourcesSorted.length > 0) {
             const inputText = this.toText(ctx.input);
@@ -1731,7 +1423,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             inputSnapshot: {
               sources: sourcesSorted,
               profileName,
-              modelKey: params.modelKey,
+              modelKey,
               note: 'workflow.condition',
             },
             error: null,
@@ -1750,7 +1442,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             if (value?.delta) full += value.delta;
           }
 
-          const parsed = this.safeJsonParse(full.trim());
+          const parsed = safeJsonParse(full.trim());
           if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') {
             await this.workflows.upsertNodeRun(runId, nodeId, {
               status: 'failed',
@@ -1760,7 +1452,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
             throw new Error(`Condition node ${nodeId} did not return valid JSON`);
           }
 
-          const result = parsed.value.result;
+          const result = getPath(parsed.value, 'result');
           if (typeof result !== 'boolean') {
             await this.workflows.upsertNodeRun(runId, nodeId, {
               status: 'failed',
@@ -1842,7 +1534,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
 
         // Render prompt after ctx.input is set.
         ctx.__depsForRender = new Set(sourcesSorted);
-        let renderedPrompt = this.renderTemplate(rawPrompt, ctx);
+        let renderedPrompt = renderTemplate(rawPrompt, ctx);
 
         if (sourcesSorted.length > 0) {
           const inputText = this.toText(ctx.input);
@@ -1855,20 +1547,25 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
         const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
         if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-        const params: any = { ...(profile.params ?? {}) };
-        if (!params.modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
+        const profileObj = asJsonObject(profile as unknown);
+        const params: Record<string, unknown> = { ...asJsonObject(profileObj.params) };
+        const modelKey = getString(params.modelKey).trim();
+        if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
-        const nodeStructured = (node as any)?.config?.llm?.structuredOutput;
-        if (nodeStructured?.enabled) {
+        const nodeStructured = getPath(node, 'config', 'llm', 'structuredOutput');
+        const nodeStructuredObj = asJsonObject(nodeStructured);
+        if (nodeStructuredObj.enabled === true) {
           params.structuredOutput = {
             enabled: true,
-            strict: Boolean(nodeStructured.strict ?? true),
-            name: String(nodeStructured.name ?? 'node_structured_output'),
-            schema: nodeStructured.schema ?? { type: 'object' },
+            strict: nodeStructuredObj.strict === false ? false : true,
+            name: getString(nodeStructuredObj.name, 'node_structured_output'),
+            schema: isJsonObject(nodeStructuredObj.schema)
+              ? nodeStructuredObj.schema
+              : { type: 'object' },
           };
         }
 
-        const systemPrompt = String((profile as any).systemPrompt ?? '').trim();
+        const systemPrompt = getString(profileObj.systemPrompt).trim();
 
         await this.workflows.upsertNodeRun(runId, nodeId, {
           status: 'running',
@@ -1876,7 +1573,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           inputSnapshot: {
             sources: sourcesSorted,
             profileName,
-            modelKey: params.modelKey,
+            modelKey,
             note: 'lmstudio.llm',
           },
           error: null,
@@ -1895,7 +1592,7 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
           if (value?.delta) full += value.delta;
         }
 
-        const parsed = this.safeJsonParse(full.trim());
+        const parsed = safeJsonParse(full.trim());
         if (parsed.ok) {
           const artifact = await this.workflows.createArtifact(runId, null, {
             kind: 'json',
@@ -1942,8 +1639,9 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
       }
 
       await this.workflows.markRunCompleted(runId);
-    } catch (err: any) {
-      await this.workflows.markRunFailed(runId, err?.message ?? String(err));
+    } catch (err: unknown) {
+      const msg = isJsonObject(err) ? getString(err.message, String(err)) : String(err);
+      await this.workflows.markRunFailed(runId, msg);
       throw err;
     }
   }
