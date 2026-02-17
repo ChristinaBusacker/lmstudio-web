@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { Store } from '@ngxs/store';
@@ -19,12 +17,18 @@ import {
   diagramJsonToWorkflowGraph,
   normalizeWorkflowGraph,
   workflowToDiagramModel,
+  type DiagramNodeData,
   type WorkflowGraph,
 } from './workflow-diagram.adapter';
 import { WorkflowEditorStateService } from './workflow-editor-state.service';
+import { getRecord, safeJsonParse, type JsonRecord, isRecord } from '../../core/utils/typed-access';
+import {
+  type Workflow,
+  type WorkflowGraph as WorkflowGraphModel,
+} from '../../core/state/workflows/workflow.models';
 
-type DiagramNode = Node<object>;
-type DiagramEdge = Edge<object>;
+type DiagramNode = Node<DiagramNodeData>;
+type DiagramEdge = Edge<JsonRecord>;
 type DiagramModel = ReturnType<typeof initializeModel>;
 type DiagramModelInput = Parameters<typeof initializeModel>[0];
 
@@ -35,14 +39,6 @@ const NODE_EXPORT = 'workflow.export';
 const NODE_PREVIEW = 'ui.preview';
 
 const MERGE_IN_PREFIX = 'in-';
-
-function safeJsonParse<T>(value: string, fallback: T): T {
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
-}
 
 /**
  * Facade for all diagram-related editor behavior:
@@ -133,9 +129,9 @@ export class WorkflowDiagramFacade {
   onEdgeDrawn(e: EdgeDrawnEvent): void {
     this.runWhenReady(() => {
       const targetNode = e.target as DiagramNode;
-      const nodeType = String((targetNode as any)?.data?.nodeType ?? '');
+      const nodeType = String(targetNode.data?.nodeType ?? '');
 
-      const edgeId = String((e.edge as any)?.id ?? '');
+      const edgeId = String((e.edge as DiagramEdge | undefined)?.id ?? '');
       if (!edgeId) return;
 
       // Single-input nodes: keep only the newest incoming connection.
@@ -167,10 +163,10 @@ export class WorkflowDiagramFacade {
         const maxUsed = this.maxMergeIndex(usedWithNew);
         const desiredCount = Math.max(1, maxUsed + 1);
 
-        const dataAny = (targetNode as any).data ?? {};
-        if (Number(dataAny.mergeInputCount ?? 1) !== desiredCount) {
+        const data = targetNode.data;
+        if (Number(data.mergeInputCount ?? 1) !== desiredCount) {
           this.modelService.updateNodeData(targetNode.id, {
-            ...dataAny,
+            ...data,
             mergeInputCount: desiredCount,
           });
         }
@@ -210,7 +206,8 @@ export class WorkflowDiagramFacade {
 
     this.resetEditorForIncomingModel();
 
-    const { nodes, edges } = workflowToDiagramModel(workflow as any);
+    const wf = workflow as Workflow;
+    const { nodes, edges } = workflowToDiagramModel(wf);
     const model = initializeModel({
       nodes: nodes as DiagramNode[],
       edges: edges as DiagramEdge[],
@@ -270,10 +267,12 @@ export class WorkflowDiagramFacade {
     // - Merge nodes keep their targetPort semantics.
     const normalizedModel = this.normalizeModelForSave();
 
-    const graph = diagramJsonToWorkflowGraph(JSON.stringify(normalizedModel));
+    const graph = diagramJsonToWorkflowGraph(
+      JSON.stringify(normalizedModel),
+    ) as unknown as WorkflowGraphModel;
     this.lastLoadedGraphSig = this.workflowGraphSig({ graph });
 
-    const dispatch$ = this.store.dispatch(new UpdateWorkflow(wf.id, { graph: graph as any }));
+    const dispatch$ = this.store.dispatch(new UpdateWorkflow(wf.id, { graph }));
 
     // Optimistically update editor state immediately (UX), while the server saves.
     this.editorState.clearDirty();
@@ -372,26 +371,26 @@ export class WorkflowDiagramFacade {
   }
 
   private currentDiagramModelData(): DiagramModelInput {
-    const json = safeJsonParse<{ nodes?: DiagramNode[]; edges?: DiagramEdge[] }>(
-      this.modelService.toJSON(),
-      {},
-    );
+    const parsed = safeJsonParse(this.modelService.toJSON());
+    const json = getRecord(parsed) ?? {};
+    const nodes = (Array.isArray(json.nodes) ? json.nodes : []) as unknown[];
+    const edges = (Array.isArray(json.edges) ? json.edges : []) as unknown[];
 
     return {
-      nodes: Array.isArray(json.nodes) ? json.nodes : [],
-      edges: Array.isArray(json.edges) ? json.edges : [],
+      nodes: nodes.filter((n): n is DiagramNode => isRecord(n)) as DiagramNode[],
+      edges: edges.filter((e): e is DiagramEdge => isRecord(e)) as DiagramEdge[],
     } as DiagramModelInput;
   }
 
   private snapshot(): GraphSnapshot {
-    const json = safeJsonParse<{ nodes?: DiagramNode[]; edges?: DiagramEdge[] }>(
-      this.modelService.toJSON(),
-      {},
-    );
+    const parsed = safeJsonParse(this.modelService.toJSON());
+    const json = getRecord(parsed) ?? {};
+    const nodes = (Array.isArray(json.nodes) ? json.nodes : []) as unknown[];
+    const edges = (Array.isArray(json.edges) ? json.edges : []) as unknown[];
 
     return structuredClone({
-      nodes: Array.isArray(json.nodes) ? json.nodes : [],
-      edges: Array.isArray(json.edges) ? json.edges : [],
+      nodes: nodes.filter((n): n is DiagramNode => isRecord(n)) as DiagramNode[],
+      edges: edges.filter((e): e is DiagramEdge => isRecord(e)) as DiagramEdge[],
     });
   }
 
@@ -401,11 +400,14 @@ export class WorkflowDiagramFacade {
   }
 
   private applySnapshot(snapshot: GraphSnapshot): void {
-    const modelAny = this.modelService as any;
+    const model = this.modelService as unknown as {
+      edges?: () => Array<{ id: string }>;
+      deleteEdges?: (ids: string[]) => void;
+    };
 
-    if (typeof modelAny.edges === 'function' && typeof modelAny.deleteEdges === 'function') {
-      const existingEdgeIds = (modelAny.edges() ?? []).map((e: any) => e.id);
-      if (existingEdgeIds.length) modelAny.deleteEdges(existingEdgeIds);
+    if (typeof model.edges === 'function' && typeof model.deleteEdges === 'function') {
+      const existingEdgeIds = (model.edges() ?? []).map((e) => e.id);
+      if (existingEdgeIds.length) model.deleteEdges(existingEdgeIds);
     }
 
     const existingNodeIds = this.modelService.nodes().map((n: DiagramNode) => n.id);
@@ -416,31 +418,39 @@ export class WorkflowDiagramFacade {
   }
 
   private diagramSig(): string {
-    const json = safeJsonParse<{ nodes?: any[]; edges?: any[] }>(this.modelService.toJSON(), {});
-    const nodes = Array.isArray(json.nodes) ? json.nodes : [];
-    const edges = Array.isArray(json.edges) ? json.edges : [];
+    const parsed = safeJsonParse(this.modelService.toJSON());
+    const json = getRecord(parsed) ?? {};
+    const nodes = (Array.isArray(json.nodes) ? json.nodes : []) as unknown[];
+    const edges = (Array.isArray(json.edges) ? json.edges : []) as unknown[];
 
     return JSON.stringify({
-      nodes: nodes.map((n: any) => ({
-        id: n.id,
-        position: n.position ?? null,
-        type: n.type ?? null,
-        data: {
-          label: n.data?.label ?? null,
-          nodeType: n.data?.nodeType ?? null,
-          profileName: n.data?.profileName ?? null,
-          prompt: n.data?.prompt ?? null,
-          mergeInputCount: n.data?.mergeInputCount ?? null,
-        },
-      })),
-      edges: edges.map((e: any) => ({
-        id: e.id ?? null,
-        source: e.source ?? null,
-        target: e.target ?? null,
-        sourcePort: e.sourcePort ?? null,
-        targetPort: e.targetPort ?? null,
-        type: e.type ?? null,
-      })),
+      nodes: nodes
+        .filter((n): n is JsonRecord => isRecord(n))
+        .map((n) => {
+          const data = getRecord(n.data) ?? {};
+          return {
+            id: String(n.id ?? ''),
+            position: isRecord(n.position) ? n.position : null,
+            type: String(n.type ?? ''),
+            data: {
+              label: String(data.label ?? ''),
+              nodeType: String(data.nodeType ?? ''),
+              profileName: String(data.profileName ?? ''),
+              prompt: String(data.prompt ?? ''),
+              mergeInputCount: Number(data.mergeInputCount ?? 0) || null,
+            },
+          };
+        }),
+      edges: edges
+        .filter((e): e is JsonRecord => isRecord(e))
+        .map((e) => ({
+          id: String(e.id ?? ''),
+          source: String(e.source ?? ''),
+          target: String(e.target ?? ''),
+          sourcePort: e.sourcePort ?? null,
+          targetPort: e.targetPort ?? null,
+          type: e.type ?? null,
+        })),
     });
   }
 
@@ -479,13 +489,15 @@ export class WorkflowDiagramFacade {
   }
 
   private getUsedMergeInputIndices(targetNodeId: string): number[] {
-    const edges = (this.modelService as any).edges?.() as any[] | undefined;
-    const list = Array.isArray(edges) ? edges : [];
+    const model = this.modelService as unknown as { edges?: () => DiagramEdge[] };
+    const list = typeof model.edges === 'function' ? model.edges() : [];
 
     const indices: number[] = [];
     for (const e of list) {
-      if (String(e?.target ?? '') !== targetNodeId) continue;
-      const tp = String(e?.targetPort ?? '');
+      const er = isRecord(e) ? e : null;
+      if (!er) continue;
+      if (String(er.target ?? '') !== targetNodeId) continue;
+      const tp = String(er.targetPort ?? '');
       const idx = this.mergeIndexFromPort(tp);
       if (idx) indices.push(idx);
     }
@@ -504,19 +516,22 @@ export class WorkflowDiagramFacade {
    * The edge with `keepEdgeId` is kept.
    */
   private enforceSingleIncomingEdge(targetNodeId: string, keepEdgeId: string): void {
-    const modelAny = this.modelService as any;
-    const edges = (modelAny.edges?.() ?? []) as any[];
-    const incoming = edges.filter((ed) => String(ed?.target ?? '') === targetNodeId);
+    const model = this.modelService as unknown as {
+      edges?: () => Array<JsonRecord>;
+      deleteEdges?: (ids: string[]) => void;
+    };
+    const edges = typeof model.edges === 'function' ? model.edges() : [];
+    const incoming = edges.filter((ed) => String(ed.target ?? '') === targetNodeId);
 
     if (incoming.length <= 1) return;
 
     const toDelete = incoming
-      .filter((ed) => String(ed?.id ?? '') !== keepEdgeId)
-      .map((ed) => String(ed.id))
+      .filter((ed) => String(ed.id ?? '') !== keepEdgeId)
+      .map((ed) => String(ed.id ?? ''))
       .filter((id) => id.length > 0);
 
-    if (toDelete.length && typeof modelAny.deleteEdges === 'function') {
-      modelAny.deleteEdges(toDelete);
+    if (toDelete.length && typeof model.deleteEdges === 'function') {
+      model.deleteEdges(toDelete);
     }
   }
 
@@ -525,18 +540,23 @@ export class WorkflowDiagramFacade {
    * nodes that must be single-input (export/preview).
    */
   private normalizeModelForSave(): { nodes: DiagramNode[]; edges: DiagramEdge[] } {
-    const json = safeJsonParse<{ nodes?: any[]; edges?: any[] }>(this.modelService.toJSON(), {});
-    const nodes = (Array.isArray(json.nodes) ? json.nodes : []) as DiagramNode[];
-    const edges = (Array.isArray(json.edges) ? json.edges : []) as DiagramEdge[];
+    const parsed = safeJsonParse(this.modelService.toJSON());
+    const json = getRecord(parsed) ?? {};
+    const nodes = ((Array.isArray(json.nodes) ? json.nodes : []) as unknown[]).filter(
+      (n): n is DiagramNode => isRecord(n),
+    ) as DiagramNode[];
+    const edges = ((Array.isArray(json.edges) ? json.edges : []) as unknown[]).filter(
+      (e): e is DiagramEdge => isRecord(e),
+    ) as DiagramEdge[];
 
     const byId = new Map<string, DiagramNode>();
-    for (const n of nodes) byId.set(String((n as any).id), n);
+    for (const n of nodes) byId.set(String(n.id), n);
 
     const singleInputTargets = new Set<string>();
     for (const n of nodes) {
-      const t = String(((n as any).data?.nodeType ?? '') as string);
+      const t = String(n.data?.nodeType ?? '');
       if (t === NODE_EXPORT || t === NODE_PREVIEW) {
-        singleInputTargets.add(String((n as any).id));
+        singleInputTargets.add(String(n.id));
       }
     }
 
@@ -547,8 +567,8 @@ export class WorkflowDiagramFacade {
 
     // Keep the *last* incoming edge per single-input node (user's latest action tends to be last in the array).
     for (let i = 0; i < edges.length; i += 1) {
-      const e = edges[i] as any;
-      const target = String(e?.target ?? '');
+      const e = edges[i];
+      const target = String(e.target ?? '');
 
       if (!singleInputTargets.has(target)) {
         keptEdges.push(edges[i]);
@@ -563,22 +583,23 @@ export class WorkflowDiagramFacade {
 
     const lastIncomingIndex = new Map<string, number>();
     for (let i = 0; i < edges.length; i += 1) {
-      const e = edges[i] as any;
-      const target = String(e?.target ?? '');
+      const target = String(edges[i].target ?? '');
       if (singleInputTargets.has(target)) lastIncomingIndex.set(target, i);
     }
 
     for (let i = 0; i < edges.length; i += 1) {
-      const e = edges[i] as any;
-      const target = String(e?.target ?? '');
+      const edge = edges[i];
+      const target = String(edge.target ?? '');
 
       if (!singleInputTargets.has(target)) continue;
 
       const last = lastIncomingIndex.get(target);
       if (last === i) {
         // Make port explicit for stability
-        e.targetPort = e.targetPort ?? 'port-left';
-        keptEdges.push(edges[i]);
+        keptEdges.push({
+          ...edge,
+          targetPort: edge.targetPort ?? 'port-left',
+        });
       }
     }
 

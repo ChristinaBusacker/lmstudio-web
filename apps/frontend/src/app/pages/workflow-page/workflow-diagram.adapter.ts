@@ -1,8 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Workflow } from '@frontend/src/app/core/state/workflows/workflow.models';
+import {
+  getArray,
+  getRecord,
+  isRecord,
+  safeJsonParse,
+  type JsonRecord,
+} from '@frontend/src/app/core/utils/typed-access';
 
 export const NODE_LLM = 'lmstudio.llm';
 export const NODE_ASSET = 'workflow.asset';
@@ -27,7 +30,7 @@ export type WorkflowGraph = {
     type: string;
     profileName?: string;
     prompt?: string;
-    config?: any;
+    config?: unknown;
     position?: { x: number; y: number };
 
     /**
@@ -54,9 +57,9 @@ export type WorkflowGraph = {
     sourcePort?: string;
     targetPort?: string;
     type?: string;
-    data?: any;
+    data?: unknown;
 
-    [key: string]: any;
+    [key: string]: unknown;
   }>;
 };
 
@@ -145,8 +148,8 @@ export type DiagramEdge = {
   sourcePort?: string;
   targetPort?: string;
   type?: string;
-  data?: any;
-  [key: string]: any;
+  data?: unknown;
+  [key: string]: unknown;
 };
 
 export type DiagramModel = {
@@ -166,33 +169,44 @@ function sortById<T extends { id: string }>(items: T[]): T[] {
   return items.sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function normalizeNodes(input: any): WorkflowGraph['nodes'] {
+function toFiniteNumber(value: unknown, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const n = typeof value === 'string' ? Number(value) : NaN;
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function normalizeNodes(input: unknown): WorkflowGraph['nodes'] {
   const spacingX = 340;
   const spacingY = 140;
 
-  const raw: any[] = Array.isArray(input?.nodes) ? input.nodes : [];
+  const root = getRecord(input);
+  const raw = root ? (getArray(root, 'nodes') ?? []) : [];
 
   return raw
-    .filter((n) => !!n?.id)
-    .map((n, idx) => {
-      const size =
-        n?.size && typeof n.size === 'object'
-          ? {
-              width: Number(n.size.width ?? NaN),
-              height: Number(n.size.height ?? NaN),
-            }
-          : undefined;
+    .filter((n) => isRecord(n) && typeof n.id !== 'undefined')
+    .map((nUnknown, idx) => {
+      const n = getRecord(nUnknown) as JsonRecord;
+      const pos = getRecord(n.position);
+      const sizeObj = getRecord(n.size);
+
+      const size = sizeObj
+        ? {
+            width: toFiniteNumber(sizeObj.width, NaN),
+            height: toFiniteNumber(sizeObj.height, NaN),
+          }
+        : undefined;
 
       const normalizedSize =
         size && Number.isFinite(size.width) && Number.isFinite(size.height) ? size : undefined;
 
       const angle =
-        n?.angle === null || n?.angle === undefined ? undefined : Number(n.angle ?? NaN);
+        n.angle === null || n.angle === undefined ? undefined : toFiniteNumber(n.angle, NaN);
 
-      const normalizedAngle = Number.isFinite(angle as number) ? (angle as number) : undefined;
+      const normalizedAngle =
+        typeof angle === 'number' && Number.isFinite(angle) ? angle : undefined;
 
       const autoSize =
-        n?.autoSize === null || n?.autoSize === undefined ? undefined : Boolean(n.autoSize);
+        n.autoSize === null || n.autoSize === undefined ? undefined : Boolean(n.autoSize);
 
       return {
         id: String(n.id),
@@ -202,8 +216,8 @@ function normalizeNodes(input: any): WorkflowGraph['nodes'] {
         config: n.config ?? null,
         inputFrom:
           n.inputFrom === undefined ? null : n.inputFrom === null ? null : String(n.inputFrom),
-        position: n.position
-          ? { x: Number(n.position.x ?? 0), y: Number(n.position.y ?? 0) }
+        position: pos
+          ? { x: toFiniteNumber(pos.x, 0), y: toFiniteNumber(pos.y, 0) }
           : { x: 40 + (idx % 2) * spacingX, y: 40 + Math.floor(idx / 2) * spacingY },
 
         size: normalizedSize,
@@ -214,26 +228,30 @@ function normalizeNodes(input: any): WorkflowGraph['nodes'] {
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function normalizeEdgesPreserveAll(input: any, nodeIds: Set<string>): DiagramEdge[] {
-  const raw: any[] = Array.isArray(input?.edges) ? input.edges : [];
+function normalizeEdgesPreserveAll(input: unknown, nodeIds: Set<string>): DiagramEdge[] {
+  const root = getRecord(input);
+  const raw = root ? (getArray(root, 'edges') ?? []) : [];
   const out: DiagramEdge[] = [];
 
   for (const e of raw) {
-    const source = String(e?.source ?? '').trim();
-    const target = String(e?.target ?? '').trim();
+    const er = getRecord(e);
+    if (!er) continue;
+
+    const source = String(er.source ?? '').trim();
+    const target = String(er.target ?? '').trim();
     if (!source || !target) continue;
     if (source === target) continue;
     if (!nodeIds.has(source) || !nodeIds.has(target)) continue;
 
     out.push({
-      ...e,
-      id: String(e?.id ?? `${source}->${target}`),
+      ...er,
+      id: String(er.id ?? `${source}->${target}`),
       source,
       target,
-      sourcePort: e?.sourcePort ? String(e.sourcePort) : undefined,
-      targetPort: e?.targetPort ? String(e.targetPort) : undefined,
-      type: e?.type ? String(e.type) : undefined,
-      data: e?.data ?? {},
+      sourcePort: er.sourcePort ? String(er.sourcePort) : undefined,
+      targetPort: er.targetPort ? String(er.targetPort) : undefined,
+      type: er.type ? String(er.type) : undefined,
+      data: er.data ?? {},
     });
   }
 
@@ -272,7 +290,7 @@ function deriveEdgesFromLegacyInputFrom(nodes: WorkflowGraph['nodes']): DiagramE
   return sortById(out);
 }
 
-export function normalizeWorkflowGraph(input: any): WorkflowGraph {
+export function normalizeWorkflowGraph(input: unknown): WorkflowGraph {
   const nodes = normalizeNodes(input);
   const nodeIds = new Set(nodes.map((n) => n.id));
 
@@ -349,12 +367,13 @@ export function workflowToDiagramModel(workflow: Workflow): DiagramModel {
 
   return {
     nodes: graph.nodes.map((n) => {
-      const cfg = n.config ?? {};
+      const cfg = getRecord(n.config) ?? {};
       const defaults = nodeDefaultsByType(n.type);
 
       // ---- Tool node config -> form fields ----
-      const toolName: string = String(cfg?.tool?.name ?? defaults.toolName ?? 'web_search');
-      const toolArgs: any = cfg?.tool?.args ?? {};
+      const toolCfg = getRecord(cfg.tool);
+      const toolName: string = String(toolCfg?.name ?? defaults.toolName ?? 'web_search');
+      const toolArgs = getRecord(toolCfg?.args) ?? {};
 
       const toolFields: Partial<DiagramNodeData> = {};
       if (n.type === NODE_TOOL) {
@@ -363,59 +382,62 @@ export function workflowToDiagramModel(workflow: Workflow): DiagramModel {
 
         if (toolName === 'web_search') {
           toolFields.webSearchQuery = String(
-            toolArgs?.q ?? toolArgs?.query ?? defaults.webSearchQuery ?? '',
+            toolArgs.q ?? toolArgs.query ?? defaults.webSearchQuery ?? '',
           );
-          toolFields.webSearchLimit = Number(toolArgs?.limit ?? defaults.webSearchLimit ?? 5);
+          toolFields.webSearchLimit = toFiniteNumber(
+            toolArgs.limit,
+            Number(defaults.webSearchLimit ?? 5),
+          );
         }
 
         if (toolName === 'web_read') {
-          toolFields.webReadUrl = String(toolArgs?.url ?? defaults.webReadUrl ?? '');
+          toolFields.webReadUrl = String(toolArgs.url ?? defaults.webReadUrl ?? '');
         }
 
         if (toolName === 'doc_read') {
-          toolFields.docReadAssetId = String(toolArgs?.assetId ?? defaults.docReadAssetId ?? '');
+          toolFields.docReadAssetId = String(toolArgs.assetId ?? defaults.docReadAssetId ?? '');
         }
 
         if (toolName === 'current_time') {
           toolFields.currentTimeTimezone = String(
-            toolArgs?.timezone ?? defaults.currentTimeTimezone ?? 'Europe/Berlin',
+            toolArgs.timezone ?? defaults.currentTimeTimezone ?? 'Europe/Berlin',
           );
         }
 
         if (toolName === 'resolve_relative_date') {
           toolFields.resolveRelativeText = String(
-            toolArgs?.text ?? defaults.resolveRelativeText ?? '',
+            toolArgs.text ?? defaults.resolveRelativeText ?? '',
           );
           toolFields.resolveRelativeTimezone = String(
-            toolArgs?.timezone ?? defaults.resolveRelativeTimezone ?? 'Europe/Berlin',
+            toolArgs.timezone ?? defaults.resolveRelativeTimezone ?? 'Europe/Berlin',
           );
-          toolFields.resolveRelativeBaseTime = toolArgs?.baseTime
+          toolFields.resolveRelativeBaseTime = toolArgs.baseTime
             ? String(toolArgs.baseTime)
             : (defaults.resolveRelativeBaseTime ?? '');
         }
 
         if (toolName === 'date_math') {
-          toolFields.dateMathBaseTime = toolArgs?.base
+          toolFields.dateMathBaseTime = toolArgs.base
             ? String(toolArgs.base)
             : (defaults.dateMathBaseTime ?? '');
           // The form UI uses a simplified operation enum, but the tool supports multiple fields.
           // If multiple are present, prefer add > startOf > endOf > roundTo.
-          if (toolArgs?.add) toolFields.dateMathOperation = 'add';
-          else if (toolArgs?.startOf) toolFields.dateMathOperation = 'startOfDay';
-          else if (toolArgs?.endOf) toolFields.dateMathOperation = 'endOfDay';
-          else if (toolArgs?.roundTo) toolFields.dateMathOperation = 'roundToHour';
-          else toolFields.dateMathOperation = (defaults.dateMathOperation as any) ?? 'add';
+          if (toolArgs.add) toolFields.dateMathOperation = 'add';
+          else if (toolArgs.startOf) toolFields.dateMathOperation = 'startOfDay';
+          else if (toolArgs.endOf) toolFields.dateMathOperation = 'endOfDay';
+          else if (toolArgs.roundTo) toolFields.dateMathOperation = 'roundToHour';
+          else toolFields.dateMathOperation = defaults.dateMathOperation ?? 'add';
 
           // Flatten add into amount+unit for the UI when possible.
-          const addObj = toolArgs?.add ?? {};
+          const addObj = getRecord(toolArgs.add) ?? {};
           type DateUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'years';
 
           const unitOrder: DateUnit[] = ['years', 'months', 'weeks', 'days', 'hours', 'minutes'];
-          let pickedUnit: any = defaults.dateMathUnit ?? 'days';
-          let pickedAmount: any = defaults.dateMathAmount ?? 1;
+          let pickedUnit: DateUnit = (defaults.dateMathUnit ?? 'days') as DateUnit;
+          let pickedAmount: number = Number(defaults.dateMathAmount ?? 1);
 
           for (const u of unitOrder) {
-            if (typeof addObj?.[u] === 'number') {
+            if (typeof addObj[u] === 'number') {
               pickedUnit = u;
               pickedAmount = Number(addObj[u]);
               break;
@@ -426,8 +448,11 @@ export function workflowToDiagramModel(workflow: Workflow): DiagramModel {
         }
 
         if (toolName === 'math') {
-          toolFields.mathExpression = String(toolArgs?.expression ?? defaults.mathExpression ?? '');
-          toolFields.mathPrecision = Number(toolArgs?.precision ?? defaults.mathPrecision ?? 8);
+          toolFields.mathExpression = String(toolArgs.expression ?? defaults.mathExpression ?? '');
+          toolFields.mathPrecision = toFiniteNumber(
+            toolArgs.precision,
+            Number(defaults.mathPrecision ?? 8),
+          );
         }
 
         if (toolName === 'json_validate') {
@@ -457,31 +482,43 @@ export function workflowToDiagramModel(workflow: Workflow): DiagramModel {
           profileName: n.profileName ?? '',
           prompt: n.prompt ?? '',
 
-          mergeSeparator: cfg?.merge?.separator ?? defaults.mergeSeparator,
-          mergeInputCount: cfg?.merge?.inputCount ?? defaults.mergeInputCount,
+          mergeSeparator:
+            (getRecord(cfg.merge)?.separator as string | undefined) ?? defaults.mergeSeparator,
+          mergeInputCount:
+            (getRecord(cfg.merge)?.inputCount as number | undefined) ?? defaults.mergeInputCount,
 
-          exportFilename: cfg?.export?.filename ?? defaults.exportFilename,
+          exportFilename:
+            (getRecord(cfg.export)?.filename as string | undefined) ?? defaults.exportFilename,
           // LoopStart
-          loopMode: cfg?.loop?.mode ?? defaults.loopMode,
-          loopConditionPrompt: cfg?.loop?.conditionPrompt ?? defaults.loopConditionPrompt,
-          loopJoiner: cfg?.loop?.joiner ?? defaults.loopJoiner,
+          loopMode: (getRecord(cfg.loop)?.mode as DiagramNodeData['loopMode']) ?? defaults.loopMode,
+          loopConditionPrompt:
+            (getRecord(cfg.loop)?.conditionPrompt as string | undefined) ??
+            defaults.loopConditionPrompt,
+          loopJoiner: (getRecord(cfg.loop)?.joiner as string | undefined) ?? defaults.loopJoiner,
           loopMaxIterations:
-            cfg?.loop?.maxIterations ?? cfg?.loop?.maxItems ?? defaults.loopMaxIterations,
-          loopCount: cfg?.loop?.count ?? defaults.loopCount,
+            (getRecord(cfg.loop)?.maxIterations as number | undefined) ??
+            (getRecord(cfg.loop)?.maxItems as number | undefined) ??
+            defaults.loopMaxIterations,
+          loopCount: (getRecord(cfg.loop)?.count as number | undefined) ?? defaults.loopCount,
 
           // Legacy loop
-          loopItemPath: cfg?.loop?.itemPath ?? defaults.loopItemPath,
-          loopMaxItems: cfg?.loop?.maxItems ?? defaults.loopMaxItems,
+          loopItemPath:
+            (getRecord(cfg.loop)?.itemPath as string | undefined) ?? defaults.loopItemPath,
+          loopMaxItems:
+            (getRecord(cfg.loop)?.maxItems as number | undefined) ?? defaults.loopMaxItems,
 
-          previewMaxLines: cfg?.preview?.maxLines ?? defaults.previewMaxLines,
+          previewMaxLines:
+            (getRecord(cfg.preview)?.maxLines as number | undefined) ?? defaults.previewMaxLines,
 
-          structuredOutputEnabled: cfg?.llm?.structuredOutput?.enabled ?? false,
-          structuredOutputSchema: cfg?.llm?.structuredOutput?.schema
-            ? JSON.stringify(cfg?.llm?.structuredOutput?.schema, null, 2)
+          structuredOutputEnabled: Boolean(
+            getRecord(getRecord(cfg.llm)?.structuredOutput)?.enabled ?? false,
+          ),
+          structuredOutputSchema: getRecord(getRecord(cfg.llm)?.structuredOutput)?.schema
+            ? JSON.stringify(getRecord(getRecord(cfg.llm)?.structuredOutput)?.schema, null, 2)
             : '',
 
-          assetId: cfg?.asset?.assetId ?? '',
-          assetExtract: cfg?.asset?.extract ?? true,
+          assetId: (getRecord(cfg.asset)?.assetId as string | undefined) ?? '',
+          assetExtract: (getRecord(cfg.asset)?.extract as boolean | undefined) ?? true,
 
           ...toolFields,
         } satisfies DiagramNodeData,
@@ -505,197 +542,197 @@ export function workflowToDiagramModel(workflow: Workflow): DiagramModel {
  * Diagram JSON -> Persisted Graph
  */
 export function diagramJsonToWorkflowGraph(diagramJson: string): WorkflowGraph {
-  const json = JSON.parse(diagramJson);
+  const parsed = safeJsonParse(diagramJson);
+  const json = getRecord(parsed) ?? {};
 
-  const nodes = Array.isArray(json?.nodes) ? json.nodes : [];
-  const edges = Array.isArray(json?.edges) ? json.edges : [];
+  const nodes = getArray(json, 'nodes') ?? [];
+  const edges = getArray(json, 'edges') ?? [];
 
   return normalizeWorkflowGraph({
-    nodes: nodes.map((n: any) => {
-      const nodeType = String(n.data?.nodeType ?? NODE_LLM);
+    nodes: nodes
+      .map((n) => (isRecord(n) ? n : null))
+      .filter((n): n is JsonRecord => !!n)
+      .map((n) => {
+        const data = getRecord(n.data) ?? {};
+        const nodeType = String(data.nodeType ?? NODE_LLM);
 
-      const config: any = {};
+        const config: JsonRecord = {};
 
-      if (nodeType === NODE_LLM) {
-        const enabled = Boolean(n.data?.structuredOutputEnabled);
-        const schemaText = String(n.data?.structuredOutputSchema ?? '').trim();
-        if (enabled) {
-          let schema: any = { type: 'object' };
-          if (schemaText) {
-            try {
-              schema = JSON.parse(schemaText);
-            } catch {
-              // Keep a minimal fallback schema if the user entered invalid JSON.
-              schema = { type: 'object' };
+        if (nodeType === NODE_LLM) {
+          const enabled = Boolean(data.structuredOutputEnabled);
+          const schemaText = String(data.structuredOutputSchema ?? '').trim();
+          if (enabled) {
+            const schema: unknown = schemaText
+              ? (safeJsonParse(schemaText) ?? { type: 'object' })
+              : { type: 'object' };
+            (config as Record<string, unknown>).llm = {
+              structuredOutput: {
+                enabled: true,
+                strict: true,
+                name: 'node_structured_output',
+                schema,
+              },
+            };
+          }
+        }
+
+        if (nodeType === NODE_TOOL) {
+          const toolName = String(data.toolName ?? 'web_search').trim() || 'web_search';
+
+          // Prefer advanced JSON args if provided and valid.
+          let toolArgs: JsonRecord = {};
+          const rawArgs = String(data.toolArgsJson ?? '').trim();
+          if (rawArgs) {
+            toolArgs = getRecord(safeJsonParse(rawArgs)) ?? {};
+          }
+
+          // If advanced args were empty/invalid, build args from tool-specific form fields.
+          if (!rawArgs || (rawArgs && Object.keys(toolArgs).length === 0)) {
+            if (toolName === 'web_search') {
+              toolArgs = {
+                q: String(data.webSearchQuery ?? ''),
+                limit: toFiniteNumber(data.webSearchLimit, 5),
+              };
+            } else if (toolName === 'web_read') {
+              toolArgs = { url: String(data.webReadUrl ?? '') };
+            } else if (toolName === 'doc_read') {
+              toolArgs = { assetId: String(data.docReadAssetId ?? '') };
+            } else if (toolName === 'current_time') {
+              const tz = String(data.currentTimeTimezone ?? 'Europe/Berlin');
+              toolArgs = tz ? { timezone: tz } : {};
+            } else if (toolName === 'resolve_relative_date') {
+              const text = String(data.resolveRelativeText ?? '');
+              const tz = String(data.resolveRelativeTimezone ?? 'Europe/Berlin');
+              const baseTime = String(data.resolveRelativeBaseTime ?? '').trim();
+              toolArgs = {
+                text,
+                timezone: tz,
+                ...(baseTime ? { baseTime } : {}),
+              };
+            } else if (toolName === 'date_math') {
+              const base = String(data.dateMathBaseTime ?? '').trim();
+              const op = String(data.dateMathOperation ?? 'add');
+              const amount = toFiniteNumber(data.dateMathAmount, 1);
+              const unit = String(data.dateMathUnit ?? 'days');
+
+              const args: JsonRecord = {};
+              if (base) args.base = base;
+
+              if (op === 'add') {
+                args.add = { [unit]: amount };
+              } else if (op === 'startOfDay') {
+                args.startOf = 'day';
+              } else if (op === 'endOfDay') {
+                args.endOf = 'day';
+              } else if (op === 'roundToHour') {
+                args.roundTo = 'hour';
+              }
+
+              toolArgs = args;
+            } else if (toolName === 'math') {
+              toolArgs = {
+                expression: String(data.mathExpression ?? ''),
+                precision: toFiniteNumber(data.mathPrecision, 8),
+              };
+            } else if (toolName === 'json_validate') {
+              toolArgs = {
+                data: String(data.jsonInput ?? ''),
+                schema: String(data.jsonSchema ?? ''),
+              };
+            } else if (toolName === 'json_repair') {
+              toolArgs = { text: String(data.jsonInput ?? '') };
             }
           }
-          config.llm = {
-            structuredOutput: {
-              enabled: true,
-              strict: true,
-              name: 'node_structured_output',
-              schema,
-            },
+
+          (config as Record<string, unknown>).tool = {
+            name: toolName,
+            args: toolArgs ?? {},
           };
         }
-      }
 
-      if (nodeType === NODE_TOOL) {
-        const toolName = String(n.data?.toolName ?? 'web_search').trim() || 'web_search';
-
-        // Prefer advanced JSON args if provided and valid.
-        let toolArgs: any = {};
-        const rawArgs = String(n.data?.toolArgsJson ?? '').trim();
-        if (rawArgs) {
-          try {
-            toolArgs = JSON.parse(rawArgs);
-          } catch {
-            // Ignore invalid advanced JSON and fall back to form fields.
-            toolArgs = {};
-          }
+        if (nodeType === NODE_ASSET) {
+          (config as Record<string, unknown>).asset = {
+            assetId: String(data.assetId ?? ''),
+            extract: true,
+          };
         }
 
-        // If advanced args were empty/invalid, build args from tool-specific form fields.
-        if (!rawArgs || (rawArgs && Object.keys(toolArgs ?? {}).length === 0)) {
-          if (toolName === 'web_search') {
-            toolArgs = {
-              q: String(n.data?.webSearchQuery ?? ''),
-              limit: Number(n.data?.webSearchLimit ?? 5),
-            };
-          } else if (toolName === 'web_read') {
-            toolArgs = { url: String(n.data?.webReadUrl ?? '') };
-          } else if (toolName === 'doc_read') {
-            toolArgs = { assetId: String(n.data?.docReadAssetId ?? '') };
-          } else if (toolName === 'current_time') {
-            const tz = String(n.data?.currentTimeTimezone ?? 'Europe/Berlin');
-            toolArgs = tz ? { timezone: tz } : {};
-          } else if (toolName === 'resolve_relative_date') {
-            const text = String(n.data?.resolveRelativeText ?? '');
-            const tz = String(n.data?.resolveRelativeTimezone ?? 'Europe/Berlin');
-            const baseTime = String(n.data?.resolveRelativeBaseTime ?? '').trim();
-            toolArgs = {
-              text,
-              timezone: tz,
-              ...(baseTime ? { baseTime } : {}),
-            };
-          } else if (toolName === 'date_math') {
-            const base = String(n.data?.dateMathBaseTime ?? '').trim();
-            const op = String(n.data?.dateMathOperation ?? 'add');
-            const amount = Number(n.data?.dateMathAmount ?? 1);
-            const unit = String(n.data?.dateMathUnit ?? 'days');
-
-            const args: any = {};
-            if (base) args.base = base;
-
-            if (op === 'add') {
-              args.add = { [unit]: amount };
-            } else if (op === 'startOfDay') {
-              args.startOf = 'day';
-            } else if (op === 'endOfDay') {
-              args.endOf = 'day';
-            } else if (op === 'roundToHour') {
-              args.roundTo = 'hour';
-            }
-
-            toolArgs = args;
-          } else if (toolName === 'math') {
-            toolArgs = {
-              expression: String(n.data?.mathExpression ?? ''),
-              precision: Number(n.data?.mathPrecision ?? 8),
-            };
-          } else if (toolName === 'json_validate') {
-            toolArgs = {
-              data: String(n.data?.jsonInput ?? ''),
-              schema: String(n.data?.jsonSchema ?? ''),
-            };
-          } else if (toolName === 'json_repair') {
-            toolArgs = { text: String(n.data?.jsonInput ?? '') };
-          }
+        if (nodeType === NODE_MERGE) {
+          (config as Record<string, unknown>).merge = {
+            separator: String(data.mergeSeparator ?? '\n\n'),
+            inputCount: toFiniteNumber(data.mergeInputCount, 1),
+          };
         }
 
-        config.tool = {
-          name: toolName,
-          args: toolArgs ?? {},
-        };
-      }
+        if (nodeType === NODE_EXPORT) {
+          (config as Record<string, unknown>).export = {
+            filename: String(data.exportFilename ?? 'export.txt'),
+          };
+        }
 
-      if (nodeType === NODE_ASSET) {
-        config.asset = {
-          assetId: String(n.data?.assetId ?? ''),
-          extract: true,
-        };
-      }
+        if (nodeType === NODE_PREVIEW) {
+          (config as Record<string, unknown>).preview = {
+            maxLines: toFiniteNumber(data.previewMaxLines, 10),
+          };
+        }
 
-      if (nodeType === NODE_MERGE) {
-        config.merge = {
-          separator: String(n.data?.mergeSeparator ?? '\n\n'),
-          inputCount: Number(n.data?.mergeInputCount ?? 1),
-        };
-      }
+        if (nodeType === NODE_LOOP_START) {
+          (config as Record<string, unknown>).loop = {
+            mode: String(data.loopMode ?? 'until'),
+            conditionPrompt: String(data.loopConditionPrompt ?? ''),
+            joiner: String(data.loopJoiner ?? '\n\n'),
+            maxIterations: toFiniteNumber(data.loopMaxIterations, 10),
+            count: toFiniteNumber(data.loopCount, 3),
+          };
+        }
 
-      if (nodeType === NODE_EXPORT) {
-        config.export = {
-          filename: String(n.data?.exportFilename ?? 'export.txt'),
-        };
-      }
+        if (nodeType === NODE_LOOP) {
+          // Legacy loop support
+          (config as Record<string, unknown>).loop = {
+            itemPath: String(data.loopItemPath ?? ''),
+            joiner: String(data.loopJoiner ?? '\n\n'),
+            maxItems: toFiniteNumber(data.loopMaxItems, 50),
+          };
+        }
 
-      if (nodeType === NODE_PREVIEW) {
-        config.preview = {
-          maxLines: Number(n.data?.previewMaxLines ?? 10),
-        };
-      }
-
-      if (nodeType === NODE_LOOP_START) {
-        config.loop = {
-          mode: String(n.data?.loopMode ?? 'until'),
-          conditionPrompt: String(n.data?.loopConditionPrompt ?? ''),
-          joiner: String(n.data?.loopJoiner ?? '\n\n'),
-          maxIterations: Number(n.data?.loopMaxIterations ?? 10),
-          count: Number(n.data?.loopCount ?? 3),
-        };
-      }
-
-      if (nodeType === NODE_LOOP) {
-        // Legacy loop support
-        config.loop = {
-          itemPath: String(n.data?.loopItemPath ?? ''),
-          joiner: String(n.data?.loopJoiner ?? '\n\n'),
-          maxItems: Number(n.data?.loopMaxItems ?? 50),
-        };
-      }
-
-      const size =
-        n?.size && typeof n.size === 'object'
+        const sizeRaw = getRecord(n.size);
+        const size = sizeRaw
           ? {
-              width: Number(n.size.width ?? NaN),
-              height: Number(n.size.height ?? NaN),
+              width: toFiniteNumber(sizeRaw.width, NaN),
+              height: toFiniteNumber(sizeRaw.height, NaN),
             }
           : undefined;
 
-      const normalizedSize =
-        size && Number.isFinite(size.width) && Number.isFinite(size.height) ? size : undefined;
+        const normalizedSize =
+          size && Number.isFinite(size.width) && Number.isFinite(size.height) ? size : undefined;
 
-      const angle =
-        n?.angle === null || n?.angle === undefined ? undefined : Number(n.angle ?? NaN);
+        const angle =
+          n.angle === null || n.angle === undefined ? undefined : toFiniteNumber(n.angle, NaN);
 
-      const normalizedAngle = Number.isFinite(angle as number) ? (angle as number) : undefined;
+        const normalizedAngle =
+          typeof angle === 'number' && Number.isFinite(angle) ? angle : undefined;
 
-      const autoSize =
-        n?.autoSize === null || n?.autoSize === undefined ? undefined : Boolean(n.autoSize);
+        const autoSize =
+          n.autoSize === null || n.autoSize === undefined ? undefined : Boolean(n.autoSize);
 
-      return {
-        id: String(n.id),
-        type: nodeType,
-        profileName: String(n.data?.profileName ?? ''),
-        prompt: String(n.data?.prompt ?? ''),
-        config,
-        position: n.position ? { x: Number(n.position.x), y: Number(n.position.y) } : undefined,
+        return {
+          id: String(n.id),
+          type: nodeType,
+          profileName: String(data.profileName ?? ''),
+          prompt: String(data.prompt ?? ''),
+          config,
+          position: isRecord(n.position)
+            ? { x: toFiniteNumber(n.position.x, 0), y: toFiniteNumber(n.position.y, 0) }
+            : undefined,
 
-        size: normalizedSize,
-        autoSize,
-        angle: normalizedAngle,
-      };
-    }),
-    edges: edges.map((e: any) => ({ ...e })),
+          size: normalizedSize,
+          autoSize,
+          angle: normalizedAngle,
+        };
+      }),
+    edges: edges
+      .map((e) => (isRecord(e) ? e : null))
+      .filter((e): e is JsonRecord => !!e)
+      .map((e) => ({ ...e })),
   });
 }

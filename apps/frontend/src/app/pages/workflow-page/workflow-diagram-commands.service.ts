@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, inject, signal } from '@angular/core';
 import {
   NgDiagramModelService,
@@ -11,13 +9,14 @@ import {
 } from 'ng-diagram';
 
 import { shortId } from '../../core/utils/shortId.util';
+import { getRecord, isRecord, safeJsonParse, type JsonRecord } from '../../core/utils/typed-access';
 
 type ClipboardMode = 'copy' | 'cut';
 
 type ClipboardPayload = {
   mode: ClipboardMode;
-  nodes: Array<Node<any>>;
-  edges: Array<Edge<any>>;
+  nodes: Array<Node<JsonRecord>>;
+  edges: Array<Edge<JsonRecord>>;
 };
 
 /**
@@ -57,17 +56,21 @@ export class WorkflowDiagramCommandsService {
     const json = this.safeDiagramJson();
     const idSet = new Set(selectedIds.map(String));
 
-    const nodes = (json.nodes ?? []).filter((n) => idSet.has(String((n as any).id)));
-    const edges = (json.edges ?? []).filter((e) => {
-      const src = String((e as any).source);
-      const tgt = String((e as any).target);
+    const nodes = (json.nodes ?? [])
+      .filter((n): n is JsonRecord => isRecord(n))
+      .filter((n) => idSet.has(String(n.id ?? '')));
+    const edges = (json.edges ?? [])
+      .filter((e): e is JsonRecord => isRecord(e))
+      .filter((e) => {
+        const src = String(e.source ?? '');
+        const tgt = String(e.target ?? '');
       return idSet.has(src) && idSet.has(tgt);
     });
 
     this.clipboard = {
       mode: 'copy',
-      nodes: structuredClone(nodes) as Array<Node<any>>,
-      edges: structuredClone(edges) as Array<Edge<any>>,
+      nodes: structuredClone(nodes) as Array<Node<JsonRecord>>,
+      edges: structuredClone(edges) as Array<Edge<JsonRecord>>,
     };
   }
 
@@ -84,17 +87,21 @@ export class WorkflowDiagramCommandsService {
     const json = this.safeDiagramJson();
     const idSet = new Set(selectedIds.map(String));
 
-    const nodes = (json.nodes ?? []).filter((n) => idSet.has(String((n as any).id)));
-    const edges = (json.edges ?? []).filter((e) => {
-      const src = String((e as any).source);
-      const tgt = String((e as any).target);
+    const nodes = (json.nodes ?? [])
+      .filter((n): n is JsonRecord => isRecord(n))
+      .filter((n) => idSet.has(String(n.id ?? '')));
+    const edges = (json.edges ?? [])
+      .filter((e): e is JsonRecord => isRecord(e))
+      .filter((e) => {
+        const src = String(e.source ?? '');
+        const tgt = String(e.target ?? '');
       return idSet.has(src) && idSet.has(tgt);
     });
 
     this.clipboard = {
       mode: 'cut',
-      nodes: structuredClone(nodes) as Array<Node<any>>,
-      edges: structuredClone(edges) as Array<Edge<any>>,
+      nodes: structuredClone(nodes) as Array<Node<JsonRecord>>,
+      edges: structuredClone(edges) as Array<Edge<JsonRecord>>,
     };
 
     this.selection.deleteSelection();
@@ -129,10 +136,10 @@ export class WorkflowDiagramCommandsService {
       for (const n of payload.nodes) idMap.set(String(n.id), String(n.id));
     }
 
-    const { dx, dy } = this.computePasteTranslation(payload.nodes as any[], flowPos);
+    const { dx, dy } = this.computePasteTranslation(payload.nodes, flowPos);
 
-    const newNodes = (payload.nodes as any[]).map((n) => {
-      const oldId = String(n.id);
+    const newNodes = payload.nodes.map((n) => {
+      const oldId = String(n.id ?? '');
       const newId = idMap.get(oldId)!;
 
       return {
@@ -141,26 +148,24 @@ export class WorkflowDiagramCommandsService {
         position: n.position
           ? { x: n.position.x + dx, y: n.position.y + dy }
           : { x: flowPos.x, y: flowPos.y },
-        data: n.data
-          ? {
-              ...n.data,
-              ...(payload.mode === 'copy' ? { label: newId } : {}),
-            }
-          : {},
+        data: {
+          ...(getRecord(n.data) ?? {}),
+          ...(payload.mode === 'copy' ? { label: newId } : {}),
+        },
       };
     });
 
-    const newEdges = (payload.edges as any[]).map((e) => {
-      const newEdgeId = payload.mode === 'copy' ? this.uniqueId(existingIds) : String(e.id);
+    const newEdges = payload.edges.map((e) => {
+      const newEdgeId = payload.mode === 'copy' ? this.uniqueId(existingIds) : String(e.id ?? '');
       if (payload.mode === 'copy') existingIds.add(newEdgeId);
 
       return {
         id: newEdgeId,
-        source: idMap.get(String(e.source))!,
-        target: idMap.get(String(e.target))!,
-        sourcePort: e.sourcePort ?? 'port-right',
-        targetPort: e.targetPort ?? 'port-left',
-        data: e.data ?? {},
+        source: idMap.get(String((e as unknown as JsonRecord).source ?? ''))!,
+        target: idMap.get(String((e as unknown as JsonRecord).target ?? ''))!,
+        sourcePort: (e as unknown as JsonRecord).sourcePort ?? 'port-right',
+        targetPort: (e as unknown as JsonRecord).targetPort ?? 'port-left',
+        data: (e as unknown as JsonRecord).data ?? {},
       };
     });
 
@@ -170,11 +175,10 @@ export class WorkflowDiagramCommandsService {
     if (payload.mode === 'cut') this.clipboard = null;
   }
 
-  private computePasteTranslation(nodes: any[], flowPos: Point): { dx: number; dy: number } {
-    const positions = nodes.map((n) => n.position).filter(Boolean) as Array<{
-      x: number;
-      y: number;
-    }>;
+  private computePasteTranslation(nodes: Array<Node<JsonRecord>>, flowPos: Point): { dx: number; dy: number } {
+    const positions = nodes
+      .map((n) => n.position)
+      .filter((p): p is Point => !!p && typeof p.x === 'number' && typeof p.y === 'number');
 
     if (!positions.length) return { dx: 40, dy: 40 };
 
@@ -191,10 +195,12 @@ export class WorkflowDiagramCommandsService {
   }
 
   private safeDiagramJson(): { nodes?: unknown[]; edges?: unknown[] } {
-    try {
-      return JSON.parse(this.model.toJSON()) as { nodes?: unknown[]; edges?: unknown[] };
-    } catch {
-      return {};
-    }
+    const parsed = safeJsonParse(this.model.toJSON());
+    const rec = getRecord(parsed);
+    if (!rec) return {};
+    return {
+      nodes: Array.isArray(rec.nodes) ? (rec.nodes as unknown[]) : undefined,
+      edges: Array.isArray(rec.edges) ? (rec.edges as unknown[]) : undefined,
+    };
   }
 }
