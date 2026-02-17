@@ -9,8 +9,7 @@ describe('WorkflowNodeComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [WorkflowNodeComponent],
-    })
-    .compileComponents();
+    }).compileComponents();
 
     fixture = TestBed.createComponent(WorkflowNodeComponent);
     component = fixture.componentInstance;

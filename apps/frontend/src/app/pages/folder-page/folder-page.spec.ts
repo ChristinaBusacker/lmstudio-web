@@ -8,9 +8,8 @@ describe('FolderPage', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [FolderPage]
-    })
-    .compileComponents();
+      imports: [FolderPage],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(FolderPage);
     component = fixture.componentInstance;

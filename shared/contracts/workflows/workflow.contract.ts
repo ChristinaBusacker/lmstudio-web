@@ -1,6 +1,7 @@
 import type { WorkflowId, RunId, ModelId, ChatId } from '../common/id.contract';
 import type { IsoDateTimeString } from '../common/datetime.contract';
 import type { PagedResponse, PageRequest } from '../common/pagination.contract';
+import { JsonObject } from '@shared/types/json.types';
 
 export type WorkflowStatus = 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -81,11 +82,11 @@ export interface ImportWorkflowBundleRequest {
     workflow: {
       name?: string;
       description?: string | null;
-      graph?: any;
+      graph?: JsonObject;
     };
-    runs?: any[];
-    nodeRuns?: any[];
-    artifacts?: any[];
+    runs?: JsonObject[];
+    nodeRuns?: JsonObject[];
+    artifacts?: JsonObject[];
   };
   name?: string;
 }
@@ -93,5 +94,5 @@ export interface ImportWorkflowBundleRequest {
 export interface UpdateWorkflowRequest {
   name?: string;
   description?: string;
-  graph?: any;
+  graph?: JsonObject;
 }

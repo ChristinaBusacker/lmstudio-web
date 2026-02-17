@@ -8,9 +8,8 @@ describe('CubeInput', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [CubeInput]
-    })
-    .compileComponents();
+      imports: [CubeInput],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(CubeInput);
     component = fixture.componentInstance;

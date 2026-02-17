@@ -53,10 +53,9 @@ export class ExternalServicesMonitorService implements OnModuleInit, OnModuleDes
   }
 
   private async checkAllAndPublishIfChanged(): Promise<void> {
-    const lmBase = (this.config.get<string>('LMSTUDIO_BASE_URL') ?? 'http://127.0.0.1:1234').replace(
-      /\/$/,
-      '',
-    );
+    const lmBase = (
+      this.config.get<string>('LMSTUDIO_BASE_URL') ?? 'http://127.0.0.1:1234'
+    ).replace(/\/$/, '');
     const searxBase = (this.config.get<string>('SEARXNG_BASE_URL') ?? '').replace(/\/$/, '');
 
     const nextLm = await this.checkLmStudio(lmBase);

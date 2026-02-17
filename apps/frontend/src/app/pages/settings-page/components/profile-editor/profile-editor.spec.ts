@@ -8,9 +8,8 @@ describe('ProfileEditor', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ProfileEditor]
-    })
-    .compileComponents();
+      imports: [ProfileEditor],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(ProfileEditor);
     component = fixture.componentInstance;

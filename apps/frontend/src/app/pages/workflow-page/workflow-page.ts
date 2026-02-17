@@ -66,7 +66,9 @@ function isEditableTarget(target: EventTarget | null): boolean {
     NgDiagramComponent,
     NgDiagramBackgroundComponent,
     Icon,
-    WorkflowRunListContainer, I18nPipe],
+    WorkflowRunListContainer,
+    I18nPipe,
+  ],
   providers: [
     provideNgDiagram(),
     WorkflowDiagramCommandsService,

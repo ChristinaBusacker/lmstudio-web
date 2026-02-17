@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ChatsService } from '../chats/chats.service';
 import { RunsService } from '../runs/runs.service';

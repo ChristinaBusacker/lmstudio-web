@@ -33,7 +33,12 @@ export class ToastService {
     this._toasts.set([]);
   }
 
-  private push(kind: ToastKind, title: string, message: string | null | undefined, ttlMs: number | null): void {
+  private push(
+    kind: ToastKind,
+    title: string,
+    message: string | null | undefined,
+    ttlMs: number | null,
+  ): void {
     const id = uuidv4();
     const toast: ToastItem = {
       id,

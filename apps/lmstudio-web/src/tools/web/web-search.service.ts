@@ -190,8 +190,12 @@ export class WebSearchService {
 
     // As a fallback, surface the abstract if there are no related topics.
     if (!results.length) {
-      const abstractText = isRecord(jsonUnknown) ? String(jsonUnknown['AbstractText'] ?? '').trim() : '';
-      const abstractUrl = isRecord(jsonUnknown) ? String(jsonUnknown['AbstractURL'] ?? '').trim() : '';
+      const abstractText = isRecord(jsonUnknown)
+        ? String(jsonUnknown['AbstractText'] ?? '').trim()
+        : '';
+      const abstractUrl = isRecord(jsonUnknown)
+        ? String(jsonUnknown['AbstractURL'] ?? '').trim()
+        : '';
       if (abstractText && abstractUrl) {
         results.push({
           title: isRecord(jsonUnknown) ? String(jsonUnknown['Heading'] ?? params.q) : params.q,

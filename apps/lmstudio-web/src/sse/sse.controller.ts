@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Controller, MessageEvent, Param, Query, Req, Sse } from '@nestjs/common';
 import {
   ApiOkResponse,

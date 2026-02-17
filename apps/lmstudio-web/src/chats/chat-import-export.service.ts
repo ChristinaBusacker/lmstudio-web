@@ -112,7 +112,7 @@ export class ChatImportExportService {
 
       // 2) Patch parent ids
       for (const [newId, oldParentId] of pendingParents.entries()) {
-        const newParentId = oldParentId ? idMap.get(oldParentId) ?? null : null;
+        const newParentId = oldParentId ? (idMap.get(oldParentId) ?? null) : null;
         await trx.update(MessageEntity, { id: newId }, { parentMessageId: newParentId });
       }
 
@@ -157,7 +157,7 @@ export class ChatImportExportService {
 
       // 4) Set active head
       const oldHead = bundle.activeHeadMessageId ?? null;
-      const newHead = oldHead ? idMap.get(oldHead) ?? null : null;
+      const newHead = oldHead ? (idMap.get(oldHead) ?? null) : null;
       await trx.update(ChatEntity, { id: savedChat.id }, { activeHeadMessageId: newHead });
 
       return trx.findOneOrFail(ChatEntity, { where: { id: savedChat.id } });

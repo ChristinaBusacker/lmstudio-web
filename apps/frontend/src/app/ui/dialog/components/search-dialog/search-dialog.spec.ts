@@ -8,9 +8,8 @@ describe('StringInputDialog', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [StringInputDialog]
-    })
-    .compileComponents();
+      imports: [StringInputDialog],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(StringInputDialog);
     component = fixture.componentInstance;

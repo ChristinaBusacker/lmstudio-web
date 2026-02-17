@@ -8,9 +8,8 @@ describe('WorkflowPage', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [WorkflowPage]
-    })
-    .compileComponents();
+      imports: [WorkflowPage],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(WorkflowPage);
     component = fixture.componentInstance;

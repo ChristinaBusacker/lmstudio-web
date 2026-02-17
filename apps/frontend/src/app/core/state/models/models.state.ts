@@ -2,7 +2,12 @@ import { Injectable } from '@angular/core';
 import { Action, createSelector, Selector, State } from '@ngxs/store';
 import { catchError, forkJoin, of, tap } from 'rxjs';
 import { ModelsApi } from '../../api/models.api';
-import type { LmModelListItem, LoadedModelInstance, LoadModelResponse, UnloadModelResponse } from '@shared/contracts';
+import type {
+  LmModelListItem,
+  LoadedModelInstance,
+  LoadModelResponse,
+  UnloadModelResponse,
+} from '@shared/contracts';
 import {
   LoadLoadedModels,
   LoadModel,

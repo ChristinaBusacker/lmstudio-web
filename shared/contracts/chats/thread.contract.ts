@@ -1,3 +1,5 @@
+import { JsonObject } from '@shared/types/json.types';
+
 export interface CreateVariantRequest {
   content: string;
 }
@@ -13,7 +15,7 @@ export interface MessageVariant {
   isActive: boolean;
   content: string;
   reasoning: string | null;
-  stats: any;
+  stats: JsonObject;
   createdAt: string;
 }
 
@@ -23,7 +25,7 @@ export interface ThreadVariant {
   isActive: boolean;
   content: string;
   reasoning?: string | null;
-  stats?: any;
+  stats?: JsonObject;
   createdAt: string;
 }
 

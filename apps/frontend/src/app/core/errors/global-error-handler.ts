@@ -10,7 +10,7 @@ export class GlobalErrorHandler implements ErrorHandler {
 
   handleError(error: unknown): void {
     // Keep default console reporting.
-    // eslint-disable-next-line no-console
+
     console.error('[GlobalError]', error);
 
     const msg = this.toMessage(error);

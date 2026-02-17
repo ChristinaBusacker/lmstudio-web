@@ -8,9 +8,8 @@ describe('WorkflowRunList', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [WorkflowRunList]
-    })
-    .compileComponents();
+      imports: [WorkflowRunList],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(WorkflowRunList);
     component = fixture.componentInstance;

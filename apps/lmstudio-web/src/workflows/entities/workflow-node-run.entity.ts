@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 export type WorkflowNodeRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'stale';

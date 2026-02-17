@@ -112,7 +112,10 @@ export class ChatsState {
     return this.api.create(action.dto).pipe(
       tap((created) => {
         void this.router.navigate(['/chat', created.id]);
-        this.toast.success('Chat created', created.title ? String(created.title) : `Chat ${created.id}`);
+        this.toast.success(
+          'Chat created',
+          created.title ? String(created.title) : `Chat ${created.id}`,
+        );
       }),
       switchMap((created) => ctx.dispatch(new ReloadChats()).pipe(tap(() => created))),
       catchError((err) => {

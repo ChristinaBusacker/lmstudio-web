@@ -19,6 +19,35 @@ type ClipboardPayload = {
   edges: Array<Edge<JsonRecord>>;
 };
 
+const isPoint = (v: unknown): v is Point => {
+  const rec = getRecord(v);
+  return !!rec && typeof rec.x === 'number' && typeof rec.y === 'number';
+};
+
+const isDiagramNode = (v: unknown): v is Node<JsonRecord> => {
+  const rec = getRecord(v);
+  if (!rec) return false;
+  if (typeof rec.id !== 'string' || rec.id.length === 0) return false;
+  if ('position' in rec && rec.position != null && !isPoint(rec.position)) return false;
+  // ng-diagram nodes usually have a data object
+  if ('data' in rec && rec.data != null && !isRecord(rec.data)) return false;
+  if ('type' in rec && rec.type != null && typeof rec.type !== 'string') return false;
+  return true;
+};
+
+const isDiagramEdge = (v: unknown): v is Edge<JsonRecord> => {
+  const rec = getRecord(v);
+  if (!rec) return false;
+  if (typeof rec.id !== 'string' || rec.id.length === 0) return false;
+  if (typeof rec.source !== 'string' || typeof rec.target !== 'string') return false;
+  if ('sourcePort' in rec && rec.sourcePort != null && typeof rec.sourcePort !== 'string')
+    return false;
+  if ('targetPort' in rec && rec.targetPort != null && typeof rec.targetPort !== 'string')
+    return false;
+  if ('data' in rec && rec.data != null && !isRecord(rec.data)) return false;
+  return true;
+};
+
 /**
  * Provides clipboard-like commands for ngDiagram:
  * - copy / cut / paste selections
@@ -56,21 +85,15 @@ export class WorkflowDiagramCommandsService {
     const json = this.safeDiagramJson();
     const idSet = new Set(selectedIds.map(String));
 
-    const nodes = (json.nodes ?? [])
-      .filter((n): n is JsonRecord => isRecord(n))
-      .filter((n) => idSet.has(String(n.id ?? '')));
+    const nodes = (json.nodes ?? []).filter(isDiagramNode).filter((n) => idSet.has(n.id));
     const edges = (json.edges ?? [])
-      .filter((e): e is JsonRecord => isRecord(e))
-      .filter((e) => {
-        const src = String(e.source ?? '');
-        const tgt = String(e.target ?? '');
-      return idSet.has(src) && idSet.has(tgt);
-    });
+      .filter(isDiagramEdge)
+      .filter((e) => idSet.has(e.source) && idSet.has(e.target));
 
     this.clipboard = {
       mode: 'copy',
-      nodes: structuredClone(nodes) as Array<Node<JsonRecord>>,
-      edges: structuredClone(edges) as Array<Edge<JsonRecord>>,
+      nodes: structuredClone(nodes),
+      edges: structuredClone(edges),
     };
   }
 
@@ -87,21 +110,15 @@ export class WorkflowDiagramCommandsService {
     const json = this.safeDiagramJson();
     const idSet = new Set(selectedIds.map(String));
 
-    const nodes = (json.nodes ?? [])
-      .filter((n): n is JsonRecord => isRecord(n))
-      .filter((n) => idSet.has(String(n.id ?? '')));
+    const nodes = (json.nodes ?? []).filter(isDiagramNode).filter((n) => idSet.has(n.id));
     const edges = (json.edges ?? [])
-      .filter((e): e is JsonRecord => isRecord(e))
-      .filter((e) => {
-        const src = String(e.source ?? '');
-        const tgt = String(e.target ?? '');
-      return idSet.has(src) && idSet.has(tgt);
-    });
+      .filter(isDiagramEdge)
+      .filter((e) => idSet.has(e.source) && idSet.has(e.target));
 
     this.clipboard = {
       mode: 'cut',
-      nodes: structuredClone(nodes) as Array<Node<JsonRecord>>,
-      edges: structuredClone(edges) as Array<Edge<JsonRecord>>,
+      nodes: structuredClone(nodes),
+      edges: structuredClone(edges),
     };
 
     this.selection.deleteSelection();
@@ -161,11 +178,11 @@ export class WorkflowDiagramCommandsService {
 
       return {
         id: newEdgeId,
-        source: idMap.get(String((e as unknown as JsonRecord).source ?? ''))!,
-        target: idMap.get(String((e as unknown as JsonRecord).target ?? ''))!,
-        sourcePort: (e as unknown as JsonRecord).sourcePort ?? 'port-right',
-        targetPort: (e as unknown as JsonRecord).targetPort ?? 'port-left',
-        data: (e as unknown as JsonRecord).data ?? {},
+        source: idMap.get(e.source)!,
+        target: idMap.get(e.target)!,
+        sourcePort: e.sourcePort ?? 'port-right',
+        targetPort: e.targetPort ?? 'port-left',
+        data: e.data ?? {},
       };
     });
 
@@ -175,7 +192,10 @@ export class WorkflowDiagramCommandsService {
     if (payload.mode === 'cut') this.clipboard = null;
   }
 
-  private computePasteTranslation(nodes: Array<Node<JsonRecord>>, flowPos: Point): { dx: number; dy: number } {
+  private computePasteTranslation(
+    nodes: Array<Node<JsonRecord>>,
+    flowPos: Point,
+  ): { dx: number; dy: number } {
     const positions = nodes
       .map((n) => n.position)
       .filter((p): p is Point => !!p && typeof p.x === 'number' && typeof p.y === 'number');
@@ -194,13 +214,13 @@ export class WorkflowDiagramCommandsService {
     return id;
   }
 
-  private safeDiagramJson(): { nodes?: unknown[]; edges?: unknown[] } {
+  private safeDiagramJson(): { nodes?: Array<Node<JsonRecord>>; edges?: Array<Edge<JsonRecord>> } {
     const parsed = safeJsonParse(this.model.toJSON());
     const rec = getRecord(parsed);
     if (!rec) return {};
     return {
-      nodes: Array.isArray(rec.nodes) ? (rec.nodes as unknown[]) : undefined,
-      edges: Array.isArray(rec.edges) ? (rec.edges as unknown[]) : undefined,
+      nodes: Array.isArray(rec.nodes) ? (rec.nodes as unknown[]).filter(isDiagramNode) : undefined,
+      edges: Array.isArray(rec.edges) ? (rec.edges as unknown[]).filter(isDiagramEdge) : undefined,
     };
   }
 }

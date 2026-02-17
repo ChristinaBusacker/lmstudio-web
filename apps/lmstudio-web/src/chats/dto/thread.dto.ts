@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { ThreadVariant, ThreadMessage, ChatThreadResponse } from '@shared/contracts';
 
