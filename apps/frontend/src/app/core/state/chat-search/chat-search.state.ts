@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, OnDestroy } from '@angular/core';
 import {
   Action,
@@ -14,6 +13,7 @@ import { catchError, filter, map, of, Subscription, tap } from 'rxjs';
 import { ChatSearchApiService } from '../../api/search.api';
 import type { SearchChatResult } from '@shared/contracts';
 import { ClearSearchResults, ExecuteSearch, SearchTermChanged } from './chat-search.actions';
+import { toErrorMessage } from '../../utils/error.util';
 
 export interface ChatSearchStateModel {
   term: string;
@@ -177,7 +177,7 @@ export class ChatSearchState implements OnDestroy {
         }),
         catchError((err) => {
           // Keep error handling simple & UI-friendly
-          const msg = err?.error?.message || err?.message || 'Search request failed';
+          const msg = toErrorMessage(err, 'Search request failed');
 
           ctx.patchState({
             loading: false,

@@ -15,6 +15,7 @@ import type { FoldersStateModel } from './folders.model';
 import type { StateContext } from '@ngxs/store';
 import { ReloadChats } from '../chats/chats.actions';
 import { ToastService } from '@frontend/src/app/ui/toast/toast.service';
+import { toErrorMessage } from '../../utils/error.util';
 
 @State<FoldersStateModel>({
   name: 'folders',
@@ -56,7 +57,7 @@ export class FoldersState {
     return this.api.list().pipe(
       tap((items) => ctx.patchState({ items, isLoading: false, lastRefreshAt: Date.now() })),
       catchError((err) => {
-        ctx.patchState({ isLoading: false, error: this.toErrorMessage(err) });
+        ctx.patchState({ isLoading: false, error: toErrorMessage(err) });
         return of([]);
       }),
     );
@@ -69,11 +70,15 @@ export class FoldersState {
       tap((created) => {
         const s = ctx.getState();
         ctx.patchState({ items: [created, ...s.items] });
-        this.toast.success('Folder created', created.name ? String(created.name) : `Folder ${created.id}`);
+        this.toast.success(
+          'Folder created',
+          created.name ? String(created.name) : `Folder ${created.id}`,
+        );
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
-        this.toast.error('Folder creation failed', this.toErrorMessage(err));
+        const msg = toErrorMessage(err);
+        ctx.patchState({ error: msg });
+        this.toast.error('Folder creation failed', msg);
         return of(null);
       }),
     );
@@ -90,7 +95,7 @@ export class FoldersState {
         });
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
+        ctx.patchState({ error: toErrorMessage(err) });
         return of(null);
       }),
     );
@@ -106,7 +111,7 @@ export class FoldersState {
         ctx.dispatch(new ReloadChats());
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
+        ctx.patchState({ error: toErrorMessage(err) });
         return of(null);
       }),
     );
@@ -127,8 +132,5 @@ export class FoldersState {
     return ctx.dispatch(new LoadFolders());
   }
 
-  private toErrorMessage(err: any): string {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
-    return err?.error?.message ?? err?.message ?? 'Unknown error';
-  }
+  // Intentionally no local toErrorMessage helper.
 }

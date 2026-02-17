@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-
 import {
   Component,
   EventEmitter,
@@ -27,6 +24,7 @@ import {
 } from '@frontend/src/app/core/utils/settings-params.util';
 import { AutoResizeDirective } from '@frontend/src/app/core/directives/textarea/auto-size.directive';
 import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
+import { isRecord } from '../../../../core/utils/typed-access';
 
 @Component({
   selector: 'app-profile-editor',
@@ -43,8 +41,8 @@ export class ProfileEditor implements OnChanges {
   @Input() modelsLoading: boolean | null = null;
 
   // Functions provided by container to query per-model state.
-  @Input() isModelBusyFn!: (id: string) => any;
-  @Input() isModelLoadedFn!: (id: string) => any;
+  @Input() isModelBusyFn!: (id: string) => boolean;
+  @Input() isModelLoadedFn!: (id: string) => boolean;
 
   @Output() save = new EventEmitter<{ id: string; patch: UpdateSettingsProfilePayload }>();
   @Output() setDefaultId = new EventEmitter<string>();
@@ -95,16 +93,17 @@ export class ProfileEditor implements OnChanges {
     }
 
     this.editName = p.name ?? '';
-    this.editParams = normalizeParams(p.params ?? {});
+    const normalized = normalizeParams(p.params ?? {});
+    this.editParams = normalized;
 
-    const extras = extractExtras(p.params as any);
+    const extras = extractExtras(normalized);
     this.advancedJson = prettyJson(extras);
     this.advancedJsonError = null;
     this.showAdvanced = false;
 
     this.baseline = {
       name: this.editName,
-      params: normalizeParams(p.params ?? {}),
+      params: normalized,
       extrasJson: this.advancedJson,
     };
   }
@@ -171,16 +170,18 @@ export class ProfileEditor implements OnChanges {
 
 // Basic stable stringify for dirty check.
 // NOTE: This is good enough for UI state. Keep it simple.
-function stableStringify(x: any): string {
+function stableStringify(x: unknown): string {
   return JSON.stringify(sortObject(x));
 }
 
-function sortObject(x: any): any {
+function sortObject(x: unknown): unknown {
   if (!x || typeof x !== 'object') return x;
   if (Array.isArray(x)) return x.map(sortObject);
+  if (!isRecord(x)) return x;
+
   return Object.keys(x)
     .sort()
-    .reduce((acc: any, k) => {
+    .reduce<Record<string, unknown>>((acc, k) => {
       acc[k] = sortObject(x[k]);
       return acc;
     }, {});

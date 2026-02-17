@@ -7,6 +7,7 @@ import { EMPTY, of, switchMap, tap, catchError } from 'rxjs';
 import { SettingsApiService } from '../../api/settings.api';
 import type { SettingsProfile } from '@shared/contracts';
 import { DialogService } from '../../../ui/dialog/dialog.service';
+import { toErrorMessage } from '../../utils/error.util';
 import { I18nState } from '../../i18n/i18n.state';
 import {
   ClearError,
@@ -122,7 +123,7 @@ export class SettingsState {
       catchError((err) => {
         ctx.patchState({
           isLoading: false,
-          error: this.toErrMsg(err, 'Failed to load profiles'),
+          error: toErrorMessage(err, 'Failed to load profiles'),
         });
         return EMPTY;
       }),
@@ -146,7 +147,7 @@ export class SettingsState {
       catchError((err) => {
         ctx.patchState({
           isLoading: false,
-          error: this.toErrMsg(err, 'Failed to load profile'),
+          error: toErrorMessage(err, 'Failed to load profile'),
         });
         return EMPTY;
       }),
@@ -169,7 +170,7 @@ export class SettingsState {
       catchError((err) => {
         ctx.patchState({
           isLoading: false,
-          error: this.toErrMsg(err, 'Failed to load profiles'),
+          error: toErrorMessage(err, 'Failed to load profiles'),
         });
         return EMPTY;
       }),
@@ -214,7 +215,7 @@ export class SettingsState {
       catchError((err) => {
         ctx.patchState({
           isLoading: false,
-          error: this.toErrMsg(err, 'Failed to create profile'),
+          error: toErrorMessage(err, 'Failed to create profile'),
         });
         return EMPTY;
       }),
@@ -240,7 +241,7 @@ export class SettingsState {
       catchError((err) => {
         ctx.patchState({
           isLoading: false,
-          error: this.toErrMsg(err, 'Failed to update profile'),
+          error: toErrorMessage(err, 'Failed to update profile'),
         });
         return EMPTY;
       }),
@@ -268,7 +269,7 @@ export class SettingsState {
       catchError((err) => {
         ctx.patchState({
           isLoading: false,
-          error: this.toErrMsg(err, 'Failed to set default profile'),
+          error: toErrorMessage(err, 'Failed to set default profile'),
         });
         return EMPTY;
       }),
@@ -279,12 +280,7 @@ export class SettingsState {
   // Helpers
   // ----------------------------
 
-  private toErrMsg(err: any, fallback: string): string {
-    const msg =
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      err?.error?.message ?? err?.message ?? (typeof err === 'string' ? err : null) ?? fallback;
-    return String(msg);
-  }
+  // Intentionally no local toErrMsg helper; use shared toErrorMessage.
 
   private maybeShowFirstVisitSettingsProfileHint(profiles: SettingsProfile[]): void {
     // Guard against SSR and non-browser environments.
