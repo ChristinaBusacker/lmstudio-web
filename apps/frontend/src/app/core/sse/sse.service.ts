@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, NgZone, inject } from '@angular/core';
 import { Store } from '@ngxs/store';
 import type { SseEnvelopeDto } from './sse-events.model';
@@ -14,8 +13,21 @@ import {
   ApplyWorkflowRunStatusFromSse,
   LoadWorkflowRunDetails,
 } from '../state/workflows/workflow.actions';
+import type {
+  ArtifactKind,
+  WorkflowNodeRunStatus,
+  WorkflowRunStatus,
+} from '../state/workflows/workflow.models';
 import { ToastService } from '../../ui/toast/toast.service';
-import type { ExternalServiceStatus } from './sse-events.model';
+import type { JsonRecord } from '../utils/typed-access';
+import {
+  getArray,
+  getBoolean,
+  getRecord,
+  getString,
+  isRecord,
+  safeJsonParse,
+} from '../utils/typed-access';
 
 @Injectable({ providedIn: 'root' })
 export class SseService {
@@ -131,57 +143,50 @@ export class SseService {
     this.workflowRunId = null;
   }
 
-  private handleRaw(raw: any): void {
+  private handleRaw(raw: unknown): void {
     const text = typeof raw === 'string' ? raw : '';
     if (!text) return;
 
-    let msg: SseEnvelopeDto | null = null;
-    try {
-      msg = JSON.parse(text) as SseEnvelopeDto;
-    } catch {
-      return;
-    }
+    const parsed = safeJsonParse(text);
+    const msg = this.parseEnvelope(parsed);
     if (!msg) return;
 
     this.zone.run(() => this.routeEvent(msg));
   }
 
-  private routeEvent(e: SseEnvelopeDto): void {
+  private routeEvent(e: SseEnvelopeDto<unknown>): void {
     if (e.type === 'external.status') {
-      const services: ExternalServiceStatus[] = Array.isArray((e as any)?.payload?.services)
-        ? ((e as any).payload.services as any[] as ExternalServiceStatus[])
-        : [];
+      const payload = getRecord(e.payload);
+      const servicesRaw = payload ? getArray(payload, 'services') : null;
+      const services = (servicesRaw ?? []).filter(isRecord) as JsonRecord[];
 
       for (const s of services) {
-        const key = String((s as any)?.name ?? '');
+        const key = String(getString(s, 'name') ?? '');
         if (!key) continue;
 
         const prev = this.lastExternalOk[key];
-        const now = !!(s as any)?.ok;
+        const now = !!getBoolean(s, 'ok');
         this.lastExternalOk[key] = now;
 
         // First snapshot: only alert if it's already down (and enabled).
         if (prev === undefined) {
-          if (!now && (s as any)?.enabled) {
+          if (!now && !!getBoolean(s, 'enabled')) {
             this.toast.warning(
               `${this.titleCase(key)} not reachable`,
-              (s as any)?.error ? String((s as any).error) : null,
+              getString(s, 'error') ?? null,
             );
           }
           continue;
         }
 
-        if (prev !== now && (s as any)?.enabled) {
+        if (prev !== now && !!getBoolean(s, 'enabled')) {
           if (!now) {
             this.toast.warning(
               `${this.titleCase(key)} went offline`,
-              (s as any)?.error ? String((s as any).error) : null,
+              getString(s, 'error') ?? null,
             );
           } else {
-            this.toast.success(
-              `${this.titleCase(key)} is back`,
-              (s as any)?.baseUrl ? String((s as any).baseUrl) : null,
-            );
+            this.toast.success(`${this.titleCase(key)} is back`, getString(s, 'baseUrl') ?? null);
           }
         }
       }
@@ -204,8 +209,10 @@ export class SseService {
       }
     }
 
+    const payload = getRecord(e.payload);
+
     if (e.type === 'run.status' && e.chatId && e.runId) {
-      const status = e.payload?.status;
+      const status = this.parseChatRunStatus(payload ? getString(payload, 'status') : null);
       if (!status) return;
 
       this.store.dispatch(
@@ -213,17 +220,17 @@ export class SseService {
           chatId: e.chatId,
           runId: e.runId,
           status,
-          stats: e.payload?.stats ?? null,
-          error: e.payload?.error ?? null,
+          stats: payload ? (payload['stats'] ?? null) : null,
+          error: payload ? (getString(payload, 'error') ?? null) : null,
         }),
       );
       return;
     }
 
     if (e.type === 'variant.snapshot' && e.chatId) {
-      const messageId = e.messageId ?? e.payload?.messageId;
-      const content = e.payload?.content ?? '';
-      const reasoning = e.payload?.reasoning ?? null;
+      const messageId = e.messageId ?? (payload ? getString(payload, 'messageId') : null);
+      const content = payload ? (getString(payload, 'content') ?? '') : '';
+      const reasoning = payload ? (getString(payload, 'reasoning') ?? null) : null;
 
       if (!messageId) return;
 
@@ -241,53 +248,141 @@ export class SseService {
 
     // ----- workflows routing -----
     if (e.type === 'workflow.run.status' && e.workflowId && e.runId) {
+      const status = this.parseWorkflowRunStatus(payload ? getString(payload, 'status') : null);
+      if (!status) return;
+
       this.store.dispatch(
         new ApplyWorkflowRunStatusFromSse({
           workflowId: e.workflowId,
           runId: e.runId,
-          status: e.payload?.status,
-          currentNodeId: e.payload?.currentNodeId ?? null,
-          stats: e.payload?.stats ?? null,
-          error: e.payload?.error ?? null,
+          status,
+          currentNodeId: payload ? (getString(payload, 'currentNodeId') ?? null) : null,
+          stats: payload ? (payload['stats'] ?? null) : null,
+          error: payload ? (getString(payload, 'error') ?? null) : null,
         }),
       );
       return;
     }
 
     if (e.type === 'workflow.node-run.upsert' && e.workflowId && e.runId) {
-      const nodeId = e.nodeId ?? e.payload?.nodeId;
+      const nodeId = e.nodeId ?? (payload ? getString(payload, 'nodeId') : null);
       if (!nodeId) return;
+
+      const status = this.parseWorkflowNodeRunStatus(payload ? getString(payload, 'status') : null);
+      if (!status) return;
 
       this.store.dispatch(
         new ApplyWorkflowNodeRunUpsertFromSse({
           workflowId: e.workflowId,
           runId: e.runId,
           nodeId,
-          status: e.payload?.status,
-          error: e.payload?.error ?? null,
-          startedAt: e.payload?.startedAt ?? null,
-          finishedAt: e.payload?.finishedAt ?? null,
+          status,
+          error: payload ? (getString(payload, 'error') ?? null) : null,
+          startedAt: payload ? (getString(payload, 'startedAt') ?? null) : null,
+          finishedAt: payload ? (getString(payload, 'finishedAt') ?? null) : null,
         }),
       );
       return;
     }
 
     if (e.type === 'workflow.artifact.created' && e.workflowId && e.runId) {
-      const artifactId = e.artifactId ?? e.payload?.artifactId;
+      const artifactId = e.artifactId ?? (payload ? getString(payload, 'artifactId') : null);
       if (!artifactId) return;
+
+      const kind = this.parseArtifactKind(payload ? getString(payload, 'kind') : null);
+      if (!kind) return;
 
       this.store.dispatch(
         new ApplyWorkflowArtifactCreatedFromSse({
           workflowId: e.workflowId,
           runId: e.runId,
           artifactId,
-          nodeId: e.nodeId ?? e.payload?.nodeId ?? null,
-          kind: e.payload?.kind,
-          mimeType: e.payload?.mimeType ?? null,
-          filename: e.payload?.filename ?? null,
+          nodeId: e.nodeId ?? (payload ? (getString(payload, 'nodeId') ?? null) : null),
+          kind,
+          mimeType: payload ? (getString(payload, 'mimeType') ?? null) : null,
+          filename: payload ? (getString(payload, 'filename') ?? null) : null,
         }),
       );
     }
+  }
+
+  private parseEnvelope(value: unknown): SseEnvelopeDto<unknown> | null {
+    const root = getRecord(value);
+    if (!root) return null;
+
+    const type = getString(root, 'type');
+    const id = root['id'];
+    const payload = root['payload'];
+    const ts = root['ts'];
+
+    if (!type) return null;
+    if (typeof id !== 'number') return null;
+    if (typeof ts !== 'string' && typeof ts !== 'number') return null;
+
+    // Keep additional optional ids if present.
+    // Build as a mutable record first, then cast at the end.
+    const out: Record<string, unknown> = {
+      id,
+      type,
+      ts,
+      payload,
+    };
+
+    for (const key of [
+      'chatId',
+      'workflowId',
+      'runId',
+      'nodeId',
+      'artifactId',
+      'messageId',
+      'createdAt',
+    ]) {
+      const v = root[key];
+      if (typeof v === 'string') out[key] = v;
+    }
+
+    return out as unknown as SseEnvelopeDto<unknown>;
+  }
+
+  private parseChatRunStatus(
+    value: string | null,
+  ): 'queued' | 'running' | 'completed' | 'failed' | 'canceled' | null {
+    if (!value) return null;
+    const allowed = ['queued', 'running', 'completed', 'failed', 'canceled'] as const;
+    return (allowed as readonly string[]).includes(value)
+      ? (value as (typeof allowed)[number])
+      : null;
+  }
+
+  private parseWorkflowRunStatus(value: string | null): WorkflowRunStatus | null {
+    if (!value) return null;
+    const allowed: readonly WorkflowRunStatus[] = [
+      'queued',
+      'running',
+      'paused',
+      'completed',
+      'failed',
+      'canceled',
+    ];
+    return (allowed as readonly string[]).includes(value) ? (value as WorkflowRunStatus) : null;
+  }
+
+  private parseWorkflowNodeRunStatus(value: string | null): WorkflowNodeRunStatus | null {
+    if (!value) return null;
+    const allowed: readonly WorkflowNodeRunStatus[] = [
+      'pending',
+      'running',
+      'completed',
+      'failed',
+      'stale',
+    ];
+    return (allowed as readonly string[]).includes(value) ? (value as WorkflowNodeRunStatus) : null;
+  }
+
+  private parseArtifactKind(value: string | null): ArtifactKind | null {
+    if (!value) return null;
+    const allowed: readonly ArtifactKind[] = ['json', 'text', 'image', 'binary'];
+    return (allowed as readonly string[]).includes(value) ? (value as ArtifactKind) : null;
   }
 
   private titleCase(x: string): string {

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable } from '@angular/core';
 import { Action, Selector, State, StateContext } from '@ngxs/store';
 import { catchError, finalize, tap } from 'rxjs/operators';
@@ -34,6 +33,7 @@ import {
 } from './workflow.actions';
 import { Router } from '@angular/router';
 import { ToastService } from '@frontend/src/app/ui/toast/toast.service';
+import { toErrorMessage } from '../../utils/error.util';
 
 export interface WorkflowsStateModel {
   workflows: Workflow[];
@@ -146,7 +146,7 @@ export class WorkflowsState {
         ctx.patchState({ workflows, workflowsById: byId });
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
+        ctx.patchState({ error: toErrorMessage(err) });
         return EMPTY;
       }),
       finalize(() => ctx.patchState({ isLoadingWorkflows: false })),
@@ -166,7 +166,7 @@ export class WorkflowsState {
         });
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
+        ctx.patchState({ error: toErrorMessage(err) });
         return EMPTY;
       }),
     );
@@ -189,8 +189,8 @@ export class WorkflowsState {
         void this.router.navigate(['/workflow', wf.id]);
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
-        this.toast.error('Workflow creation failed', this.toErrorMessage(err));
+        ctx.patchState({ error: toErrorMessage(err) });
+        this.toast.error('Workflow creation failed', toErrorMessage(err));
         return EMPTY;
       }),
     );
@@ -209,7 +209,7 @@ export class WorkflowsState {
         });
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
+        ctx.patchState({ error: toErrorMessage(err) });
         return EMPTY;
       }),
     );
@@ -226,7 +226,7 @@ export class WorkflowsState {
         }
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
+        ctx.patchState({ error: toErrorMessage(err) });
         return EMPTY;
       }),
     );
@@ -265,7 +265,7 @@ export class WorkflowsState {
         });
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
+        ctx.patchState({ error: toErrorMessage(err) });
         return EMPTY;
       }),
       finalize(() => ctx.patchState({ isLoadingRuns: false })),
@@ -292,8 +292,8 @@ export class WorkflowsState {
         this.toast.success('Workflow run created', `Run ${run.id}`);
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
-        this.toast.error('Workflow run failed', this.toErrorMessage(err));
+        ctx.patchState({ error: toErrorMessage(err) });
+        this.toast.error('Workflow run failed', toErrorMessage(err));
         return EMPTY;
       }),
     );
@@ -316,7 +316,7 @@ export class WorkflowsState {
         });
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
+        ctx.patchState({ error: toErrorMessage(err) });
         return EMPTY;
       }),
     );
@@ -339,7 +339,7 @@ export class WorkflowsState {
         });
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
+        ctx.patchState({ error: toErrorMessage(err) });
         return EMPTY;
       }),
     );
@@ -362,7 +362,7 @@ export class WorkflowsState {
         });
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
+        ctx.patchState({ error: toErrorMessage(err) });
         return EMPTY;
       }),
     );
@@ -384,7 +384,7 @@ export class WorkflowsState {
         });
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
+        ctx.patchState({ error: toErrorMessage(err) });
         return EMPTY;
       }),
       finalize(() => ctx.patchState({ isLoadingRunDetails: false })),
@@ -411,7 +411,7 @@ export class WorkflowsState {
         });
       }),
       catchError((err) => {
-        ctx.patchState({ error: this.toErrorMessage(err) });
+        ctx.patchState({ error: toErrorMessage(err) });
         return EMPTY;
       }),
     );
@@ -578,12 +578,5 @@ export class WorkflowsState {
     return copy;
   }
 
-  private toErrorMessage(err: any): string {
-    const msg =
-      err?.error?.message ??
-      err?.message ??
-      (typeof err === 'string' ? err : null) ??
-      'Unknown error';
-    return String(msg);
-  }
+  // Error formatting centralized in core/utils/error.util.ts
 }

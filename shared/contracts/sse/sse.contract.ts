@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { UnixMs } from '../common/datetime.contract';
 import type { ChatId, RunId, WorkflowId } from '../common/id.contract';
 import type { RunStatus } from '../runs/run.contract';
@@ -124,4 +123,4 @@ export type SseEvent =
   | SseEnvelope<'workflow.step.updated', WorkflowStepUpdatedPayload>;
 
 // Legacy name used in the frontend codebase.
-export type SseEnvelopeDto<TPayload = any> = SseEnvelope<SseEventType, TPayload>;
+export type SseEnvelopeDto<TPayload = unknown> = SseEnvelope<SseEventType, TPayload>;

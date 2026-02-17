@@ -34,7 +34,7 @@ export type WorkflowGraph = {
     /**
      * Node-specific config. Stored as plain JSON to keep the graph extensible.
      */
-    config?: any;
+    config?: unknown;
 
     position?: { x: number; y: number };
 
@@ -62,9 +62,9 @@ export type WorkflowGraph = {
      * Rendering metadata (ng-diagram stores markers/styles here).
      */
     type?: string;
-    data?: any;
+    data?: unknown;
 
-    [key: string]: any;
+    [key: string]: unknown;
   }>;
 };
 
