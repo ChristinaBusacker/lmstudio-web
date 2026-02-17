@@ -27,7 +27,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./apps/lmstudio-web/test/jest-e2e.json"
+    "test:e2e": "jest --config ./apps/lmstudio-web/test/jest-e2e.json",
+    "lint:check": "eslint \"{apps,shared,test}/**/*.ts\""
   },
   "dependencies": {
     "@angular/cdk": "^21.1.2",
@@ -69,10 +70,8 @@
     "typeorm": "^0.3.28",
     "unzipper": "^0.12.3",
     "uuid": "^13.0.0",
-    "file-type": "^20.0.0"
-    ,
-    "mammoth": "^1.8.0"
-    ,
+    "file-type": "^20.0.0",
+    "mammoth": "^1.8.0",
     "tesseract.js": "^5.0.5"
   },
   "devDependencies": {
