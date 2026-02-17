@@ -1,79 +1,13 @@
 <div
-  class="node"
-  [class.preview]="isPreview()"
-  [class.loop]="isLoopStart() || isLoopEnd()"
+  [ngClass]="nodeClasses()"
   [attr.data-node-type]="node().data.nodeType"
   (pointerdown)="onNodePointerDown($event)"
 >
-  @if (isMerge()) {
-    @for (pid of mergePorts(); track pid; let i = $index) {
-      <ng-diagram-port
-        class="mergePort port-in"
-        [id]="pid"
-        side="left"
-        type="target"
-        originPoint="leftMiddle"
-        [style.top.px]="mergePortTop(i)"
-      >
-        <div class="mergePortInner">
-          <div class="mergePortDot" aria-hidden="true"></div>
-          <div class="mergePortBadge">{{ getPortIndexLabel(pid) }}</div>
-        </div>
-      </ng-diagram-port>
-    }
-
-    <ng-diagram-port
-      class="mergeOutPort"
-      [id]="MERGE_OUT_PORT"
-      side="right"
-      type="source"
-      originPoint="rightMiddle"
-      [style.top.px]="mergeOutPortTop()"
-    >
-      <div class="mergePortInner mergeOutInner">
-        <div class="mergePortDot" aria-hidden="true"></div>
-        <div class="mergePortBadge">{{ 'workflow.port.out' | i18n | async }}</div>
-      </div>
-    </ng-diagram-port>
-  } @else if (isCondition()) {
-    <ng-diagram-port id="port-left" side="left" type="target"></ng-diagram-port>
-
-    <ng-diagram-port
-      class="condOutPort condTrue"
-      [id]="CONDITION_TRUE_PORT"
-      side="right"
-      type="source"
-      originPoint="rightMiddle"
-      [style.top.px]="conditionTruePortTop()"
-    >
-      <div class="condPortInner">
-        <div class="condPortDot" aria-hidden="true"></div>
-        <div class="condPortBadge">{{ 'common.true' | i18n | async }}</div>
-      </div>
-    </ng-diagram-port>
-
-    <ng-diagram-port
-      class="condOutPort condFalse"
-      [id]="CONDITION_FALSE_PORT"
-      side="right"
-      type="source"
-      originPoint="rightMiddle"
-      [style.top.px]="conditionFalsePortTop()"
-    >
-      <div class="condPortInner">
-        <div class="condPortDot" aria-hidden="true"></div>
-        <div class="condPortBadge">{{ 'common.false' | i18n | async }}</div>
-      </div>
-    </ng-diagram-port>
-  } @else if (isExport() || isPreview()) {
-    <ng-diagram-port id="port-left" side="left" type="target"></ng-diagram-port>
-  } @else if (isLoopStart() || isLoopEnd()) {
-    <ng-diagram-port id="port-left" side="left" type="target"></ng-diagram-port>
-    <ng-diagram-port id="port-right" side="right" type="source"></ng-diagram-port>
-  } @else {
-    <ng-diagram-port id="port-left" side="left" type="both"></ng-diagram-port>
-    <ng-diagram-port id="port-right" side="right" type="both"></ng-diagram-port>
-  }
+  <app-workflow-node-ports
+    [nodeId]="node().id"
+    [nodeType]="node().data.nodeType"
+    [mergeInputCount]="node().data.mergeInputCount ?? 1"
+  />
 
   <div class="header">
     <div class="title">{{ title() }}</div>
@@ -97,515 +31,99 @@
         <option [value]="NODE_PREVIEW">{{ 'workflow.nodeType.preview' | i18n | async }}</option>
         <option [value]="NODE_TOOL">{{ 'workflow.nodeType.tool' | i18n | async }}</option>
         <option [value]="NODE_CONDITION">{{ 'workflow.nodeType.condition' | i18n | async }}</option>
-        <option [value]="NODE_LOOP_START">{{ 'workflow.nodeType.loopStart' | i18n | async }}</option>
+        <option [value]="NODE_LOOP_START">
+          {{ 'workflow.nodeType.loopStart' | i18n | async }}
+        </option>
         <option [value]="NODE_LOOP_END">{{ 'workflow.nodeType.loopEnd' | i18n | async }}</option>
       </select>
     </label>
 
-    @if (isAsset()) {
-      <label class="field">
-        <div class="label">{{ 'workflow.node.asset.file' | i18n | async }}</div>
-        <input
-          class="config input"
-          type="file"
-          (pointerdown)="$event.stopPropagation()"
-          (change)="onAssetFileSelected($event)"
+    @switch (node().data.nodeType) {
+      @case (NODE_ASSET) {
+        <app-workflow-node-editor-asset
+          class="sub"
+          [data]="node().data"
+          (fileSelected)="uploadAsset($event)"
         />
-        @if (node().data.assetId) {
-          <div class="hint">
-            <div><strong>{{ node().data.assetFilename }}</strong></div>
-            <div>ID: <code>{{ node().data.assetId }}</code></div>
-            @if (node().data.assetSha256) { <div>SHA256: <code>{{ node().data.assetSha256 }}</code></div> }
-          </div>
-        }
-      </label>
-}
-
-    @if (isLlm() || isCondition() || isLoopStart()) {
-      <label class="field">
-        <div class="label">{{ 'workflow.node.profile' | i18n | async }}</div>
-        <select
-          class="config input"
-          [value]="node().data.profileName"
-          (pointerdown)="$event.stopPropagation()"
-          (wheel)="$event.stopPropagation()"
-          (change)="updateProfileName($event.target.value)"
-          [attr.title]="'common.visitSettingsPresets' | i18n | async"
-        >
-          <option value="">{{ 'common.default' | i18n | async }}</option>
-          @for (profile of profiles$ | async; track $index) {
-            <option [value]="profile.name" [selected]="profile.name === node().data.profileName">
-              {{ profile.name }}
-            </option>
-          }
-        </select>
-      </label>
-
-      @if (isLlm() || isCondition()) {
-        <label class="field">
-          <div class="label">{{ 'workflow.node.prompt' | i18n | async }}</div>
-          <textarea
-            class="textarea"
-            rows="5"
-            [value]="node().data.prompt"
-            (pointerdown)="$event.stopPropagation()"
-            (wheel)="$event.stopPropagation()"
-            (input)="promptInput$.next($any($event.target).value)"
-            [placeholder]="'workflow.node.promptPlaceholder' | i18n | async"
-          ></textarea>
-        </label>
-
-        @if (isLlm()) {
-          <label class="field inline">
-            <input
-              type="checkbox"
-              [checked]="node().data.structuredOutputEnabled ?? false"
-              (pointerdown)="$event.stopPropagation()"
-              (change)="updateStructuredOutputEnabled($any($event.target).checked)"
-            />
-            <span class="label-inline">{{ 'workflow.node.structuredOutput.enable' | i18n | async }}</span>
-          </label>
-
-          @if (node().data.structuredOutputEnabled) {
-            <label class="field">
-              <div class="label">{{ 'workflow.node.structuredOutput.schema' | i18n | async }}</div>
-              <textarea
-                class="textarea"
-                rows="6"
-                [value]="node().data.structuredOutputSchema ?? ''"
-                (pointerdown)="$event.stopPropagation()"
-                (wheel)="$event.stopPropagation()"
-                (input)="updateStructuredOutputSchema($any($event.target).value)"
-                [placeholder]="'workflow.node.structuredOutput.schemaPlaceholder' | i18n | async"
-              ></textarea>
-              <div class="hint">{{ 'workflow.node.structuredOutput.hint' | i18n | async }}</div>
-            </label>
-          }
-        }
       }
-    }
 
-    @if (isMerge()) {
-      <label class="field">
-        <div class="label">{{ 'workflow.node.separator' | i18n | async }}</div>
-        <textarea
-          class="textarea"
-          rows="2"
-          [value]="node().data.mergeSeparator ?? '\n\n'"
-          (pointerdown)="$event.stopPropagation()"
-          (wheel)="$event.stopPropagation()"
-          (input)="updateMergeSeparator($any($event.target).value)"
-          placeholder="\n\n"
-        ></textarea>
-      </label>
-
-      <div class="hint">
-        {{ 'workflow.node.mergeHint' | i18n | async }}
-      </div>
-    }
-
-    @if (isExport()) {
-      <label class="field">
-        <div class="label">{{ 'workflow.node.filename' | i18n | async }}</div>
-        <input
-          class="input"
-          type="text"
-          [value]="node().data.exportFilename ?? 'export.txt'"
-          (pointerdown)="$event.stopPropagation()"
-          (wheel)="$event.stopPropagation()"
-          (input)="updateExportFilename($any($event.target).value)"
-          [placeholder]="'workflow.node.filenamePlaceholder' | i18n | async"
+      @case (NODE_LLM) {
+        <app-workflow-node-editor-llm
+          class="sub"
+          [data]="node().data"
+          [profiles]="profileNames()"
+          [showStructuredOutput]="true"
+          (profileNameChange)="patchNodeData({ profileName: $event })"
+          (promptChange)="promptInput$.next($event)"
+          (structuredOutputEnabledChange)="
+            patchNodeData({
+              structuredOutputEnabled: $event,
+              structuredOutputSchema: node().data.structuredOutputSchema ?? '',
+            })
+          "
+          (structuredOutputSchemaChange)="patchNodeData({ structuredOutputSchema: $event })"
         />
-      </label>
+      }
 
-      <div class="hint">{{ 'workflow.node.exportHint' | i18n | async }}</div>
-    }
-
-    
-
-@if (isTool()) {
-  <label class="field">
-    <div class="label">{{ 'workflow.node.toolName' | i18n | async }}</div>
-    <select
-      class="config input"
-      [value]="node().data.toolName ?? 'web_search'"
-      (pointerdown)="$event.stopPropagation()"
-      (wheel)="$event.stopPropagation()"
-      (change)="updateToolName($any($event.target).value)"
-    >
-      <option value="web_search">web_search</option>
-      <option value="web_read">web_read</option>
-      <option value="doc_read">doc_read</option>
-      <option value="current_time">current_time</option>
-      <option value="resolve_relative_date">resolve_relative_date</option>
-      <option value="date_math">date_math</option>
-      <option value="math">math</option>
-      <option value="json_validate">json_validate</option>
-      <option value="json_repair">json_repair</option>
-    </select>
-  </label>
-
-  @let tn = node().data.toolName ?? 'web_search';
-
-  @if (tn === 'web_search') {
-    <label class="field">
-      <div class="label">Query</div>
-      <input
-        class="input"
-        type="text"
-        [value]="node().data.webSearchQuery ?? ''"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('webSearchQuery', $any($event.target).value)"
-      />
-    </label>
-    <label class="field">
-      <div class="label">Limit</div>
-      <input
-        class="input"
-        type="number"
-        min="1"
-        max="50"
-        [value]="node().data.webSearchLimit ?? 5"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('webSearchLimit', toNumber($any($event.target).value, 5))"
-      />
-    </label>
-  }
-
-  @if (tn === 'web_read') {
-    <label class="field">
-      <div class="label">URL</div>
-      <input
-        class="input"
-        type="text"
-        [value]="node().data.webReadUrl ?? ''"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('webReadUrl', $any($event.target).value)"
-      />
-    </label>
-  }
-
-  @if (tn === 'doc_read') {
-    <label class="field">
-      <div class="label">Asset ID</div>
-      <input
-        class="input"
-        type="text"
-        [value]="node().data.docReadAssetId ?? ''"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('docReadAssetId', $any($event.target).value)"
-      />
-    </label>
-  }
-
-  @if (tn === 'current_time') {
-    <label class="field">
-      <div class="label">Timezone</div>
-      <input
-        class="input"
-        type="text"
-        [value]="node().data.currentTimeTimezone ?? 'Europe/Berlin'"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('currentTimeTimezone', $any($event.target).value)"
-      />
-    </label>
-  }
-
-  @if (tn === 'resolve_relative_date') {
-    <label class="field">
-      <div class="label">Text</div>
-      <input
-        class="input"
-        type="text"
-        [value]="node().data.resolveRelativeText ?? ''"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('resolveRelativeText', $any($event.target).value)"
-      />
-    </label>
-    <label class="field">
-      <div class="label">Timezone</div>
-      <input
-        class="input"
-        type="text"
-        [value]="node().data.resolveRelativeTimezone ?? 'Europe/Berlin'"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('resolveRelativeTimezone', $any($event.target).value)"
-      />
-    </label>
-    <label class="field">
-      <div class="label">Base time (optional ISO)</div>
-      <input
-        class="input"
-        type="text"
-        [value]="node().data.resolveRelativeBaseTime ?? ''"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('resolveRelativeBaseTime', $any($event.target).value)"
-      />
-    </label>
-  }
-
-  @if (tn === 'date_math') {
-    <label class="field">
-      <div class="label">Base time (ISO)</div>
-      <input
-        class="input"
-        type="text"
-        [value]="node().data.dateMathBaseTime ?? ''"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('dateMathBaseTime', $any($event.target).value)"
-      />
-    </label>
-    <label class="field">
-      <div class="label">Operation</div>
-      <select
-        class="config input"
-        [value]="node().data.dateMathOperation ?? 'add'"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (change)="updateToolField('dateMathOperation', $any($event.target).value)"
-      >
-        <option value="add">add</option>
-        <option value="startOfDay">startOfDay</option>
-        <option value="endOfDay">endOfDay</option>
-        <option value="roundToHour">roundToHour</option>
-      </select>
-    </label>
-    <label class="field">
-      <div class="label">Amount</div>
-      <input
-        class="input"
-        type="number"
-        [value]="node().data.dateMathAmount ?? 1"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('dateMathAmount', toNumber($any($event.target).value, 1))"
-      />
-    </label>
-    <label class="field">
-      <div class="label">Unit</div>
-      <select
-        class="config input"
-        [value]="node().data.dateMathUnit ?? 'days'"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (change)="updateToolField('dateMathUnit', $any($event.target).value)"
-      >
-        <option value="minutes">minutes</option>
-        <option value="hours">hours</option>
-        <option value="days">days</option>
-        <option value="weeks">weeks</option>
-        <option value="months">months</option>
-        <option value="years">years</option>
-      </select>
-    </label>
-  }
-
-  @if (tn === 'math') {
-    <label class="field">
-      <div class="label">Expression</div>
-      <input
-        class="input"
-        type="text"
-        [value]="node().data.mathExpression ?? ''"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('mathExpression', $any($event.target).value)"
-      />
-    </label>
-    <label class="field">
-      <div class="label">Precision</div>
-      <input
-        class="input"
-        type="number"
-        min="0"
-        max="20"
-        [value]="node().data.mathPrecision ?? 8"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('mathPrecision', toNumber($any($event.target).value, 8))"
-      />
-    </label>
-  }
-
-  @if (tn === 'json_validate') {
-    <label class="field">
-      <div class="label">JSON</div>
-      <textarea
-        class="config input"
-        rows="6"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('jsonInput', $any($event.target).value)"
-      >{{ node().data.jsonInput ?? '' }}</textarea>
-    </label>
-    <label class="field">
-      <div class="label">Schema</div>
-      <textarea
-        class="config input"
-        rows="6"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('jsonSchema', $any($event.target).value)"
-      >{{ node().data.jsonSchema ?? '' }}</textarea>
-    </label>
-  }
-
-  @if (tn === 'json_repair') {
-    <label class="field">
-      <div class="label">Text</div>
-      <textarea
-        class="config input"
-        rows="6"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (input)="updateToolField('jsonInput', $any($event.target).value)"
-      >{{ node().data.jsonInput ?? '' }}</textarea>
-    </label>
-  }
-
-  <details class="hint">
-    <summary>Advanced (raw args JSON)</summary>
-    <textarea
-      class="config input"
-      rows="6"
-      (pointerdown)="$event.stopPropagation()"
-      (wheel)="$event.stopPropagation()"
-      (input)="updateToolField('toolArgsJson', $any($event.target).value)"
-    >{{ node().data.toolArgsJson ?? '' }}</textarea>
-  </details>
-}
-
-@if (isPreview()) {
-      <label class="field">
-        <div class="label">{{ 'workflow.node.maxLines' | i18n | async }}</div>
-        <input
-          class="input"
-          type="number"
-          min="3"
-          max="50"
-          [value]="node().data.previewMaxLines ?? 10"
-          (pointerdown)="$event.stopPropagation()"
-          (wheel)="$event.stopPropagation()"
-          (input)="updatePreviewMaxLines(toNumber($any($event.target).value, 10))"
+      @case (NODE_CONDITION) {
+        <app-workflow-node-editor-llm
+          class="sub"
+          [data]="node().data"
+          [profiles]="profileNames()"
+          [showStructuredOutput]="false"
+          (profileNameChange)="patchNodeData({ profileName: $event })"
+          (promptChange)="promptInput$.next($event)"
         />
-      </label>
+      }
 
-      <div class="preview">
+      @case (NODE_MERGE) {
+        <app-workflow-node-editor-merge
+          class="sub"
+          [data]="node().data"
+          (mergeSeparatorChange)="patchNodeData({ mergeSeparator: $event })"
+        />
+      }
+
+      @case (NODE_EXPORT) {
+        <app-workflow-node-editor-export
+          class="sub"
+          [data]="node().data"
+          (exportFilenameChange)="patchNodeData({ exportFilename: $event })"
+        />
+      }
+
+      @case (NODE_PREVIEW) {
         @let details = selectedRunDetails$ | async;
-        <pre class="previewText">{{ getPreviewText(details) }}</pre>
-      </div>
-
-      <div class="hint">{{ 'workflow.node.previewHint' | i18n | async }}</div>
-    }
-
-    @if (isLoopStart()) {
-      <label class="field">
-        <div class="label">{{ 'workflow.node.profile' | i18n | async }}</div>
-        <select
-          class="config input"
-          [value]="node().data.profileName"
-          (pointerdown)="$event.stopPropagation()"
-          (wheel)="$event.stopPropagation()"
-          (change)="updateProfileName($event.target.value)"
-          [attr.title]="'common.visitSettingsPresets' | i18n | async"
-        >
-          <option value="">{{ 'common.default' | i18n | async }}</option>
-          @for (profile of profiles$ | async; track $index) {
-            <option [value]="profile.name" [selected]="profile.name === node().data.profileName">
-              {{ profile.name }}
-            </option>
-          }
-        </select>
-      </label>
-
-      <label class="field">
-        <div class="label">{{ 'workflow.node.loopMode' | i18n | async }}</div>
-        <select
-          class="config input"
-          [value]="node().data.loopMode ?? 'until'"
-          (pointerdown)="$event.stopPropagation()"
-          (wheel)="$event.stopPropagation()"
-          (change)="updateLoopMode($any($event.target).value)"
-        >
-          <option value="until">{{ 'workflow.node.loop.until' | i18n | async }}</option>
-          <option value="while">{{ 'workflow.node.loop.while' | i18n | async }}</option>
-          <option value="count">{{ 'workflow.node.loop.count' | i18n | async }}</option>
-        </select>
-      </label>
-
-      @if ((node().data.loopMode ?? 'until') !== 'count') {
-      <label class="field">
-        <div class="label">{{ 'workflow.node.maxIterations' | i18n | async }}</div>
-        <input
-          class="input"
-          type="number"
-          min="1"
-          max="1000"
-          [value]="node().data.loopMaxIterations ?? 10"
-          (pointerdown)="$event.stopPropagation()"
-          (wheel)="$event.stopPropagation()"
-          (input)="updateLoopMaxIterations(toNumber($any($event.target).value, 10))"
+        <app-workflow-node-editor-preview
+          class="sub"
+          [data]="node().data"
+          [previewText]="getPreviewText(details)"
+          (previewMaxLinesChange)="patchNodeData({ previewMaxLines: $event })"
         />
-      </label>
-    } @else {
-      <label class="field">
-        <div class="label">{{ 'workflow.node.loopCount' | i18n | async }}</div>
-        <input
-          class="input"
-          type="number"
-          min="1"
-          max="1000"
-          [value]="node().data.loopCount ?? 3"
-          (pointerdown)="$event.stopPropagation()"
-          (wheel)="$event.stopPropagation()"
-          (input)="updateLoopCount(toNumber($any($event.target).value, 3))"
+      }
+
+      @case (NODE_TOOL) {
+        <app-workflow-node-editor-tool
+          class="sub"
+          [data]="node().data"
+          (toolNameChange)="patchNodeData({ toolName: $event })"
+          (fieldPatch)="patchNodeData($event)"
         />
-      </label>
-    }
-<label class="field">
-        <div class="label">{{ 'workflow.node.joiner' | i18n | async }}</div>
-        <textarea
-          class="textarea"
-          rows="2"
-          [value]="node().data.loopJoiner ?? '\n\n'"
-          (pointerdown)="$event.stopPropagation()"
-          (wheel)="$event.stopPropagation()"
-          (input)="updateLoopJoiner($any($event.target).value)"
-          placeholder="\n\n"
-        ></textarea>
-      </label>
+      }
 
-      @if ((node().data.loopMode ?? 'until') !== 'count') {
-      <label class="field">
-        <div class="label">{{ 'workflow.node.conditionPrompt' | i18n | async }}</div>
-        <textarea
-          class="textarea"
-          rows="4"
-          [value]="node().data.loopConditionPrompt ?? ''"
-          (pointerdown)="$event.stopPropagation()"
-          (wheel)="$event.stopPropagation()"
-          (input)="updateLoopConditionPrompt($any($event.target).value)"
-          [placeholder]="'workflow.node.conditionPlaceholder' | i18n | async"
-        ></textarea>
-      </label>
-
-      
-    }
-<div class="hint">
-        {{ 'workflow.node.loopHint.before' | i18n | async }} <code>{{ '{{loop.index}}' }}</code>
-        {{ 'workflow.node.loopHint.middle' | i18n | async }} <code>{{ '{{loop.iteration}}' }}</code>
-        {{ 'workflow.node.loopHint.after' | i18n | async }} <code>{{ '{{index}}' }}</code> / <code>{{ '{{iteration}}' }}</code>
-        {{ 'workflow.node.loopHint.tail' | i18n | async }}
-      </div>
+      @case (NODE_LOOP_START) {
+        <app-workflow-node-editor-loop-start
+          class="sub"
+          [data]="node().data"
+          [profiles]="profileNames()"
+          (profileNameChange)="patchNodeData({ profileName: $event })"
+          (loopModeChange)="patchNodeData({ loopMode: $event })"
+          (loopMaxIterationsChange)="patchNodeData({ loopMaxIterations: $event })"
+          (loopCountChange)="patchNodeData({ loopCount: $event })"
+          (loopJoinerChange)="patchNodeData({ loopJoiner: $event })"
+          (loopConditionPromptChange)="patchNodeData({ loopConditionPrompt: $event })"
+        />
+      }
     }
 
     <ng-diagram-node-resize-adornment />
@@ -615,7 +133,10 @@
     <div class="controls">
       @if (canRerunFromHere()) {
         <button (pointerdown)="$event.stopPropagation()" (click)="rerunFromHere()">
-          <app-icon name="restart-line" [attr.title]="'workflow.node.action.rerunFromHere' | i18n | async" />
+          <app-icon
+            name="restart-line"
+            [attr.title]="'workflow.node.action.rerunFromHere' | i18n | async"
+          />
         </button>
       }
       <button (pointerdown)="$event.stopPropagation()" (click)="duplicateNode()">
@@ -625,7 +146,10 @@
         <app-icon name="delete-bin-line" [attr.title]="'common.delete' | i18n | async" />
       </button>
       <button (pointerdown)="$event.stopPropagation()" (click)="addLinkedNode()">
-        <app-icon name="add-line" [attr.title]="'workflow.node.action.addConnected' | i18n | async" />
+        <app-icon
+          name="add-line"
+          [attr.title]="'workflow.node.action.addConnected' | i18n | async"
+        />
       </button>
     </div>
   </div>

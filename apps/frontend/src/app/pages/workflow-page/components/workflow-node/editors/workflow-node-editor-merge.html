@@ -1,0 +1,16 @@
+<label class="field">
+  <div class="label">{{ 'workflow.node.separator' | i18n | async }}</div>
+  <textarea
+    class="textarea"
+    rows="2"
+    [ngModel]="data().mergeSeparator ?? '\n\n'"
+    (ngModelChange)="mergeSeparatorChange.emit($event)"
+    (pointerdown)="$event.stopPropagation()"
+    (wheel)="$event.stopPropagation()"
+    placeholder="\n\n"
+  ></textarea>
+</label>
+
+<div class="hint">
+  {{ 'workflow.node.mergeHint' | i18n | async }}
+</div>

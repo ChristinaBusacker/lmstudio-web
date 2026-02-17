@@ -1,0 +1,14 @@
+<label class="field">
+  <div class="label">{{ 'workflow.node.filename' | i18n | async }}</div>
+  <input
+    class="input"
+    type="text"
+    [ngModel]="data().exportFilename ?? 'export.txt'"
+    (ngModelChange)="exportFilenameChange.emit($event)"
+    (pointerdown)="$event.stopPropagation()"
+    (wheel)="$event.stopPropagation()"
+    [placeholder]="'workflow.node.filenamePlaceholder' | i18n | async"
+  />
+</label>
+
+<div class="hint">{{ 'workflow.node.exportHint' | i18n | async }}</div>

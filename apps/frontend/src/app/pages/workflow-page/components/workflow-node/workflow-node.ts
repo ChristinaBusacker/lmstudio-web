@@ -1,8 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -11,7 +7,9 @@ import {
   inject,
   input,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { AssetsApi, type AssetDto } from '@frontend/src/app/core/api/assets.api';
 import { SettingsState } from '@frontend/src/app/core/state/settings/settings.state';
 import { RerunWorkflowFromNode } from '@frontend/src/app/core/state/workflows/workflow.actions';
 import type { WorkflowRunDetails } from '@frontend/src/app/core/state/workflows/workflow.models';
@@ -19,38 +17,55 @@ import { WorkflowsState } from '@frontend/src/app/core/state/workflows/workflow.
 import { shortId } from '@frontend/src/app/core/utils/shortId.util';
 import { Icon } from '@frontend/src/app/ui/icon/icon';
 import { Store } from '@ngxs/store';
-import { AssetsApi, type AssetDto } from '@frontend/src/app/core/api/assets.api';
 import {
   NgDiagramModelService,
   NgDiagramNodeResizeAdornmentComponent,
   NgDiagramNodeSelectedDirective,
-  NgDiagramPortComponent,
   NgDiagramSelectionService,
   type NgDiagramNodeTemplate,
   type Node,
 } from 'ng-diagram';
-import { Subject, debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, firstValueFrom, map } from 'rxjs';
+import type { SettingsProfile } from '@shared/contracts';
 import {
-  CONDITION_FALSE_PORT,
-  CONDITION_TRUE_PORT,
-  DEFAULT_SOURCE_PORT,
-  DEFAULT_TARGET_PORT,
   DiagramNodeData,
-  MERGE_IN_PREFIX,
-  MERGE_OUT_PORT,
   NODE_ASSET,
   NODE_CONDITION,
   NODE_EXPORT,
   NODE_LLM,
-  NODE_LOOP,
   NODE_LOOP_END,
   NODE_LOOP_START,
   NODE_MERGE,
   NODE_PREVIEW,
   NODE_TOOL,
+  DEFAULT_SOURCE_PORT,
+  DEFAULT_TARGET_PORT,
+  CONDITION_TRUE_PORT,
+  MERGE_OUT_PORT,
 } from '../../workflow-diagram.adapter';
 import { WorkflowEditorStateService } from '../../workflow-editor-state.service';
 import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
+import { WorkflowNodePortsComponent } from './ports/workflow-node-ports';
+import { WorkflowNodeEditorAssetComponent } from './editors/workflow-node-editor-asset';
+import { WorkflowNodeEditorExportComponent } from './editors/workflow-node-editor-export';
+import { WorkflowNodeEditorLlmComponent } from './editors/workflow-node-editor-llm';
+import {
+  WorkflowNodeEditorLoopStartComponent,
+  type LoopMode,
+} from './editors/workflow-node-editor-loop-start';
+import { WorkflowNodeEditorMergeComponent } from './editors/workflow-node-editor-merge';
+import { WorkflowNodeEditorPreviewComponent } from './editors/workflow-node-editor-preview';
+import { WorkflowNodeEditorToolComponent } from './editors/workflow-node-editor-tool';
+
+type DiagramEdge = {
+  source?: unknown;
+  target?: unknown;
+  targetPort?: unknown;
+};
+
+function isDiagramEdge(v: unknown): v is DiagramEdge {
+  return typeof v === 'object' && v !== null;
+}
 
 @Component({
   selector: 'app-workflow-node',
@@ -58,10 +73,17 @@ import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
   imports: [
     CommonModule,
     FormsModule,
-    NgDiagramPortComponent,
     NgDiagramNodeResizeAdornmentComponent,
     Icon,
     I18nPipe,
+    WorkflowNodePortsComponent,
+    WorkflowNodeEditorLlmComponent,
+    WorkflowNodeEditorAssetComponent,
+    WorkflowNodeEditorMergeComponent,
+    WorkflowNodeEditorExportComponent,
+    WorkflowNodeEditorPreviewComponent,
+    WorkflowNodeEditorToolComponent,
+    WorkflowNodeEditorLoopStartComponent,
   ],
   hostDirectives: [{ directive: NgDiagramNodeSelectedDirective, inputs: ['node'] }],
   templateUrl: './workflow-node.html',
@@ -74,19 +96,44 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
   private readonly assetsApi = inject(AssetsApi);
   private readonly editorState = inject(WorkflowEditorStateService);
   private readonly destroyRef = inject(DestroyRef);
-
   private readonly selection = inject(NgDiagramSelectionService);
 
   node = input.required<Node<DiagramNodeData>>();
 
-  readonly profiles$ = this.store.select(SettingsState.profiles);
+  private readonly profiles$ = this.store.select(SettingsState.profiles);
+  private readonly profileNamesSig = toSignal(
+    this.profiles$.pipe(map((profiles: SettingsProfile[]) => profiles.map((p) => p.name))),
+    { initialValue: [] as string[] },
+  );
+
   readonly selectedRunDetails$ = this.store.select(WorkflowsState.selectedRunDetails);
+
+  readonly title = computed(() => this.node().data.label || this.node().id);
+  readonly nodeType = computed(() => this.node().data.nodeType);
+
+  readonly nodeClasses = computed<Record<string, boolean>>(() => {
+    const t = String(this.nodeType() ?? '').trim();
+    return {
+      node: true,
+      preview: t === NODE_PREVIEW,
+      loop: t === NODE_LOOP_START || t === NODE_LOOP_END,
+      [t]: Boolean(t), // requested: keep selected nodeType as a CSS class
+    };
+  });
+
+  readonly promptInput$ = new Subject<string>();
+
+  constructor() {
+    this.promptInput$
+      .pipe(debounceTime(1000), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => this.patchNodeData({ prompt: value }));
+  }
+
+  // ---- Actions ----
 
   canRerunFromHere(): boolean {
     const run = this.store.selectSnapshot(WorkflowsState.selectedRun);
     if (!run) return false;
-    // Rerun-from invalidates downstream nodes and sets the run back to queued.
-    // To avoid mid-flight surprises, we only allow this when the run is not active.
     return run.status !== 'queued' && run.status !== 'running' && run.status !== 'paused';
   }
 
@@ -97,244 +144,6 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     this.store.dispatch(new RerunWorkflowFromNode(run.id, node.id));
   }
 
-  title = computed(() => this.node().data.label || this.node().id);
-  nodeType = computed(() => this.node().data.nodeType);
-
-  readonly isLlm = computed(() => this.nodeType() === NODE_LLM);
-  readonly isAsset = computed(() => this.nodeType() === NODE_ASSET);
-  readonly isCondition = computed(() => this.nodeType() === NODE_CONDITION);
-  readonly isMerge = computed(() => this.nodeType() === NODE_MERGE);
-  readonly isExport = computed(() => this.nodeType() === NODE_EXPORT);
-  readonly isPreview = computed(() => this.nodeType() === NODE_PREVIEW);
-  readonly isLoopStart = computed(() => this.nodeType() === NODE_LOOP_START);
-  readonly isLoopEnd = computed(() => this.nodeType() === NODE_LOOP_END);
-
-  readonly promptInput$ = new Subject<string>();
-
-  readonly mergePorts = computed(() => {
-    const n = this.node();
-    const cnt = Math.max(1, Number(n.data.mergeInputCount ?? 1));
-    return Array.from({ length: cnt }, (_, i) => `${MERGE_IN_PREFIX}${i + 1}`);
-  });
-
-  constructor() {
-    this.promptInput$
-      .pipe(debounceTime(1000), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
-      .subscribe((value) => {
-        const n = this.node();
-        this.editorState.requestSnapshot();
-        this.editorState.markDirty();
-        this.model.updateNodeData(n.id, { ...n.data, prompt: value });
-      });
-  }
-
-  // ---- Merge port layout ----
-
-  /**
-   * Pixel offset from the top of the node for the first merge input port.
-   * This needs to match your node header height.
-   */
-  mergePortTop(index: number): number {
-    const base = 64; // header + some spacing
-    const step = 34; // distance between ports
-    return base + index * step;
-  }
-
-  mergeOutPortTop(): number {
-    return 76; // aligns nicely with first/second ports visually
-  }
-
-  // ---- Condition ports ----
-
-  conditionTruePortTop(): number {
-    return 72;
-  }
-
-  conditionFalsePortTop(): number {
-    return 108;
-  }
-
-  // ---- Editing ----
-
-  /**
-   * Angular templates don't reliably access global `Number(...)`.
-   * Use this helper for numeric inputs.
-   */
-  toNumber(value: any, fallback = 0): number {
-    const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
-    return Number.isFinite(n) ? n : fallback;
-  }
-
-  updateProfileName(value: string): void {
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-    const n = this.node();
-    this.model.updateNodeData(n.id, { ...n.data, profileName: value });
-  }
-
-  updateNodeType(value: string): void {
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-
-    const n = this.node();
-    const patch: Partial<DiagramNodeData> = { nodeType: value };
-
-    if (value === NODE_MERGE) {
-      patch.mergeSeparator = n.data.mergeSeparator ?? '\n\n';
-      patch.mergeInputCount = n.data.mergeInputCount ?? 1;
-    }
-
-    if (value === NODE_EXPORT) {
-      patch.exportFilename = n.data.exportFilename ?? 'export.txt';
-    }
-
-    if (value === NODE_PREVIEW) {
-      patch.previewMaxLines = n.data.previewMaxLines ?? 10;
-    }
-
-    if (value === NODE_LOOP_START) {
-      patch.loopMode = n.data.loopMode ?? 'until';
-      patch.loopConditionPrompt = n.data.loopConditionPrompt ?? 'Are we done?';
-      patch.loopJoiner = n.data.loopJoiner ?? '\n\n';
-      patch.loopMaxIterations = n.data.loopMaxIterations ?? 10;
-      patch.loopCount = n.data.loopCount ?? 3;
-    }
-
-    if (value === NODE_ASSET) {
-      patch.assetId = n.data.assetId ?? '';
-      patch.assetFilename = n.data.assetFilename ?? '';
-      patch.assetMimeType = n.data.assetMimeType ?? null;
-      patch.assetSha256 = n.data.assetSha256 ?? '';
-      patch.assetExtract = true;
-    }
-
-    this.model.updateNodeData(n.id, { ...n.data, ...patch });
-  }
-
-  updateToolName(name: string): void {
-    this.patchNodeData({ toolName: name });
-  }
-
-  updateToolField(field: keyof DiagramNodeData, value: any): void {
-    this.patchNodeData({ [field]: value } as any);
-  }
-
-  /**
-   * Convenience helper used by various node editors to update node.data.
-   * Keeps undo/dirty state consistent.
-   */
-  patchNodeData(patch: Partial<DiagramNodeData>): void {
-    const n = this.node();
-    if (!n?.id) return;
-
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-
-    this.model.updateNodeData(n.id, {
-      ...n.data,
-      ...patch,
-    });
-  }
-
-  async uploadAsset(file: File): Promise<void> {
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-
-    const dto: AssetDto = await firstValueFrom(this.assetsApi.upload(file));
-    const n = this.node();
-    this.model.updateNodeData(n.id, {
-      ...n.data,
-      assetId: dto.id,
-      assetFilename: dto.originalFilename,
-      assetMimeType: dto.mimeType,
-      assetSha256: dto.sha256,
-    });
-  }
-
-  async onAssetFileSelected(evt: Event): Promise<void> {
-    const input = evt.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    await this.uploadAsset(file);
-    // Reset so selecting the same file again still triggers change.
-    input.value = '';
-  }
-
-  updateMergeSeparator(value: string): void {
-    const n = this.node();
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-    this.model.updateNodeData(n.id, { ...n.data, mergeSeparator: value });
-  }
-
-  updateExportFilename(value: string): void {
-    const n = this.node();
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-    this.model.updateNodeData(n.id, { ...n.data, exportFilename: value });
-  }
-
-  updatePreviewMaxLines(value: number): void {
-    const n = this.node();
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-    this.model.updateNodeData(n.id, { ...n.data, previewMaxLines: value });
-  }
-
-  updateLoopMode(value: 'while' | 'until' | 'count'): void {
-    const n = this.node();
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-    this.model.updateNodeData(n.id, { ...n.data, loopMode: value });
-  }
-
-  updateLoopConditionPrompt(value: string): void {
-    const n = this.node();
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-    this.model.updateNodeData(n.id, { ...n.data, loopConditionPrompt: value });
-  }
-
-  updateLoopJoiner(value: string): void {
-    const n = this.node();
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-    this.model.updateNodeData(n.id, { ...n.data, loopJoiner: value });
-  }
-
-  updateLoopMaxIterations(value: number): void {
-    const n = this.node();
-    const v = Math.max(1, Math.min(1000, Number(value)));
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-    this.model.updateNodeData(n.id, { ...n.data, loopMaxIterations: v });
-  }
-
-  updateLoopCount(value: number): void {
-    const n = this.node();
-    const v = Math.max(1, Math.min(1000, Number(value)));
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-    this.model.updateNodeData(n.id, { ...n.data, loopCount: v });
-  }
-
-  updateStructuredOutputEnabled(value: boolean): void {
-    const n = this.node();
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-    this.model.updateNodeData(n.id, {
-      ...n.data,
-      structuredOutputEnabled: Boolean(value),
-      structuredOutputSchema: n.data.structuredOutputSchema ?? '',
-    });
-  }
-
-  updateStructuredOutputSchema(value: string): void {
-    const n = this.node();
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
-    this.model.updateNodeData(n.id, { ...n.data, structuredOutputSchema: String(value) });
-  }
   deleteNode(): void {
     const n = this.node();
     this.editorState.requestSnapshot();
@@ -361,48 +170,120 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     ]);
   }
 
-  // ---- Merge port connection info ----
+  addLinkedNode(): void {
+    const n = this.node();
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
 
-  getIncomingSourceForPort(targetPortId: string): string | null {
-    const nodeId = this.node().id;
-    const json = this.safeDiagramJson();
-    const edges: any[] = Array.isArray(json.edges) ? json.edges : [];
+    const newId = shortId();
+    const x = Number(n.position?.x ?? 0) + 360;
+    const y = Number(n.position?.y ?? 0);
 
-    const hit = edges.find(
-      (e) =>
-        String(e?.target ?? '') === nodeId && String(e?.targetPort ?? '') === String(targetPortId),
-    );
+    this.model.addNodes([
+      {
+        id: newId,
+        type: 'workflowNode',
+        position: { x, y },
+        data: {
+          label: newId,
+          nodeType: NODE_LLM,
+          profileName: 'Default',
+          prompt: '',
+        },
+      },
+    ]);
 
-    const src = hit?.source ? String(hit.source) : '';
-    return src.trim() ? src : null;
+    const sourcePort =
+      n.data.nodeType === NODE_CONDITION
+        ? CONDITION_TRUE_PORT
+        : n.data.nodeType === NODE_MERGE
+          ? MERGE_OUT_PORT
+          : DEFAULT_SOURCE_PORT;
+
+    this.model.addEdges([
+      {
+        id: `${n.id}->${newId}-${shortId()}`,
+        source: n.id,
+        target: newId,
+        sourcePort,
+        targetPort: DEFAULT_TARGET_PORT,
+        data: {},
+      },
+    ]);
   }
 
-  getPortIndexLabel(portId: string): string {
-    const m = /^in-(\d+)$/.exec(String(portId));
-    return m ? m[1] : '?';
+  onNodePointerDown(e: PointerEvent): void {
+    if (e.button !== 0) return;
+    if (!e.shiftKey) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const id = this.node().id;
+    const cur = this.selection.selection();
+    const nodes = cur.nodes.map((n) => n.id);
+    this.selection.select([...nodes, id]);
+  }
+
+  // ---- Data patching ----
+
+  patchNodeData(patch: Partial<DiagramNodeData>): void {
+    const n = this.node();
+    if (!n?.id) return;
+
+    this.editorState.requestSnapshot();
+    this.editorState.markDirty();
+
+    this.model.updateNodeData(n.id, { ...n.data, ...patch });
+  }
+
+  updateNodeType(value: string): void {
+    const n = this.node();
+    const patch: Partial<DiagramNodeData> = { nodeType: value };
+
+    if (value === NODE_MERGE) {
+      patch.mergeSeparator = n.data.mergeSeparator ?? '\n\n';
+      patch.mergeInputCount = n.data.mergeInputCount ?? 1;
+    }
+
+    if (value === NODE_EXPORT) {
+      patch.exportFilename = n.data.exportFilename ?? 'export.txt';
+    }
+
+    if (value === NODE_PREVIEW) {
+      patch.previewMaxLines = n.data.previewMaxLines ?? 10;
+    }
+
+    if (value === NODE_LOOP_START) {
+      patch.loopMode = (n.data.loopMode as LoopMode | undefined) ?? 'until';
+      patch.loopConditionPrompt = n.data.loopConditionPrompt ?? 'Are we done?';
+      patch.loopJoiner = n.data.loopJoiner ?? '\n\n';
+      patch.loopMaxIterations = n.data.loopMaxIterations ?? 10;
+      patch.loopCount = n.data.loopCount ?? 3;
+    }
+
+    if (value === NODE_ASSET) {
+      patch.assetId = n.data.assetId ?? '';
+      patch.assetFilename = n.data.assetFilename ?? '';
+      patch.assetMimeType = n.data.assetMimeType ?? null;
+      patch.assetSha256 = n.data.assetSha256 ?? '';
+      patch.assetExtract = true;
+    }
+
+    this.patchNodeData(patch);
+  }
+
+  async uploadAsset(file: File): Promise<void> {
+    const dto: AssetDto = await firstValueFrom(this.assetsApi.upload(file));
+    this.patchNodeData({
+      assetId: dto.id,
+      assetFilename: dto.originalFilename,
+      assetMimeType: dto.mimeType,
+      assetSha256: dto.sha256,
+    });
   }
 
   // ---- Preview ----
-
-  getPreviewSourceNodeId(): string | null {
-    const n = this.node();
-    const json = this.safeDiagramJson();
-    const edges: any[] = Array.isArray(json.edges) ? json.edges : [];
-
-    const incoming = edges.filter((e) => String(e?.target ?? '') === n.id);
-
-    const scored = incoming
-      .map((e) => {
-        const targetPort = String(e?.targetPort ?? '');
-        const m = /^in-(\d+)$/.exec(targetPort);
-        const idx = m ? Number(m[1]) : 999999;
-        return { source: String(e?.source ?? ''), idx };
-      })
-      .filter((x) => !!x.source)
-      .sort((a, b) => a.idx - b.idx || a.source.localeCompare(b.source));
-
-    return scored.length ? scored[0].source : null;
-  }
 
   getPreviewText(details: WorkflowRunDetails | null): string {
     if (!details) return 'No run selected.';
@@ -428,114 +309,72 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     return lines.length > maxLines ? `${slice}\n…` : slice;
   }
 
-  addLinkedNode(): void {
+  private getPreviewSourceNodeId(): string | null {
     const n = this.node();
+    const edges = this.safeEdges();
+    const incoming = edges.filter((e) => String(e.target ?? '') === n.id);
 
-    this.editorState.requestSnapshot();
-    this.editorState.markDirty();
+    const scored = incoming
+      .map((e) => {
+        const targetPort = String(e.targetPort ?? '');
+        const m = /^in-(\d+)$/.exec(targetPort);
+        const idx = m ? Number(m[1]) : 999999;
+        return { source: String(e.source ?? ''), idx };
+      })
+      .filter((x) => Boolean(x.source))
+      .sort((a, b) => a.idx - b.idx || a.source.localeCompare(b.source));
 
-    const newId = shortId();
-
-    const x = Number(n.position?.x ?? 0) + 360;
-    const y = Number(n.position?.y ?? 0) + 0;
-
-    this.model.addNodes([
-      {
-        id: newId,
-        type: 'workflowNode',
-        position: { x, y },
-        data: {
-          label: newId,
-          nodeType: NODE_LLM,
-          profileName: 'Default',
-          prompt: '',
-        },
-      },
-    ]);
-
-    // Prefer "true" branch for condition nodes by default.
-    const sourcePort =
-      n.data.nodeType === NODE_CONDITION
-        ? CONDITION_TRUE_PORT
-        : n.data.nodeType === NODE_MERGE
-          ? MERGE_OUT_PORT
-          : DEFAULT_SOURCE_PORT;
-
-    this.model.addEdges([
-      {
-        id: `${n.id}->${newId}-${shortId()}`,
-        source: n.id,
-        target: newId,
-        sourcePort,
-        targetPort: DEFAULT_TARGET_PORT,
-        data: {},
-      },
-    ]);
+    return scored.length ? scored[0].source : null;
   }
 
-  onNodePointerDown(e: PointerEvent): void {
-    if (e.button !== 0) return;
-    if (!e.shiftKey) return;
-
-    // Prevent default single-select behavior
-    e.preventDefault();
-    e.stopPropagation();
-
-    const id = this.node().id;
-
-    const cur = this.selection.selection();
-    const nodes = cur.nodes.map((n) => n.id);
-    this.selection.select([...nodes, id]);
-  }
-
-  private safeDiagramJson(): { nodes?: unknown[]; edges?: unknown[] } {
+  private safeEdges(): DiagramEdge[] {
     try {
-      return JSON.parse(this.model.toJSON()) as { nodes?: unknown[]; edges?: unknown[] };
+      const json = JSON.parse(this.model.toJSON()) as { edges?: unknown[] };
+      const edges = Array.isArray(json.edges) ? json.edges : [];
+      return edges.filter(isDiagramEdge);
     } catch {
-      return {};
+      return [];
+    }
+  }
+
+  // ---- Labels ----
+
+  nodeTypeLabel(type: string): string {
+    switch (type) {
+      case NODE_LLM:
+        return 'workflow.nodeType.llm';
+      case NODE_ASSET:
+        return 'workflow.nodeType.asset';
+      case NODE_MERGE:
+        return 'workflow.nodeType.merge';
+      case NODE_EXPORT:
+        return 'workflow.nodeType.export';
+      case NODE_PREVIEW:
+        return 'workflow.nodeType.preview';
+      case NODE_CONDITION:
+        return 'workflow.nodeType.condition';
+      case NODE_LOOP_START:
+        return 'workflow.nodeType.loopStart';
+      case NODE_LOOP_END:
+        return 'workflow.nodeType.loopEnd';
+      case NODE_TOOL:
+        return 'workflow.nodeType.tool';
+      default:
+        return type;
     }
   }
 
   protected readonly NODE_LLM = NODE_LLM;
   protected readonly NODE_ASSET = NODE_ASSET;
-  protected readonly NODE_CONDITION = NODE_CONDITION;
-  protected readonly NODE_LOOP = NODE_LOOP;
-  protected readonly NODE_LOOP_START = NODE_LOOP_START;
-  protected readonly NODE_LOOP_END = NODE_LOOP_END;
   protected readonly NODE_MERGE = NODE_MERGE;
   protected readonly NODE_EXPORT = NODE_EXPORT;
   protected readonly NODE_PREVIEW = NODE_PREVIEW;
-  protected readonly MERGE_OUT_PORT = MERGE_OUT_PORT;
-  protected readonly CONDITION_TRUE_PORT = CONDITION_TRUE_PORT;
-  protected readonly CONDITION_FALSE_PORT = CONDITION_FALSE_PORT;
   protected readonly NODE_TOOL = NODE_TOOL;
-  nodeTypeLabel(type: string): string {
-    // Return i18n key for the given node type.
-    switch (type) {
-      case this.NODE_LLM:
-        return 'workflow.nodeType.llm';
-      case this.NODE_ASSET:
-        return 'workflow.nodeType.asset';
-      case this.NODE_MERGE:
-        return 'workflow.nodeType.merge';
-      case this.NODE_EXPORT:
-        return 'workflow.nodeType.export';
-      case this.NODE_PREVIEW:
-        return 'workflow.nodeType.preview';
-      case this.NODE_CONDITION:
-        return 'workflow.nodeType.condition';
-      case this.NODE_LOOP_START:
-        return 'workflow.nodeType.loopStart';
-      case this.NODE_LOOP_END:
-        return 'workflow.nodeType.loopEnd';
-      case this.NODE_TOOL:
-        return 'workflow.nodeType.tool';
-      default:
-        return type; // fallback
-    }
-  }
+  protected readonly NODE_CONDITION = NODE_CONDITION;
+  protected readonly NODE_LOOP_START = NODE_LOOP_START;
+  protected readonly NODE_LOOP_END = NODE_LOOP_END;
 
-  isTool(): boolean {
-    return this.node().data.nodeType === NODE_TOOL;
+  protected profileNames(): string[] {
+    return this.profileNamesSig();
   }
 }

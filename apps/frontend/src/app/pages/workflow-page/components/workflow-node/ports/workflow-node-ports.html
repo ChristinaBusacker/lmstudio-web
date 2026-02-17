@@ -1,0 +1,69 @@
+@if (isMerge()) {
+  @for (pid of mergePorts(); track pid; let i = $index) {
+    <ng-diagram-port
+      class="mergePort port-in"
+      [id]="pid"
+      side="left"
+      type="target"
+      originPoint="leftMiddle"
+      [style.top.px]="mergePortTop(i)"
+    >
+      <div class="mergePortInner">
+        <div class="mergePortDot" aria-hidden="true"></div>
+        <div class="mergePortBadge">{{ getPortIndexLabel(pid) }}</div>
+      </div>
+    </ng-diagram-port>
+  }
+
+  <ng-diagram-port
+    class="mergeOutPort"
+    [id]="MERGE_OUT_PORT"
+    side="right"
+    type="source"
+    originPoint="rightMiddle"
+    [style.top.px]="mergeOutPortTop()"
+  >
+    <div class="mergePortInner mergeOutInner">
+      <div class="mergePortDot" aria-hidden="true"></div>
+      <div class="mergePortBadge">{{ 'workflow.port.out' | i18n | async }}</div>
+    </div>
+  </ng-diagram-port>
+} @else if (isCondition()) {
+  <ng-diagram-port id="port-left" side="left" type="target"></ng-diagram-port>
+
+  <ng-diagram-port
+    class="condOutPort condTrue"
+    [id]="CONDITION_TRUE_PORT"
+    side="right"
+    type="source"
+    originPoint="rightMiddle"
+    [style.top.px]="conditionTruePortTop()"
+  >
+    <div class="condPortInner">
+      <div class="condPortDot" aria-hidden="true"></div>
+      <div class="condPortBadge">{{ 'common.true' | i18n | async }}</div>
+    </div>
+  </ng-diagram-port>
+
+  <ng-diagram-port
+    class="condOutPort condFalse"
+    [id]="CONDITION_FALSE_PORT"
+    side="right"
+    type="source"
+    originPoint="rightMiddle"
+    [style.top.px]="conditionFalsePortTop()"
+  >
+    <div class="condPortInner">
+      <div class="condPortDot" aria-hidden="true"></div>
+      <div class="condPortBadge">{{ 'common.false' | i18n | async }}</div>
+    </div>
+  </ng-diagram-port>
+} @else if (isPreviewOrExport()) {
+  <ng-diagram-port id="port-left" side="left" type="target"></ng-diagram-port>
+} @else if (isLoop()) {
+  <ng-diagram-port id="port-left" side="left" type="target"></ng-diagram-port>
+  <ng-diagram-port id="port-right" side="right" type="source"></ng-diagram-port>
+} @else {
+  <ng-diagram-port id="port-left" side="left" type="both"></ng-diagram-port>
+  <ng-diagram-port id="port-right" side="right" type="both"></ng-diagram-port>
+}

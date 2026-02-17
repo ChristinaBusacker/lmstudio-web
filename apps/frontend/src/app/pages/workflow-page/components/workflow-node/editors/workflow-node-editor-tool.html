@@ -1,0 +1,139 @@
+<label class="field">
+  <div class="label">{{ 'workflow.node.toolName' | i18n | async }}</div>
+  <select
+    class="config input"
+    [ngModel]="data().toolName ?? 'web_search'"
+    (ngModelChange)="onToolNameChange($event)"
+    (pointerdown)="$event.stopPropagation()"
+    (wheel)="$event.stopPropagation()"
+  >
+    @for (n of toolNames; track n) {
+      <option [value]="n">{{ n }}</option>
+    }
+  </select>
+</label>
+
+@let tn = (data().toolName ?? 'web_search');
+
+@if (tn === 'web_search') {
+  <label class="field">
+    <div class="label">Query</div>
+    <input
+      class="input"
+      type="text"
+      [ngModel]="data().webSearchQuery ?? ''"
+      (ngModelChange)="fieldPatch.emit({ webSearchQuery: $event })"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+    />
+  </label>
+  <label class="field">
+    <div class="label">Limit</div>
+    <input
+      class="input"
+      type="number"
+      min="1"
+      max="50"
+      [ngModel]="data().webSearchLimit ?? 5"
+      (ngModelChange)="fieldPatch.emit({ webSearchLimit: toNumber($event, 5) })"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+    />
+  </label>
+}
+
+@if (tn === 'web_read') {
+  <label class="field">
+    <div class="label">URL</div>
+    <input
+      class="input"
+      type="text"
+      [ngModel]="data().webReadUrl ?? ''"
+      (ngModelChange)="fieldPatch.emit({ webReadUrl: $event })"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+    />
+  </label>
+}
+
+@if (tn === 'doc_read') {
+  <label class="field">
+    <div class="label">Path</div>
+    <input
+      class="input"
+      type="text"
+      [ngModel]="data().docReadPath ?? ''"
+      (ngModelChange)="fieldPatch.emit({ docReadPath: $event })"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+    />
+  </label>
+}
+
+@if (tn === 'resolve_relative_date') {
+  <label class="field">
+    <div class="label">Input</div>
+    <input
+      class="input"
+      type="text"
+      [ngModel]="data().relativeDateInput ?? ''"
+      (ngModelChange)="fieldPatch.emit({ relativeDateInput: $event })"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+    />
+  </label>
+}
+
+@if (tn === 'date_math') {
+  <label class="field">
+    <div class="label">Expression</div>
+    <input
+      class="input"
+      type="text"
+      [ngModel]="data().dateMathExpression ?? ''"
+      (ngModelChange)="fieldPatch.emit({ dateMathExpression: $event })"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+    />
+  </label>
+}
+
+@if (tn === 'math') {
+  <label class="field">
+    <div class="label">Expression</div>
+    <input
+      class="input"
+      type="text"
+      [ngModel]="data().mathExpression ?? ''"
+      (ngModelChange)="fieldPatch.emit({ mathExpression: $event })"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+    />
+  </label>
+}
+
+@if (tn === 'json_validate' || tn === 'json_repair') {
+  <label class="field">
+    <div class="label">JSON</div>
+    <textarea
+      class="config input"
+      rows="6"
+      [ngModel]="data().jsonInput ?? ''"
+      (ngModelChange)="fieldPatch.emit({ jsonInput: $event })"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+    ></textarea>
+  </label>
+}
+
+<details class="hint">
+  <summary>Advanced (raw args JSON)</summary>
+  <textarea
+    class="config input"
+    rows="6"
+    [ngModel]="data().toolArgsJson ?? ''"
+    (ngModelChange)="fieldPatch.emit({ toolArgsJson: $event })"
+    (pointerdown)="$event.stopPropagation()"
+    (wheel)="$event.stopPropagation()"
+  ></textarea>
+</details>

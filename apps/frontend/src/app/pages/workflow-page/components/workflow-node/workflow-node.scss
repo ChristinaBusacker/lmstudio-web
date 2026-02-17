@@ -191,6 +191,12 @@
     padding-right: 8px;
     padding-left: 8px;
   }
+
+  .sub {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
 }
 
 .field.inline {

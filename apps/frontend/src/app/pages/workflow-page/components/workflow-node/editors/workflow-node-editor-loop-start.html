@@ -1,0 +1,95 @@
+<label class="field">
+  <div class="label">{{ 'workflow.node.profile' | i18n | async }}</div>
+  <select
+    class="config input"
+    [ngModel]="data().profileName"
+    (ngModelChange)="profileNameChange.emit($event)"
+    (pointerdown)="$event.stopPropagation()"
+    (wheel)="$event.stopPropagation()"
+    [attr.title]="'common.visitSettingsPresets' | i18n | async"
+  >
+    <option value="">{{ 'common.default' | i18n | async }}</option>
+    @for (name of profiles(); track name) {
+      <option [value]="name">{{ name }}</option>
+    }
+  </select>
+</label>
+
+<label class="field">
+  <div class="label">{{ 'workflow.node.loopMode' | i18n | async }}</div>
+  <select
+    class="config input"
+    [ngModel]="data().loopMode ?? 'until'"
+    (ngModelChange)="loopModeChange.emit($event)"
+    (pointerdown)="$event.stopPropagation()"
+    (wheel)="$event.stopPropagation()"
+  >
+    <option value="until">{{ 'workflow.node.loop.until' | i18n | async }}</option>
+    <option value="while">{{ 'workflow.node.loop.while' | i18n | async }}</option>
+    <option value="count">{{ 'workflow.node.loop.count' | i18n | async }}</option>
+  </select>
+</label>
+
+@if ((data().loopMode ?? 'until') !== 'count') {
+  <label class="field">
+    <div class="label">{{ 'workflow.node.maxIterations' | i18n | async }}</div>
+    <input
+      class="input"
+      type="number"
+      min="1"
+      max="1000"
+      [ngModel]="data().loopMaxIterations ?? 10"
+      (ngModelChange)="loopMaxIterationsChange.emit($event)"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+    />
+  </label>
+} @else {
+  <label class="field">
+    <div class="label">{{ 'workflow.node.loopCount' | i18n | async }}</div>
+    <input
+      class="input"
+      type="number"
+      min="1"
+      max="1000"
+      [ngModel]="data().loopCount ?? 3"
+      (ngModelChange)="loopCountChange.emit($event)"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+    />
+  </label>
+}
+
+<label class="field">
+  <div class="label">{{ 'workflow.node.joiner' | i18n | async }}</div>
+  <textarea
+    class="textarea"
+    rows="2"
+    [ngModel]="data().loopJoiner ?? '\n\n'"
+    (ngModelChange)="loopJoinerChange.emit($event)"
+    (pointerdown)="$event.stopPropagation()"
+    (wheel)="$event.stopPropagation()"
+  ></textarea>
+</label>
+
+@if ((data().loopMode ?? 'until') !== 'count') {
+  <label class="field">
+    <div class="label">{{ 'workflow.node.conditionPrompt' | i18n | async }}</div>
+    <textarea
+      class="textarea"
+      rows="3"
+      [ngModel]="data().loopConditionPrompt ?? ''"
+      (ngModelChange)="loopConditionPromptChange.emit($event)"
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+    ></textarea>
+  </label>
+}
+
+<div class="hint">
+  {{ 'workflow.node.loopHint.before' | i18n | async }} <code>{{ '{{loop.index}}' }}</code>
+  {{ 'workflow.node.loopHint.middle' | i18n | async }} <code>{{ '{{loop.iteration}}' }}</code>
+  {{ 'workflow.node.loopHint.after' | i18n | async }} <code>{{ '{{index}}' }}</code> /
+  <code>{{ '{{iteration}}' }}</code>
+  {{ 'workflow.node.loopHint.tail' | i18n | async }}
+</div>

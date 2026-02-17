@@ -1,0 +1,18 @@
+<label class="field">
+  <div class="label">{{ 'workflow.node.asset.file' | i18n | async }}</div>
+  <input
+    class="config input"
+    type="file"
+    (pointerdown)="$event.stopPropagation()"
+    (change)="onFileSelected($event)"
+  />
+  @if (data().assetId) {
+    <div class="hint">
+      <div><strong>{{ data().assetFilename }}</strong></div>
+      <div>ID: <code>{{ data().assetId }}</code></div>
+      @if (data().assetSha256) {
+        <div>SHA256: <code>{{ data().assetSha256 }}</code></div>
+      }
+    </div>
+  }
+</label>

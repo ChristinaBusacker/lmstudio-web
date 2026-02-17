@@ -1,0 +1,19 @@
+<label class="field">
+  <div class="label">{{ 'workflow.node.maxLines' | i18n | async }}</div>
+  <input
+    class="input"
+    type="number"
+    min="3"
+    max="50"
+    [ngModel]="data().previewMaxLines ?? 10"
+    (ngModelChange)="previewMaxLinesChange.emit($event)"
+    (pointerdown)="$event.stopPropagation()"
+    (wheel)="$event.stopPropagation()"
+  />
+</label>
+
+<div class="preview">
+  <pre class="previewText">{{ previewText() }}</pre>
+</div>
+
+<div class="hint">{{ 'workflow.node.previewHint' | i18n | async }}</div>

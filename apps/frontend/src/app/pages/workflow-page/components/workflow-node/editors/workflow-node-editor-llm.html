@@ -1,0 +1,57 @@
+<label class="field">
+  <div class="label">{{ 'workflow.node.profile' | i18n | async }}</div>
+  <select
+    class="config input"
+    [ngModel]="data().profileName"
+    (ngModelChange)="profileNameChange.emit($event)"
+    (pointerdown)="$event.stopPropagation()"
+    (wheel)="$event.stopPropagation()"
+    [attr.title]="'common.visitSettingsPresets' | i18n | async"
+  >
+    <option value="">{{ 'common.default' | i18n | async }}</option>
+    @for (name of profiles(); track name) {
+      <option [value]="name">{{ name }}</option>
+    }
+  </select>
+</label>
+
+<label class="field">
+  <div class="label">{{ 'workflow.node.prompt' | i18n | async }}</div>
+  <textarea
+    class="textarea"
+    rows="5"
+    [ngModel]="data().prompt"
+    (ngModelChange)="promptChange.emit($event)"
+    (pointerdown)="$event.stopPropagation()"
+    (wheel)="$event.stopPropagation()"
+    [placeholder]="'workflow.node.promptPlaceholder' | i18n | async"
+  ></textarea>
+</label>
+
+@if (showStructuredOutput()) {
+  <label class="field inline">
+    <input
+      type="checkbox"
+      [checked]="structuredEnabled()"
+      (pointerdown)="$event.stopPropagation()"
+      (change)="onStructuredToggle($event)"
+    />
+    <span class="label-inline">{{ 'workflow.node.structuredOutput.enable' | i18n | async }}</span>
+  </label>
+
+  @if (structuredEnabled()) {
+    <label class="field">
+      <div class="label">{{ 'workflow.node.structuredOutput.schema' | i18n | async }}</div>
+      <textarea
+        class="textarea"
+        rows="6"
+        [ngModel]="data().structuredOutputSchema ?? ''"
+        (ngModelChange)="structuredOutputSchemaChange.emit($event)"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        [placeholder]="'workflow.node.structuredOutput.schemaPlaceholder' | i18n | async"
+      ></textarea>
+      <div class="hint">{{ 'workflow.node.structuredOutput.hint' | i18n | async }}</div>
+    </label>
+  }
+}
