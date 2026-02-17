@@ -2,6 +2,20 @@ import type { UnixMs } from '../common/datetime.contract';
 import type { ChatId, RunId, WorkflowId } from '../common/id.contract';
 import type { RunStatus } from '../runs/run.contract';
 import type { WorkflowStatus, WorkflowStep } from '../workflows/workflow.contract';
+import type {
+  ChangedEventPayload,
+  ExternalStatusEventPayload,
+  HeartbeatPayload,
+  RunStatusEventPayload,
+  RunStatusSnapshotPayload,
+  RunToolCallPayload,
+  RunToolErrorPayload,
+  RunToolResultPayload,
+  VariantSnapshotEventPayload,
+  WorkflowArtifactCreatedPayload,
+  WorkflowNodeRunUpsertPayload,
+  WorkflowRunStatusPayload,
+} from './sse-payloads.contract';
 
 /**
  * Canonical SSE event types.
@@ -50,6 +64,52 @@ export interface SseEnvelope<TType extends SseEventType = SseEventType, TPayload
   /** Optional server-created timestamp (ISO). */
   createdAt?: string;
 }
+
+/**
+ * Canonical mapping from event type -> payload.
+ * Keep this in sync with what the backend actually emits.
+ */
+export interface SseEventPayloadMap {
+  // Canonical server events
+  'chat.created': ChatCreatedPayload;
+  'chat.updated': ChatUpdatedPayload;
+  'chat.message.created': ChatMessageCreatedPayload;
+  'chat.meta.changed': ChangedEventPayload;
+  'chat.thread.changed': ChangedEventPayload;
+
+  'run.created': RunCreatedPayload;
+  'run.updated': RunUpdatedPayload;
+  'run.progress': RunProgressPayload;
+
+  // NOTE: legacy: some places emit a full run snapshot, others emit status/stats
+  'run.status': RunStatusEventPayload | RunStatusSnapshotPayload;
+
+  'variant.snapshot': VariantSnapshotEventPayload;
+  heartbeat: HeartbeatPayload;
+  'sidebar.changed': ChangedEventPayload;
+  'models.changed': ChangedEventPayload;
+  'folders.changed': ChangedEventPayload;
+  'chats.changed': ChangedEventPayload;
+
+  'workflow.created': WorkflowCreatedPayload;
+  'workflow.updated': WorkflowUpdatedPayload;
+  'workflow.step.updated': WorkflowStepUpdatedPayload;
+
+  'workflow.run.status': WorkflowRunStatusPayload;
+  'workflow.node-run.upsert': WorkflowNodeRunUpsertPayload;
+  'workflow.artifact.created': WorkflowArtifactCreatedPayload;
+
+  'run.tool_call': RunToolCallPayload;
+  'run.tool_result': RunToolResultPayload;
+  'run.tool_error': RunToolErrorPayload;
+
+  'external.status': ExternalStatusEventPayload;
+}
+
+export type SseEnvelopeOf<TType extends SseEventType> = SseEnvelope<
+  TType,
+  SseEventPayloadMap[TType]
+>;
 
 /* Payloads */
 

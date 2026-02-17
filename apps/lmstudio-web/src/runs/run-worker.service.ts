@@ -363,7 +363,7 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
 
   private isAbortError(err: unknown): boolean {
     if (!err || typeof err !== 'object') return false;
-    const e = err as any;
-    return e.name === 'AbortError' || e.code === 'ABORT_ERR';
+    const r = err as Record<string, unknown>;
+    return r['name'] === 'AbortError' || r['code'] === 'ABORT_ERR';
   }
 }

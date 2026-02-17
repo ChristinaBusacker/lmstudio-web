@@ -1,32 +1,22 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { LmMessage, RunParams, StreamDelta } from '../common/types/llm.types';
 import { SseBusService } from '../sse/sse-bus.service';
-import { WebSearchService } from './web/web-search.service';
-import { WebReaderService } from './web/web-reader.service';
 import { DocReaderService } from './docs/doc-reader.service';
-import { TimeToolsService } from './utils/time-tools.service';
-import { MathToolsService } from './utils/math-tools.service';
 import { JsonToolsService } from './utils/json-tools.service';
+import { MathToolsService } from './utils/math-tools.service';
+import { TimeToolsService } from './utils/time-tools.service';
+import { WebReaderService } from './web/web-reader.service';
+import { WebSearchService } from './web/web-search.service';
 
-type AnyJson = Record<string, any>;
-
-type ToolDef = {
-  type: 'function';
-  function: {
-    name: string;
-    description?: string;
-    parameters: AnyJson;
-  };
-};
-
-type ToolCall = {
-  id: string;
-  type: 'function';
-  function: { name: string; arguments: string };
-};
+import type {
+  ChatCompletionChunk,
+  ChatRequestMessage,
+  JsonObject,
+  ToolCall,
+  ToolDef,
+} from '@shared/index';
+import { isRecord, safeJsonParse, toJsonObject } from '../utils/typed-access';
 
 /**
  * ToolOrchestratorService
@@ -310,11 +300,11 @@ Rules:
   async executeToolDirect(args: {
     runId: string;
     toolName: string;
-    toolArgs: Record<string, any>;
-  }): Promise<{ result: AnyJson; artifactId?: string | null }> {
+    toolArgs: Record<string, unknown>;
+  }): Promise<{ result: JsonObject; artifactId?: string | null }> {
     const runId = args.runId;
     const name = String(args.toolName ?? '').trim();
-    const toolArgs = (args.toolArgs ?? {}) as AnyJson;
+    const toolArgs: Record<string, unknown> = isRecord(args.toolArgs) ? args.toolArgs : {};
 
     if (!name) throw new Error('toolName is required');
 
@@ -331,28 +321,26 @@ Rules:
   private async execTool(
     runId: string,
     call: ToolCall,
-  ): Promise<{ result: AnyJson; artifactId?: string | null }> {
+  ): Promise<{ result: JsonObject; artifactId?: string | null }> {
     const name = call.function?.name;
     const rawArgs = call.function?.arguments ?? '{}';
 
     console.log('[TOOL CALL]', call.function.name, call.function.arguments);
 
-    let args: AnyJson = {};
-    const parseArgs = (input: unknown): AnyJson => {
+    let args: Record<string, unknown> = {};
+    const parseArgs = (input: unknown): Record<string, unknown> => {
       if (!input || typeof input !== 'string') return {};
       const raw = input.trim();
 
       // First attempt: raw JSON
-      try {
-        return JSON.parse(raw) as AnyJson;
-      } catch {
-        // continue
-      }
+      const parsed1 = safeJsonParse(raw);
+      if (isRecord(parsed1)) return parsed1;
 
       // Second attempt: decodeURIComponent (models sometimes emit urlencoded JSON)
       try {
         const decoded = decodeURIComponent(raw);
-        return JSON.parse(decoded) as AnyJson;
+        const parsed2 = safeJsonParse(decoded);
+        if (isRecord(parsed2)) return parsed2;
       } catch {
         // continue
       }
@@ -361,15 +349,16 @@ Rules:
       const m = /\{[\s\S]*\}/.exec(raw);
       if (m?.[0]) {
         const candidate = m[0];
+        const parsed3 = safeJsonParse(candidate);
+        if (isRecord(parsed3)) return parsed3;
         try {
-          return JSON.parse(candidate) as AnyJson;
+          const decoded = decodeURIComponent(candidate);
+          const parsed4 = safeJsonParse(decoded);
+          if (isRecord(parsed4)) return parsed4;
         } catch {
-          try {
-            return JSON.parse(decodeURIComponent(candidate)) as AnyJson;
-          } catch {
-            return {};
-          }
+          // ignore
         }
+        return {};
       }
 
       return {};
@@ -385,7 +374,7 @@ Rules:
         runId,
         toolCallId: call.id,
         toolName: name,
-        args,
+        args: args as JsonObject,
       },
     });
 
@@ -396,14 +385,14 @@ Rules:
         runId,
       });
       console.log('[TOOL RESULT]', call.function.name, JSON.stringify(out).slice(0, 200));
-      return { result: out as AnyJson, artifactId: out.artifactId };
+      return { result: toJsonObject(out), artifactId: out.artifactId };
     }
 
     if (name === 'current_time') {
       const out = this.timeTools.currentTime({
         timezone: args.timezone ? String(args.timezone) : undefined,
       });
-      return { result: out as AnyJson, artifactId: null };
+      return { result: toJsonObject(out), artifactId: null };
     }
 
     if (name === 'resolve_relative_date') {
@@ -413,46 +402,44 @@ Rules:
         baseTime: args.baseTime ? String(args.baseTime) : undefined,
         forwardDate: typeof args.forwardDate === 'boolean' ? args.forwardDate : true,
       });
-      return { result: out as AnyJson, artifactId: null };
+      return { result: toJsonObject(out), artifactId: null };
     }
 
     if (name === 'date_math') {
       const out = this.timeTools.dateMath({
         base: args.base ? String(args.base) : undefined,
         timezone: args.timezone ? String(args.timezone) : undefined,
-        add: typeof args.add === 'object' && args.add ? (args.add as AnyJson) : undefined,
+        add: isRecord(args.add) ? args.add : undefined,
         startOf: args.startOf ? String(args.startOf) : undefined,
         endOf: args.endOf ? String(args.endOf) : undefined,
         roundTo: args.roundTo ? String(args.roundTo) : undefined,
       });
-      return { result: out as AnyJson, artifactId: null };
+      return { result: toJsonObject(out), artifactId: null };
     }
 
     if (name === 'math') {
       const out = this.mathTools.evaluate({
         expression: String(args.expression ?? ''),
-        variables:
-          typeof args.variables === 'object' && args.variables
-            ? (args.variables as AnyJson)
-            : undefined,
+        variables: isRecord(args.variables) ? args.variables : undefined,
         precision: typeof args.precision === 'number' ? args.precision : undefined,
       });
-      return { result: out as AnyJson, artifactId: null };
+      return { result: toJsonObject(out), artifactId: null };
     }
 
     if (name === 'json_validate') {
-      const out = this.jsonTools.validate({ json: args.json, schema: args.schema as AnyJson });
-      return { result: out as AnyJson, artifactId: null };
+      const schema = isRecord(args.schema) ? args.schema : {};
+      const out = this.jsonTools.validate({ json: args.json, schema });
+      return { result: toJsonObject(out), artifactId: null };
     }
 
     if (name === 'json_repair') {
       const out = this.jsonTools.repair({ text: String(args.text ?? '') });
-      return { result: out as AnyJson, artifactId: null };
+      return { result: toJsonObject(out), artifactId: null };
     }
 
     if (name === 'web_read') {
       const out = await this.webRead.read({ url: String(args.url ?? ''), runId });
-      return { result: out as AnyJson, artifactId: out.artifactId };
+      return { result: toJsonObject(out), artifactId: out.artifactId };
     }
 
     if (name === 'doc_read') {
@@ -460,7 +447,7 @@ Rules:
         assetId: args.assetId ? String(args.assetId) : undefined,
         runId,
       });
-      return { result: out as AnyJson, artifactId: out.artifactId };
+      return { result: toJsonObject(out), artifactId: out.artifactId };
     }
 
     throw new Error(`Unknown tool: ${name}`);
@@ -473,21 +460,22 @@ Rules:
     runId: string,
     baseMessages: LmMessage[],
     params: RunParams,
-  ): AsyncGenerator<StreamDelta, { content: string; stats?: any }, void> {
+  ): AsyncGenerator<StreamDelta, { content: string; stats?: Record<string, unknown> }, void> {
     const controller = new AbortController();
     this.controllers.set(runId, controller);
     const tools = this.getToolDefinitions();
     const maxRounds = 8;
 
     // We keep an internal message buffer that includes tool messages.
-    const messages: AnyJson[] = baseMessages.map((m) => {
+    const messages: ChatRequestMessage[] = baseMessages.map((m) => {
       if (m.role === 'tool') {
         return {
           role: 'tool',
           content: m.content,
-          tool_call_id: m.tool_call_id,
+          tool_call_id: m.tool_call_id ?? '',
         };
       }
+      if (m.role === 'assistant') return { role: 'assistant', content: m.content };
       return { role: m.role, content: m.content };
     });
 
@@ -502,7 +490,7 @@ Rules:
     }
 
     let full = '';
-    let stats: any;
+    let stats: Record<string, unknown> | undefined;
 
     try {
       for (let round = 0; round < maxRounds; round++) {
@@ -547,8 +535,8 @@ Rules:
               tool_call_id: call.id,
               content: JSON.stringify(result),
             });
-          } catch (e: any) {
-            const err = String(e?.message ?? e);
+          } catch (e: unknown) {
+            const err = e instanceof Error ? e.message : String(e);
             this.sse.publishEphemeral({
               type: 'run.tool_error',
               runId,
@@ -578,13 +566,13 @@ Rules:
 
   private async *streamOneRound(
     runId: string,
-    messages: AnyJson[],
+    messages: ChatRequestMessage[],
     params: RunParams,
     tools: ToolDef[],
     controller: AbortController,
   ): AsyncGenerator<
     StreamDelta,
-    { finalContent: string; toolCalls: ToolCall[]; usage?: any },
+    { finalContent: string; toolCalls: ToolCall[]; usage?: Record<string, unknown> },
     void
   > {
     void runId;
@@ -596,9 +584,9 @@ Rules:
     // Tool call accumulation
     const toolCallsByIndex = new Map<number, ToolCall>();
 
-    let usage: any;
+    let usage: Record<string, unknown> | undefined;
 
-    const body: AnyJson = {
+    const body: Record<string, unknown> = {
       model: params.modelKey,
       messages,
       temperature: params.temperature,
@@ -637,25 +625,20 @@ Rules:
         if (!line.startsWith('data: ')) continue;
         if (line === 'data: [DONE]') break;
 
-        let payload: any;
-        try {
-          payload = JSON.parse(line.slice(6));
-        } catch {
-          continue;
+        const parsed = safeJsonParse(line.slice(6));
+        if (!isRecord(parsed)) continue;
+
+        const chunk = parsed as unknown as ChatCompletionChunk;
+        const choice0 = Array.isArray(chunk.choices) ? chunk.choices[0] : undefined;
+        const delta = choice0?.delta;
+
+        if (delta?.content && typeof delta.content === 'string') {
+          finalContent += delta.content;
+          yield { delta: delta.content };
         }
 
-        const choice = payload?.choices?.[0];
-        const delta = choice?.delta;
-
-        const d = delta?.content;
-        if (typeof d === 'string' && d.length > 0) {
-          finalContent += d;
-          yield { delta: d };
-        }
-
-        const tc = delta?.tool_calls;
-        if (Array.isArray(tc)) {
-          for (const t of tc) {
+        if (Array.isArray(delta?.tool_calls)) {
+          for (const t of delta.tool_calls) {
             const idx = typeof t.index === 'number' ? t.index : 0;
             const existing = toolCallsByIndex.get(idx) ?? {
               id: t.id ?? `call_${idx}`,
@@ -673,8 +656,8 @@ Rules:
           }
         }
 
-        if (payload?.usage && typeof payload.usage === 'object') {
-          usage = payload.usage;
+        if (chunk.usage && isRecord(chunk.usage)) {
+          usage = chunk.usage;
         }
       }
     }
@@ -773,23 +756,20 @@ Rules:
    * - browser.open often uses { url } (or sometimes { ref_id } – ignored here)
    */
   private normalizeToolArgs(toolName: string, argsRaw: string): string {
-    const parseLoose = (raw: string): AnyJson => {
+    const parseLoose = (raw: string): Record<string, unknown> => {
       const s = String(raw ?? '').trim();
       if (!s) return {};
-      try {
-        return JSON.parse(s) as AnyJson;
-      } catch {
-        // Try to extract a JSON object from noise
-        const m = /\{[\s\S]*\}/.exec(s);
-        if (m?.[0]) {
-          try {
-            return JSON.parse(m[0]) as AnyJson;
-          } catch {
-            return {};
-          }
-        }
-        return {};
+      const parsed = safeJsonParse(s);
+      if (isRecord(parsed)) return parsed;
+
+      // Try to extract a JSON object from noise
+      const m = /\{[\s\S]*\}/.exec(s);
+      if (m?.[0]) {
+        const extracted = safeJsonParse(m[0]);
+        if (isRecord(extracted)) return extracted;
       }
+
+      return {};
     };
 
     const obj = parseLoose(argsRaw);

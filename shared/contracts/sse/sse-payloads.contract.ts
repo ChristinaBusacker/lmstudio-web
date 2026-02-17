@@ -1,16 +1,22 @@
-import { RunState } from '../runs/run.contract';
+import type { JsonObject } from '../../types/json.types';
+import { RunState, type RunStatus } from '../runs/run.contract';
 
 export interface RunStatusEventPayload {
   status: RunState;
   error?: string | null;
-  stats?: Record<string, any> | null;
+  stats?: JsonObject | null;
+}
+
+/** Full snapshot variant occasionally emitted by the backend (legacy). */
+export interface RunStatusSnapshotPayload {
+  run: RunStatus;
 }
 
 export interface WorkflowRunStatusPayload {
   status: RunState;
   currentNodeId?: string | null;
   error?: string | null;
-  stats?: Record<string, any> | null;
+  stats?: JsonObject | null;
 }
 
 export interface VariantSnapshotEventPayload {
@@ -22,12 +28,24 @@ export interface HeartbeatPayload {
   ok: boolean;
 }
 
+/** Generic "something changed" payload used for UI refresh triggers. */
+export interface ChangedEventPayload {
+  reason?: string;
+}
+
 export interface WorkflowNodeRunUpsertPayload {
+  id: string;
+  workflowRunId?: string;
+  primaryArtifactId?: string;
+  outputText?: string;
+  outputJson?: JsonObject;
+  inputSnapshot?: JsonObject;
   nodeId: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'stale';
   error?: string | null;
   startedAt?: string | null;
   finishedAt?: string | null;
+  createdAt?: string | null;
 }
 
 export interface WorkflowArtifactCreatedPayload {
@@ -36,6 +54,29 @@ export interface WorkflowArtifactCreatedPayload {
   kind: 'json' | 'text' | 'image' | 'binary';
   mimeType?: string | null;
   filename?: string | null;
+}
+
+/** Tool loop events (emitted during a run). */
+export interface RunToolCallPayload {
+  runId: string;
+  toolCallId: string;
+  toolName: string;
+  args: JsonObject;
+}
+
+export interface RunToolResultPayload {
+  runId: string;
+  toolCallId: string;
+  toolName: string;
+  result: JsonObject;
+  artifactId: string | null;
+}
+
+export interface RunToolErrorPayload {
+  runId: string;
+  toolCallId: string;
+  toolName: string;
+  error: string;
 }
 
 export type ExternalServiceName = 'lmstudio' | 'searxng';

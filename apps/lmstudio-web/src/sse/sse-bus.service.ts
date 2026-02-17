@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import type { SseEnvelope, SseEventType } from '@shared/contracts';
+import type { SseEnvelopeOf, SseEventType } from '@shared/contracts';
 import { Observable, Subject } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { RingBuffer } from './ring-buffer';
 
-type AnyEnvelope = SseEnvelope<SseEventType, Record<string, any>>;
+type AnyEnvelope = SseEnvelopeOf<SseEventType>;
 
 type BufferEntry = {
   buf: RingBuffer<AnyEnvelope>;
@@ -35,27 +35,31 @@ export class SseBusService {
     setInterval(() => this.sweep(), this.SWEEP_MS).unref?.();
   }
 
-  publish(event: Omit<AnyEnvelope, 'id' | 'ts'>): AnyEnvelope {
-    const envelope: AnyEnvelope = {
-      ...event,
+  publish<TType extends SseEventType>(
+    event: Omit<SseEnvelopeOf<TType>, 'id' | 'ts'>,
+  ): SseEnvelopeOf<TType> {
+    const envelope = {
+      ...(event as unknown as SseEnvelopeOf<TType>),
       id: this.nextId++,
       ts: new Date().toISOString(),
-    };
+    } satisfies SseEnvelopeOf<TType>;
 
-    this.store(envelope);
-    this.stream$.next(envelope);
+    this.store(envelope as unknown as AnyEnvelope);
+    this.stream$.next(envelope as unknown as AnyEnvelope);
     return envelope;
   }
 
-  publishEphemeral(event: Omit<AnyEnvelope, 'id' | 'ts'>): AnyEnvelope {
-    const envelope: AnyEnvelope = {
-      ...event,
+  publishEphemeral<TType extends SseEventType>(
+    event: Omit<SseEnvelopeOf<TType>, 'id' | 'ts'>,
+  ): SseEnvelopeOf<TType> {
+    const envelope = {
+      ...(event as unknown as SseEnvelopeOf<TType>),
       id: this.nextId++,
       ts: new Date().toISOString(),
-    };
+    } satisfies SseEnvelopeOf<TType>;
 
     // NOTE: no store(), no replay
-    this.stream$.next(envelope);
+    this.stream$.next(envelope as unknown as AnyEnvelope);
     return envelope;
   }
 

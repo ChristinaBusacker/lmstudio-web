@@ -1,12 +1,9 @@
-// shared/contracts/runs/run.contract.ts
 import type { RunId, ChatId, ModelId } from '../common/id.contract';
 import type { IsoDateTimeString } from '../common/datetime.contract';
 import type { PagedResponse, PageRequest } from '../common/pagination.contract';
+import { JsonObject } from '@shared/types/json.types';
 
-export type RunState = 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
-// WICHTIG: Du hast aktuell im Backend "canceled" (US) in DTO enums,
-// aber im Contract steht "cancelled" (UK). Entscheide dich für eins.
-// Ich würde "canceled" nehmen, weil dein Code es schon nutzt.
+export type RunState = 'queued' | 'running' | 'completed' | 'failed' | 'canceled' | 'paused';
 
 export interface RunStatus {
   id: RunId;
@@ -18,7 +15,7 @@ export interface RunStatus {
   clientRequestId: string | null;
   settingsProfileId: string | null;
 
-  settingsSnapshot: Record<string, any>;
+  settingsSnapshot: Record<string, JsonObject>;
 
   sourceMessageId: string | null;
   targetMessageId: string | null;
@@ -31,7 +28,7 @@ export interface RunStatus {
   finishedAt: IsoDateTimeString | null;
 
   error: string | null;
-  stats: any;
+  stats: JsonObject;
 
   createdVariantId: string | null;
 

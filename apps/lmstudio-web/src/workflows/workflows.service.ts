@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Repository, type FindOptionsWhere } from 'typeorm';
 import { WorkflowEntity } from './entities/workflow.entity';
 import { WorkflowRunEntity, WorkflowRunStatus } from './entities/workflow-run.entity';
 import { WorkflowNodeRunEntity, WorkflowNodeRunStatus } from './entities/workflow-node-run.entity';
@@ -106,8 +106,11 @@ export class WorkflowsService {
     return saved;
   }
 
-  async listRuns(ownerKey: string, q: { workflowId?: string; status?: any; limit?: number }) {
-    const where: any = { ownerKey };
+  async listRuns(
+    ownerKey: string,
+    q: { workflowId?: string; status?: WorkflowRunStatus; limit?: number },
+  ) {
+    const where: FindOptionsWhere<WorkflowRunEntity> = { ownerKey };
     if (q.workflowId) where.workflowId = q.workflowId;
     if (q.status) where.status = q.status;
 
@@ -408,13 +411,13 @@ export class WorkflowsService {
           nodeId: saved.nodeId,
           status: saved.status,
           inputSnapshot: saved.inputSnapshot ?? null,
-          outputText: saved.outputText ?? null,
-          outputJson: saved.outputJson ?? null,
-          primaryArtifactId: saved.primaryArtifactId,
+          outputText: saved.outputText ?? undefined,
+          outputJson: saved.outputJson ?? undefined,
+          primaryArtifactId: saved.primaryArtifactId ?? undefined,
           error: saved.error,
-          startedAt: saved.startedAt,
-          finishedAt: saved.finishedAt,
-          createdAt: saved.createdAt,
+          startedAt: saved.startedAt?.toISOString(),
+          finishedAt: saved.finishedAt?.toISOString(),
+          createdAt: saved.createdAt?.toISOString(),
         },
       });
     }
@@ -638,6 +641,7 @@ export class WorkflowsService {
       if (!incoming.has(e.target)) incoming.set(e.target, []);
       incoming.get(e.target)!.push(e.source);
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const [k, arr] of incoming) arr.sort((a, b) => a.localeCompare(b));
 
     const nodeById = new Map<string, any>();

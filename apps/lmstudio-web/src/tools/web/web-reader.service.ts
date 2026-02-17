@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable } from '@nestjs/common';
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
@@ -7,14 +5,12 @@ import sanitizeHtml from 'sanitize-html';
 import { RunArtifactsService } from '../run-artifacts.service';
 
 function pickMeta(doc: Document, name: string): string | null {
-  const el = doc.querySelector(`meta[name="${name}"]`) as HTMLMetaElement;
-  const v = el?.content?.trim();
+  const v = doc.querySelector(`meta[name="${name}"]`)?.getAttribute('content')?.trim() ?? null;
   return v || null;
 }
 
 function pickMetaProp(doc: Document, prop: string): string | null {
-  const el = doc.querySelector(`meta[property="${prop}"]`) as HTMLMetaElement;
-  const v = el?.content?.trim();
+  const v = doc.querySelector(`meta[property="${prop}"]`)?.getAttribute('content')?.trim() ?? null;
   return v || null;
 }
 

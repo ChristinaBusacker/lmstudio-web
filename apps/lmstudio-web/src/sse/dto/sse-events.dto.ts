@@ -8,6 +8,7 @@ import type {
   VariantSnapshotEventPayload,
   WorkflowRunStatusPayload,
 } from '@shared/contracts';
+import type { JsonObject } from '@shared/index';
 
 /**
  * Envelope used for all SSE events.
@@ -84,7 +85,7 @@ export class RunStatusEventPayloadDto implements RunStatusEventPayload {
     additionalProperties: true,
     nullable: true,
   })
-  stats?: Record<string, any> | null;
+  stats?: JsonObject | null;
 }
 
 export class WorkflowRunStatusPayloadDto implements WorkflowRunStatusPayload {
@@ -104,7 +105,7 @@ export class WorkflowRunStatusPayloadDto implements WorkflowRunStatusPayload {
     additionalProperties: true,
     nullable: true,
   })
-  stats?: Record<string, any> | null;
+  stats?: JsonObject | null;
 }
 
 export class VariantSnapshotEventPayloadDto implements VariantSnapshotEventPayload {

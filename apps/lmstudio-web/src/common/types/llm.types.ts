@@ -1,3 +1,5 @@
+import type { JsonObject } from '@shared/index';
+
 export type LmRole = 'system' | 'user' | 'assistant' | 'tool';
 
 export interface LmMessage {
@@ -26,7 +28,7 @@ export interface RunParams {
     enabled: boolean;
     strict?: boolean;
     name?: string;
-    schema?: Record<string, any>;
+    schema?: JsonObject;
   };
 
   /** Enable OpenAI-style tool calling (chat.completions). Default: true (server-configurable). */

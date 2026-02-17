@@ -1,8 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RunArtifactsService } from '../run-artifacts.service';
+
+import type { JsonObject } from '@shared/types/json';
+import { getArray, isRecord, toJsonObject } from '../../utils/typed-access';
 
 export interface WebSearchResultItem {
   title: string;
@@ -63,7 +64,7 @@ export class WebSearchService {
     base: string;
     q: string;
     limit: number;
-  }): Promise<{ results: WebSearchResultItem[]; provider: string; providerMeta: any }> {
+  }): Promise<{ results: WebSearchResultItem[]; provider: string; providerMeta: JsonObject }> {
     const url = new URL(params.base + '/search');
     url.searchParams.set('q', params.q);
     url.searchParams.set('format', 'json');
@@ -79,12 +80,12 @@ export class WebSearchService {
       res = await fetch(url, {
         headers: { 'User-Agent': 'lmstudio-web/1.0 (+tool web_search searxng)' },
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       throw new ServiceUnavailableException({
         code: 'SEARXNG_UNREACHABLE',
         message: 'SearXNG is configured but not reachable.',
         baseUrl: params.base,
-        detail: String(e?.message ?? e),
+        detail: e instanceof Error ? e.message : String(e),
       });
     }
 
@@ -98,34 +99,45 @@ export class WebSearchService {
       });
     }
 
-    const json: any = await res.json();
-    const rawResults: any[] = Array.isArray(json?.results) ? json.results : [];
+    const jsonUnknown: unknown = await res.json();
+    const rawResults = getArray(jsonUnknown, 'results') ?? [];
 
     const results: WebSearchResultItem[] = rawResults.slice(0, params.limit).map((r) => {
+      const rec = isRecord(r) ? r : {};
       const publishedRaw =
-        r.publishedDate ?? r.published_date ?? r.published ?? r.pubDate ?? r.pub_date ?? null;
-      const publishedAt = publishedRaw ? new Date(publishedRaw).toISOString() : null;
+        rec['publishedDate'] ??
+        rec['published_date'] ??
+        rec['published'] ??
+        rec['pubDate'] ??
+        rec['pub_date'] ??
+        null;
+      const publishedAt = publishedRaw ? new Date(String(publishedRaw)).toISOString() : null;
+
+      const title = String(rec['title'] ?? '').trim() || String(rec['url'] ?? '');
+      const urlStr = String(rec['url'] ?? '');
+      const snippetRaw = rec['content'] ?? rec['snippet'] ?? null;
+      const engine = rec['engine'] ? String(rec['engine']) : 'google';
 
       return {
-        title: String(r.title ?? '').trim() || String(r.url ?? ''),
-        url: String(r.url ?? ''),
-        snippet: (r.content ?? r.snippet ?? null) ? String(r.content ?? r.snippet) : null,
+        title,
+        url: urlStr,
+        snippet: snippetRaw ? String(snippetRaw) : null,
         publishedAt: Number.isNaN(Date.parse(publishedAt ?? '')) ? null : publishedAt,
-        engine: r.engine ? String(r.engine) : 'google',
+        engine,
       };
     });
 
     return {
       results,
       provider: 'searxng',
-      providerMeta: { baseUrl: params.base, engines: ['google'] },
+      providerMeta: toJsonObject({ baseUrl: params.base, engines: ['google'] }),
     };
   }
 
   private async searchViaDuckDuckGo(params: {
     q: string;
     limit: number;
-  }): Promise<{ results: WebSearchResultItem[]; provider: string; providerMeta: any }> {
+  }): Promise<{ results: WebSearchResultItem[]; provider: string; providerMeta: JsonObject }> {
     // DuckDuckGo Instant Answer API (limited). No auth, JSON, stable-ish.
     const url = new URL('https://api.duckduckgo.com/');
     url.searchParams.set('q', params.q);
@@ -143,31 +155,33 @@ export class WebSearchService {
       throw new Error(`DuckDuckGo request failed: ${res.status} ${res.statusText} ${body}`);
     }
 
-    const json: any = await res.json();
+    const jsonUnknown: unknown = await res.json();
 
     // RelatedTopics can contain nested "Topics" arrays.
-    const flatten: any[] = [];
-    const walk = (items: any[]) => {
+    const flatten: Array<Record<string, unknown>> = [];
+    const walk = (items: unknown[]) => {
       for (const it of items) {
-        if (!it) continue;
-        if (Array.isArray(it.Topics)) {
-          walk(it.Topics);
+        if (!isRecord(it)) continue;
+        const topics = it['Topics'];
+        if (Array.isArray(topics)) {
+          walk(topics);
         } else {
           flatten.push(it);
         }
       }
     };
-    walk(Array.isArray(json?.RelatedTopics) ? json.RelatedTopics : []);
+    const related = getArray(jsonUnknown, 'RelatedTopics') ?? [];
+    walk(related);
 
     const results: WebSearchResultItem[] = flatten
-      .filter((x) => x.FirstURL && x.Text)
+      .filter((x) => x['FirstURL'] && x['Text'])
       .slice(0, params.limit)
       .map((x) => {
-        const text = String(x.Text ?? '').trim();
+        const text = String(x['Text'] ?? '').trim();
         const title = text.split(' - ')[0] || text;
         return {
           title,
-          url: String(x.FirstURL),
+          url: String(x['FirstURL']),
           snippet: text || null,
           publishedAt: null,
           engine: 'duckduckgo',
@@ -176,11 +190,11 @@ export class WebSearchService {
 
     // As a fallback, surface the abstract if there are no related topics.
     if (!results.length) {
-      const abstractText = String(json?.AbstractText ?? '').trim();
-      const abstractUrl = String(json?.AbstractURL ?? '').trim();
+      const abstractText = isRecord(jsonUnknown) ? String(jsonUnknown['AbstractText'] ?? '').trim() : '';
+      const abstractUrl = isRecord(jsonUnknown) ? String(jsonUnknown['AbstractURL'] ?? '').trim() : '';
       if (abstractText && abstractUrl) {
         results.push({
-          title: String(json?.Heading ?? params.q),
+          title: isRecord(jsonUnknown) ? String(jsonUnknown['Heading'] ?? params.q) : params.q,
           url: abstractUrl,
           snippet: abstractText,
           publishedAt: null,
@@ -192,7 +206,7 @@ export class WebSearchService {
     return {
       results,
       provider: 'duckduckgo',
-      providerMeta: { api: 'instant_answer' },
+      providerMeta: toJsonObject({ api: 'instant_answer' }),
     };
   }
 }
