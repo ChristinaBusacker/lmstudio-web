@@ -9,6 +9,7 @@ import { ToolsModule } from '../tools/tools.module';
 import { WorkflowsController } from './workflows.controller';
 import { WorkflowsService } from './workflows.service';
 import { WorkflowWorkerService } from './workflow-worker.service';
+import { WorkflowNodeExecutorService } from './execution/workflow-node-executor.service';
 import { WorkflowEntity } from './entities/workflow.entity';
 import { WorkflowRunEntity } from './entities/workflow-run.entity';
 import { WorkflowNodeRunEntity } from './entities/workflow-node-run.entity';
@@ -30,7 +31,7 @@ import { ArtifactEntity } from './entities/artifact.entity';
     ToolsModule,
   ],
   controllers: [WorkflowsController],
-  providers: [WorkflowsService, WorkflowWorkerService],
+  providers: [WorkflowsService, WorkflowNodeExecutorService, WorkflowWorkerService],
   exports: [WorkflowsService],
 })
 export class WorkflowsModule {}
