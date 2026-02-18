@@ -1,6 +1,32 @@
 import type { JsonObject, JsonValue } from './json.types';
 
 /**
+ * Known node types used by the workflow editor/engine.
+ *
+ * Keep this list in sync across FE + BE.
+ */
+export const WORKFLOW_NODE_TYPES = [
+  'lmstudio.llm',
+  'workflow.tool',
+  'workflow.condition',
+  'workflow.asset',
+  'workflow.merge',
+  'workflow.export',
+  'ui.preview',
+  'workflow.loopStart',
+  'workflow.loopEnd',
+  'workflow.loopBody',
+  // legacy
+  'workflow.loop',
+] as const;
+
+export type WorkflowNodeType = (typeof WORKFLOW_NODE_TYPES)[number];
+
+export function isWorkflowNodeType(value: unknown): value is WorkflowNodeType {
+  return typeof value === 'string' && (WORKFLOW_NODE_TYPES as readonly string[]).includes(value);
+}
+
+/**
  * Persisted workflow graph shared between frontend and backend.
  *
  * Notes:
@@ -26,13 +52,16 @@ export interface WorkflowGraphNode {
    * - 'workflow.loop' (legacy)
    * - 'workflow.loopStart' | 'workflow.loopEnd' (structural)
    */
-  type: string;
+  type: WorkflowNodeType;
+
+  /** Optional UI label. */
+  title?: string;
 
   profileName?: string;
   prompt?: string;
 
   /** Node-specific configuration (JSON only). */
-  config?: WorkflowNodeConfig;
+  config?: WorkflowNodeConfig | null;
 
   /** UI layout metadata. */
   position?: { x: number; y: number };
@@ -120,3 +149,6 @@ export interface WorkflowGraphEdge {
   /** Allow forward-compatible extra JSON fields. */
   [key: string]: JsonValue | undefined;
 }
+
+/** Typed empty JsonObject helper (avoids `{} as JsonObject` noise). */
+export const EMPTY_JSON_OBJECT: JsonObject = {};

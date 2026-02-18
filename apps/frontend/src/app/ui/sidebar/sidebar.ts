@@ -281,7 +281,9 @@ export class Sidebar {
       .afterClosed()
       .subscribe((result) => {
         if (result.action === 'confirm' && result.data) {
-          this.store.dispatch(new CreateWorkflow({ name: result.data, graph: { nodes: [] } }));
+          this.store.dispatch(
+            new CreateWorkflow({ name: result.data, graph: { nodes: [], edges: [] } }),
+          );
         }
 
         this.closeMenu();

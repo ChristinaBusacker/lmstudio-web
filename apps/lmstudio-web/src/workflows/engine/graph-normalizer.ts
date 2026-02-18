@@ -94,7 +94,7 @@ export function normalizeWorkflowGraph(graph: WorkflowGraph) {
     if (!incoming.has(e.target)) incoming.set(e.target, []);
     incoming.get(e.target)!.push(e);
   }
-  for (const arr of incoming.values()) arr.sort((a, b) => a.edgeId.localeCompare(b.edgeId));
+  for (const arr of incoming.values()) arr.sort((a, b) => a.id.localeCompare(b.id));
 
   const nodeById = new Map<string, WorkflowGraphNode>();
   for (const n of nodes) nodeById.set(n.id, n);

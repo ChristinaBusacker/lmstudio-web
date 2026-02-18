@@ -1,11 +1,4 @@
 import { Workflow } from '@frontend/src/app/core/state/workflows/workflow.models';
-import type {
-  JsonObject,
-  JsonValue,
-  WorkflowGraph as SharedWorkflowGraph,
-  WorkflowGraphEdge,
-  WorkflowGraphNode,
-} from '@shared/index';
 import {
   getArray,
   getRecord,
@@ -13,20 +6,29 @@ import {
   safeJsonParse,
   type JsonRecord,
 } from '@frontend/src/app/core/utils/typed-access';
+import {
+  EMPTY_JSON_OBJECT,
+  isWorkflowNodeType,
+  type JsonObject,
+  type JsonValue,
+  type WorkflowGraph as SharedWorkflowGraph,
+  type WorkflowGraphEdge,
+  type WorkflowNodeType,
+} from '@shared/index';
 
-export const NODE_LLM = 'lmstudio.llm';
-export const NODE_ASSET = 'workflow.asset';
-export const NODE_CONDITION = 'workflow.condition';
+export const NODE_LLM: WorkflowNodeType = 'lmstudio.llm';
+export const NODE_ASSET: WorkflowNodeType = 'workflow.asset';
+export const NODE_CONDITION: WorkflowNodeType = 'workflow.condition';
 // Structural loop nodes (loop body is everything between start and end)
-export const NODE_LOOP_START = 'workflow.loopStart';
-export const NODE_LOOP_END = 'workflow.loopEnd';
+export const NODE_LOOP_START: WorkflowNodeType = 'workflow.loopStart';
+export const NODE_LOOP_END: WorkflowNodeType = 'workflow.loopEnd';
 
 // Legacy loop node (kept for backward compatibility)
-export const NODE_LOOP = 'workflow.loop';
-export const NODE_MERGE = 'workflow.merge';
-export const NODE_EXPORT = 'workflow.export';
-export const NODE_PREVIEW = 'ui.preview';
-export const NODE_TOOL = 'workflow.tool';
+export const NODE_LOOP: WorkflowNodeType = 'workflow.loop';
+export const NODE_MERGE: WorkflowNodeType = 'workflow.merge';
+export const NODE_EXPORT: WorkflowNodeType = 'workflow.export';
+export const NODE_PREVIEW: WorkflowNodeType = 'ui.preview';
+export const NODE_TOOL: WorkflowNodeType = 'workflow.tool';
 
 export const CONDITION_TRUE_PORT = 'cond-true';
 export const CONDITION_FALSE_PORT = 'cond-false';
@@ -35,7 +37,7 @@ export type WorkflowGraph = SharedWorkflowGraph;
 
 export type DiagramNodeData = {
   label: string;
-  nodeType: string;
+  nodeType: WorkflowNodeType;
   profileName: string;
   prompt: string;
 
@@ -173,12 +175,15 @@ function normalizeNodes(input: unknown): WorkflowGraph['nodes'] {
       const autoSize =
         n.autoSize === null || n.autoSize === undefined ? undefined : Boolean(n.autoSize);
 
+      const nodeTypeRaw = n.type;
+      const nodeType: WorkflowNodeType = isWorkflowNodeType(nodeTypeRaw) ? nodeTypeRaw : NODE_LLM;
+
       return {
         id: String(n.id),
-        type: String(n.type ?? NODE_LLM),
+        type: nodeType,
         profileName: String(n.profileName ?? ''),
         prompt: String(n.prompt ?? ''),
-        config: n.config ?? null,
+        config: (getRecord(n.config) as unknown as JsonObject) ?? null,
         inputFrom:
           n.inputFrom === undefined ? null : n.inputFrom === null ? null : String(n.inputFrom),
         position: pos
@@ -216,7 +221,7 @@ function normalizeEdgesPreserveAll(input: unknown, nodeIds: Set<string>): Diagra
       sourcePort: er.sourcePort ? String(er.sourcePort) : undefined,
       targetPort: er.targetPort ? String(er.targetPort) : undefined,
       type: er.type ? String(er.type) : undefined,
-      data: er.data ?? {},
+      data: er.data ?? EMPTY_JSON_OBJECT,
     });
   }
 

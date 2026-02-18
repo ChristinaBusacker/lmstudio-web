@@ -1,5 +1,5 @@
 import type { JsonObject } from '../../types/json.types';
-import { RunState, type RunStatus } from '../runs/run.contract';
+import { type RunState, type RunStatus, type WorkflowNodeRunState } from '../runs/run.contract';
 
 export interface RunStatusEventPayload {
   status: RunState;
@@ -45,7 +45,7 @@ export interface WorkflowNodeRunUpsertPayload {
   outputJson?: JsonObject;
   inputSnapshot?: JsonObject;
   nodeId: string;
-  status: RunState;
+  status: WorkflowNodeRunState;
   error?: string | null;
   startedAt?: string | null;
   finishedAt?: string | null;

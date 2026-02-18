@@ -5,6 +5,9 @@ import { JsonObject } from '@shared/types/json.types';
 
 export type RunState = 'queued' | 'running' | 'completed' | 'failed' | 'canceled' | 'paused';
 
+/** Node-level execution state. Some nodes start as `pending` before being queued. */
+export type WorkflowNodeRunState = RunState | 'pending';
+
 export interface RunStatus {
   id: RunId;
   chatId: ChatId;
@@ -15,7 +18,8 @@ export interface RunStatus {
   clientRequestId: string | null;
   settingsProfileId: string | null;
 
-  settingsSnapshot: Record<string, JsonObject>;
+  /** Snapshot of effective settings used for the run. */
+  settingsSnapshot: JsonObject;
 
   sourceMessageId: string | null;
   targetMessageId: string | null;

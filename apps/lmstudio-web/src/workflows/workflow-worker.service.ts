@@ -3,6 +3,7 @@ import { WorkflowsService } from './workflows.service';
 
 import type { WorkflowGraph } from './engine/graph-types';
 import { buildDependencies, topoSort } from './engine/dependency-graph';
+import { normalizeWorkflowGraph } from './engine/graph-normalizer';
 import type { WorkflowRenderContext } from './engine/template-renderer';
 import { getNumber, getPath, getString, isJsonObject } from './engine/typed-access';
 
@@ -73,7 +74,9 @@ export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {
     try {
       const wf = await this.workflows.get(this.ownerKey, workflowId);
       const graphRaw = getPath(wf as unknown, 'graph');
-      const graph: WorkflowGraph = isJsonObject(graphRaw) ? (graphRaw as WorkflowGraph) : {};
+      const graph: WorkflowGraph = isJsonObject(graphRaw)
+        ? normalizeWorkflowGraph(graphRaw)
+        : { nodes: [], edges: [] };
 
       const nodeOrder = topoSort(graph);
       const { nodeById, incoming } = buildDependencies(graph);

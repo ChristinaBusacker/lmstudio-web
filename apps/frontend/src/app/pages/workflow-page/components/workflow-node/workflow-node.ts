@@ -7,8 +7,8 @@ import {
   inject,
   input,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import { AssetsApi, type AssetDto } from '@frontend/src/app/core/api/assets.api';
 import { SettingsState } from '@frontend/src/app/core/state/settings/settings.state';
 import { RerunWorkflowFromNode } from '@frontend/src/app/core/state/workflows/workflow.actions';
@@ -17,6 +17,8 @@ import { WorkflowsState } from '@frontend/src/app/core/state/workflows/workflow.
 import { shortId } from '@frontend/src/app/core/utils/shortId.util';
 import { Icon } from '@frontend/src/app/ui/icon/icon';
 import { Store } from '@ngxs/store';
+import type { SettingsProfile } from '@shared/contracts';
+import { isWorkflowNodeType } from '@shared/index';
 import {
   NgDiagramModelService,
   NgDiagramNodeResizeAdornmentComponent,
@@ -26,9 +28,13 @@ import {
   type Node,
 } from 'ng-diagram';
 import { Subject, debounceTime, distinctUntilChanged, firstValueFrom, map } from 'rxjs';
-import type { SettingsProfile } from '@shared/contracts';
+import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 import {
+  CONDITION_TRUE_PORT,
+  DEFAULT_SOURCE_PORT,
+  DEFAULT_TARGET_PORT,
   DiagramNodeData,
+  MERGE_OUT_PORT,
   NODE_ASSET,
   NODE_CONDITION,
   NODE_EXPORT,
@@ -38,14 +44,8 @@ import {
   NODE_MERGE,
   NODE_PREVIEW,
   NODE_TOOL,
-  DEFAULT_SOURCE_PORT,
-  DEFAULT_TARGET_PORT,
-  CONDITION_TRUE_PORT,
-  MERGE_OUT_PORT,
 } from '../../workflow-diagram.adapter';
 import { WorkflowEditorStateService } from '../../workflow-editor-state.service';
-import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
-import { WorkflowNodePortsComponent } from './ports/workflow-node-ports';
 import { WorkflowNodeEditorAssetComponent } from './editors/workflow-node-editor-asset';
 import { WorkflowNodeEditorExportComponent } from './editors/workflow-node-editor-export';
 import { WorkflowNodeEditorLlmComponent } from './editors/workflow-node-editor-llm';
@@ -56,7 +56,7 @@ import {
 import { WorkflowNodeEditorMergeComponent } from './editors/workflow-node-editor-merge';
 import { WorkflowNodeEditorPreviewComponent } from './editors/workflow-node-editor-preview';
 import { WorkflowNodeEditorToolComponent } from './editors/workflow-node-editor-tool';
-import { WorkflowNodeType } from '@shared/types/workflow-graph.types';
+import { WorkflowNodePortsComponent } from './ports/workflow-node-ports';
 
 type DiagramEdge = {
   source?: unknown;
@@ -238,7 +238,8 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     this.model.updateNodeData(n.id, { ...n.data, ...patch });
   }
 
-  updateNodeType(value: WorkflowNodeType): void {
+  updateNodeType(value: string): void {
+    if (!isWorkflowNodeType(value)) return;
     const n = this.node();
     const patch: Partial<DiagramNodeData> = { nodeType: value };
 

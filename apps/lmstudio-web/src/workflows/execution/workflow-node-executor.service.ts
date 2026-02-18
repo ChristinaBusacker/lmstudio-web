@@ -16,6 +16,7 @@ import {
   type WorkflowRenderContext,
 } from '../engine/template-renderer';
 import { asJsonObject, getNumber, getPath, getString, isJsonObject } from '../engine/typed-access';
+import { isRecord, toJsonObject, toJsonValue } from '../../utils/typed-access';
 import {
   COND_FALSE_PORT,
   COND_TRUE_PORT,
@@ -512,7 +513,7 @@ export class WorkflowNodeExecutorService {
         kind = r.kind;
       }
 
-      const out = {
+      const out = toJsonObject({
         assetId,
         filename: asset.originalFilename,
         mimeType: asset.mimeType,
@@ -523,10 +524,10 @@ export class WorkflowNodeExecutorService {
         // Optional derived content
         kind,
         extractedText,
-        extractedJson,
+        extractedJson: toJsonValue(extractedJson),
         extractWarnings,
-        extractStats,
-      };
+        extractStats: toJsonValue(extractStats),
+      });
 
       await this.workflows.upsertNodeRun(runId, nodeId, {
         iteration,
@@ -663,7 +664,7 @@ export class WorkflowNodeExecutorService {
         inputSnapshot: {
           sources: sourcesSorted,
           toolName,
-          toolArgs,
+          toolArgs: toJsonValue(toolArgs),
           note: 'workflow.tool',
         },
         error: null,
@@ -916,10 +917,13 @@ export class WorkflowNodeExecutorService {
 
     const parsed = safeJsonParse(full.trim());
     if (parsed.ok) {
+      const parsedObj = isRecord(parsed.value)
+        ? toJsonObject(parsed.value)
+        : toJsonObject({ value: toJsonValue(parsed.value) });
       const artifact = await this.workflows.createArtifact(runId, null, {
         kind: 'json',
         mimeType: 'application/json',
-        contentJson: parsed.value,
+        contentJson: parsedObj,
       });
 
       await this.workflows.upsertNodeRun(runId, nodeId, {
@@ -927,13 +931,13 @@ export class WorkflowNodeExecutorService {
         status: 'completed',
         finishedAt: new Date(),
         outputText: null,
-        outputJson: parsed.value,
+        outputJson: parsedObj,
         primaryArtifactId: artifact.id,
         inputSnapshot: { sources: sourcesSorted, note: 'lmstudio.llm (json)' },
         error: null,
       });
 
-      ctx.nodes[nodeId] = parsed.value;
+      ctx.nodes[nodeId] = parsedObj;
     } else {
       const artifact = await this.workflows.createArtifact(runId, null, {
         kind: 'text',

@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import type { JsonObject } from '@shared/types/json.types';
-import { RunState } from '@shared/contracts';
+import type { WorkflowNodeRunState } from '@shared/contracts/runs/run.contract';
 
 @Entity('workflow_node_run')
 @Index(['workflowRunId'])
@@ -20,7 +20,7 @@ export class WorkflowNodeRunEntity {
   iteration!: number;
 
   @Column({ type: 'varchar', length: 16 })
-  status!: RunState;
+  status!: WorkflowNodeRunState;
 
   @Column({ type: 'simple-json', nullable: true })
   inputSnapshot!: JsonObject | null; // resolved profile params + rendered prompt + upstream refs
