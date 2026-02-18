@@ -313,7 +313,9 @@ export class RunsService {
       type: 'run.status',
       chatId: run.chatId,
       runId: run.id,
-      payload: { run },
+      payload: {
+        ...run,
+      },
     });
   }
 }

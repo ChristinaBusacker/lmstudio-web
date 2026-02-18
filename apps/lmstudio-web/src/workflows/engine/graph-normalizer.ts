@@ -1,4 +1,4 @@
-import type { JsonObject, JsonValue } from '@shared/types/json';
+import type { JsonArray, JsonObject, JsonValue } from '@shared/index';
 import type {
   WorkflowGraph,
   WorkflowGraphEdge,
@@ -6,7 +6,7 @@ import type {
   WorkflowNodeType,
 } from './graph-types';
 import { EMPTY_JSON_OBJECT } from '@shared/types/workflow-graph.types';
-import { asJsonArray, asJsonObject, getString, isJsonObject } from '@shared/index';
+import { getString, isJsonObject } from '@shared/index';
 
 type RawRecord = Record<string, unknown>;
 
@@ -16,7 +16,7 @@ function asRecord(value: unknown): RawRecord | undefined {
 
 function normalizeNodes(input: unknown): WorkflowGraphNode[] {
   const root = asRecord(input);
-  const raw = asJsonArray(root?.nodes) ?? [];
+  const raw = (root?.nodes ?? []) as JsonArray;
 
   const out: WorkflowGraphNode[] = [];
   for (const n of raw) {
@@ -38,7 +38,7 @@ function normalizeNodes(input: unknown): WorkflowGraphNode[] {
       profileName: getString(obj.profileName).trim() || undefined,
       prompt: getString(obj.prompt) || undefined,
       inputFrom: getString(obj.inputFrom).trim() || undefined,
-      config: (asJsonObject(obj.config) ?? undefined) as unknown as JsonObject | undefined,
+      config: (toJsonObject(obj.config) ?? undefined) as unknown as JsonObject | undefined,
       position,
     };
     out.push(node);
@@ -49,7 +49,7 @@ function normalizeNodes(input: unknown): WorkflowGraphNode[] {
 
 function normalizeEdges(input: unknown, nodeIds: Set<string>): WorkflowGraphEdge[] {
   const root = asRecord(input);
-  const raw = asJsonArray(root?.edges) ?? [];
+  const raw = (root?.edges ?? []) as JsonArray;
 
   const out: WorkflowGraphEdge[] = [];
   for (const e of raw) {
@@ -70,7 +70,7 @@ function normalizeEdges(input: unknown, nodeIds: Set<string>): WorkflowGraphEdge
       sourcePort: getString(obj.sourcePort).trim() || undefined,
       targetPort: getString(obj.targetPort).trim() || undefined,
       type: getString(obj.type).trim() || undefined,
-      data: (asJsonObject(obj.data) ?? EMPTY_JSON_OBJECT) as JsonObject,
+      data: (toJsonObject(obj.data) ?? EMPTY_JSON_OBJECT) as JsonObject,
     };
     out.push(edge);
   }
@@ -133,7 +133,7 @@ export function buildWorkflowGraphIndex(graph: WorkflowGraph): WorkflowGraphInde
 }
 
 export function toJsonObject(value: unknown): JsonObject | undefined {
-  const obj = asJsonObject(value);
+  const obj = toJsonObject(value);
   return obj ? (obj as JsonObject) : undefined;
 }
 
@@ -144,6 +144,6 @@ export function toJsonValue(value: unknown): JsonValue | undefined {
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
     return value;
   if (Array.isArray(value)) return value as unknown as JsonValue;
-  const obj = asJsonObject(value);
+  const obj = toJsonObject(value);
   return obj as unknown as JsonValue | undefined;
 }

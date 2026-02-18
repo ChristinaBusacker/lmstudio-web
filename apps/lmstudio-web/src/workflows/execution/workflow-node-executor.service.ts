@@ -16,7 +16,7 @@ import {
   toPrettyText,
   type WorkflowRenderContext,
 } from '../engine/template-renderer';
-import { asJsonObject, getNumber, getPath, getString, isJsonObject } from '@shared/index';
+import { getNumber, getPath, getString, isJsonObject } from '@shared/index';
 
 import { isRecord, toJsonObject, toJsonValue } from '../../utils/typed-access';
 import {
@@ -166,7 +166,7 @@ export class WorkflowNodeExecutorService {
       ctx.input = null;
     }
 
-    const loopCfg = asJsonObject(getPath(node, 'config', 'loop')) ?? EMPTY_JSON_OBJECT;
+    const loopCfg = toJsonObject(getPath(node, 'config.loop')) ?? EMPTY_JSON_OBJECT;
     const maxItRaw = getNumber(loopCfg.maxIterations) ?? 10;
     const maxIterations = Math.max(1, Math.min(1000, maxItRaw));
     const joiner = getString(loopCfg.joiner, '\n\n');
@@ -184,9 +184,9 @@ export class WorkflowNodeExecutorService {
     const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
     if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-    const profileObj = asJsonObject(profile as unknown) ?? EMPTY_JSON_OBJECT;
+    const profileObj = toJsonObject(profile as unknown) ?? EMPTY_JSON_OBJECT;
     const params: Record<string, unknown> = {
-      ...(asJsonObject(profileObj.params) ?? EMPTY_JSON_OBJECT),
+      ...(toJsonObject(profileObj.params) ?? EMPTY_JSON_OBJECT),
     };
     const modelKey = getString(params.modelKey).trim();
     if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
@@ -496,11 +496,11 @@ export class WorkflowNodeExecutorService {
     }
 
     if (nodeType === 'workflow.asset') {
-      const assetId = getString(getPath(node, 'config', 'asset', 'assetId')).trim();
+      const assetId = getString(getPath(node, 'config.asset.assetId')).trim();
       if (!assetId) throw new Error(`workflow.asset missing config.asset.assetId (node ${nodeId})`);
 
       const asset = await this.assets.getById(assetId);
-      const extract = getPath(node, 'config', 'asset', 'extract') === true;
+      const extract = getPath(node, 'config.asset.extract') === true;
 
       let extractedText: string | null = null;
       let extractedJson: unknown | null = null;
@@ -568,7 +568,7 @@ export class WorkflowNodeExecutorService {
         parts.push(this.toText(ctx.nodes[src]));
       }
 
-      const sep = getString(getPath(node, 'config', 'merge', 'separator'), '\n\n');
+      const sep = getString(getPath(node, 'config.merge.separator'), '\n\n');
       const text = parts.join(String(sep));
 
       const artifact = await this.workflows.createArtifact(runId, null, {
@@ -604,7 +604,7 @@ export class WorkflowNodeExecutorService {
 
       const text = this.toText(ctx.nodes[src]);
       const filename =
-        getString(getPath(node, 'config', 'export', 'filename')).trim() ||
+        getString(getPath(node, 'config.export.filename')).trim() ||
         getString((node as unknown as Record<string, unknown>).exportFilename).trim() ||
         `export-${runId}-${nodeId}.txt`;
 
@@ -636,10 +636,10 @@ export class WorkflowNodeExecutorService {
     }
 
     if (nodeType === 'workflow.tool') {
-      const toolName = getString().trim();
+      const toolName = getString(node, 'config.toolName').trim();
       if (!toolName) throw new Error(`workflow.tool missing config.tool.name (node ${nodeId})`);
 
-      const rawArgs = getPath(node, 'config', 'tool', 'args');
+      const rawArgs = getPath(node, 'config.tool.args');
 
       // Allow template rendering in string fields inside args.
       ctx.__depsForRender = new Set(sourcesSorted);
@@ -727,10 +727,10 @@ export class WorkflowNodeExecutorService {
       const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
       if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-      const profileObj = asJsonObject(profile as unknown);
+      const profileObj = toJsonObject(profile as unknown);
       if (!profileObj) return;
 
-      const params: Record<string, unknown> = { ...asJsonObject(profileObj.params) };
+      const params: Record<string, unknown> = { ...toJsonObject(profileObj.params) };
       const modelKey = getString(params.modelKey).trim();
       if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
@@ -859,14 +859,14 @@ export class WorkflowNodeExecutorService {
     const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
     if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-    const profileObj = asJsonObject(profile as unknown);
-    const params: Record<string, unknown> = { ...asJsonObject(profileObj.params) };
+    const profileObj = toJsonObject(profile as unknown);
+    const params: Record<string, unknown> = { ...toJsonObject(profileObj.params) };
     const modelKey = getString(params.modelKey).trim();
     if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
-    const nodeStructured = getPath(node, 'config', 'llm', 'structuredOutput');
-    const nodeStructuredObj = asJsonObject(nodeStructured);
-    if (nodeStructuredObj.enabled === true) {
+    const nodeStructured = getPath(node, 'config.llm.structuredOutput');
+    const nodeStructuredObj = toJsonObject(nodeStructured);
+    if (nodeStructuredObj && nodeStructuredObj.enabled === true) {
       params.structuredOutput = {
         enabled: true,
         strict: nodeStructuredObj.strict === false ? false : true,
@@ -877,7 +877,11 @@ export class WorkflowNodeExecutorService {
       };
     }
 
-    const systemPrompt = getString(profileObj.systemPrompt).trim();
+    let systemPrompt = '';
+
+    if (profileObj) {
+      systemPrompt = getString(profileObj.systemPrompt).trim();
+    }
 
     await this.workflows.upsertNodeRun(runId, nodeId, {
       iteration,
@@ -896,7 +900,7 @@ export class WorkflowNodeExecutorService {
     const messages = this.buildMessages(systemPrompt, renderedPrompt);
 
     const toolsEnabled = this.parseToolsEnabled(getPath(params, 'toolsEnabled'));
-    const structuredEnabled = getPath(params, 'structuredOutput', 'enabled') === true;
+    const structuredEnabled = getPath(params, 'structuredOutput.enabled') === true;
 
     // Tools + schema-enforced structured output are not reliably supported by many servers/models.
     // If tools are enabled, prefer tool calling and fall back to "soft JSON" parsing afterwards.
