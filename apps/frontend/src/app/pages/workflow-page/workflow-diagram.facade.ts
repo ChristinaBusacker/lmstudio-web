@@ -18,11 +18,11 @@ import {
   normalizeWorkflowGraph,
   workflowToDiagramModel,
   type DiagramNodeData,
-  type WorkflowGraph,
 } from './workflow-diagram.adapter';
 import { WorkflowEditorStateService } from './workflow-editor-state.service';
 import { getRecord, safeJsonParse, type JsonRecord, isRecord } from '../../core/utils/typed-access';
 import {
+  WorkflowGraph,
   type Workflow,
   type WorkflowGraph as WorkflowGraphModel,
 } from '../../core/state/workflows/workflow.models';

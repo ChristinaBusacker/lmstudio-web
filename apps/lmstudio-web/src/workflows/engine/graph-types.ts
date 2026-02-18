@@ -1,28 +1,18 @@
-import type { JsonObject } from './typed-access';
+export type {
+  WorkflowGraph,
+  WorkflowGraphEdge,
+  WorkflowGraphNode,
+  WorkflowNodeType,
+  WorkflowNodeConfig,
+  WorkflowNodePosition,
+  WorkflowNodeSize,
+} from '@shared/types/workflow-graph.types';
 
-export interface WorkflowGraphEdge {
-  id: string;
-  source: string;
-  target: string;
-  sourcePort?: string;
-  targetPort?: string;
-}
-
-export interface WorkflowGraphNode {
-  id: string;
-  type?: string;
-  title?: string;
-  prompt?: string;
-  inputFrom?: string;
-  config?: JsonObject;
-
-  /** Allow unknown extra fields coming from the UI. */
-  [key: string]: unknown;
-}
-
-export interface WorkflowGraph {
-  nodes?: unknown;
-  edges?: unknown;
-}
-
-export type IncomingEdge = WorkflowGraphEdge;
+/**
+ * Engine-only helpers.
+ */
+export type IncomingEdge = {
+  edgeId: string;
+  fromNodeId: string;
+  fromPort?: string;
+};

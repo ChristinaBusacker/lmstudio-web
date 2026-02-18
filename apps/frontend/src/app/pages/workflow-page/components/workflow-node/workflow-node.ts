@@ -56,6 +56,7 @@ import {
 import { WorkflowNodeEditorMergeComponent } from './editors/workflow-node-editor-merge';
 import { WorkflowNodeEditorPreviewComponent } from './editors/workflow-node-editor-preview';
 import { WorkflowNodeEditorToolComponent } from './editors/workflow-node-editor-tool';
+import { WorkflowNodeType } from '@shared/types/workflow-graph.types';
 
 type DiagramEdge = {
   source?: unknown;
@@ -237,7 +238,7 @@ export class WorkflowNodeComponent implements NgDiagramNodeTemplate<DiagramNodeD
     this.model.updateNodeData(n.id, { ...n.data, ...patch });
   }
 
-  updateNodeType(value: string): void {
+  updateNodeType(value: WorkflowNodeType): void {
     const n = this.node();
     const patch: Partial<DiagramNodeData> = { nodeType: value };
 

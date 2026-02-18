@@ -3,6 +3,7 @@ import type {
   WorkflowGraph,
   WorkflowGraphEdge,
   WorkflowGraphNode,
+  WorkflowNodeType,
 } from './graph-types';
 import { asJsonArray, asJsonObject, getString, isJsonObject } from './typed-access';
 
@@ -74,7 +75,7 @@ export function normalizeWorkflowGraph(graph: WorkflowGraph) {
     nodes.push({
       ...(obj as WorkflowGraphNode),
       id,
-      type: getString(obj.type).trim() || undefined,
+      type: getString(obj.type).trim() as WorkflowNodeType,
       title: getString(obj.title).trim() || undefined,
       prompt: getString(obj.prompt),
       inputFrom: getString(obj.inputFrom).trim() || undefined,
@@ -93,7 +94,7 @@ export function normalizeWorkflowGraph(graph: WorkflowGraph) {
     if (!incoming.has(e.target)) incoming.set(e.target, []);
     incoming.get(e.target)!.push(e);
   }
-  for (const arr of incoming.values()) arr.sort((a, b) => a.id.localeCompare(b.id));
+  for (const arr of incoming.values()) arr.sort((a, b) => a.edgeId.localeCompare(b.edgeId));
 
   const nodeById = new Map<string, WorkflowGraphNode>();
   for (const n of nodes) nodeById.set(n.id, n);

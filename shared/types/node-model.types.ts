@@ -1,52 +1,17 @@
-export interface NodePosition {
-  x: number;
-  y: number;
-}
+/**
+ * NOTE:
+ * This file historically contained a partially-typed diagram model.
+ *
+ * It is now the canonical persisted workflow graph model shared between
+ * frontend + backend. Keep it small, predictable and boring.
+ */
 
-export interface NodeSize {
-  width: number;
-  height: number;
-}
-
-export interface ToolConfig {
-  name: string;
-  args: {
-    url: string;
-  };
-}
-
-export interface ExportConfig {
-  filename: string;
-}
-
-export interface NodeConfig {
-  tool?: ToolConfig;
-  export?: ExportConfig;
-}
-
-export interface NodeModelNode {
-  id: string;
-  type: string;
-  profileName: string;
-  prompt: string;
-  config: NodeConfig;
-  inputFrom: string | null;
-  position: NodePosition;
-  size: NodeSize;
-  autoSize?: boolean;
-}
-
-export interface NodeModelEdge {
-  id: string;
-  source: string;
-  target: string;
-  sourcePort: string;
-  targetPort: string;
-  data: Record<string, unknown>;
-  computedZIndex: number;
-}
-
-export interface NodeDiagramModel {
-  nodes: NodeModelNode[];
-  edges: NodeModelEdge[];
-}
+export type {
+  WorkflowGraph as NodeDiagramModel,
+  WorkflowGraphNode as NodeModelNode,
+  WorkflowGraphEdge as NodeModelEdge,
+  WorkflowNodeType,
+  WorkflowNodeConfig,
+  WorkflowNodePosition as NodePosition,
+  WorkflowNodeSize as NodeSize,
+} from './workflow-graph.types';

@@ -7,65 +7,44 @@ import {
   type JsonRecord,
 } from '@frontend/src/app/core/utils/typed-access';
 
-export const NODE_LLM = 'lmstudio.llm';
-export const NODE_ASSET = 'workflow.asset';
-export const NODE_CONDITION = 'workflow.condition';
+import {
+  WORKFLOW_NODE_ASSET,
+  WORKFLOW_NODE_CONDITION,
+  WORKFLOW_NODE_EXPORT,
+  WORKFLOW_NODE_LLM,
+  WORKFLOW_NODE_LOOP_END,
+  WORKFLOW_NODE_LOOP_LEGACY,
+  WORKFLOW_NODE_LOOP_START,
+  WORKFLOW_NODE_MERGE,
+  WORKFLOW_NODE_PREVIEW,
+  WORKFLOW_NODE_TOOL,
+  type LoopMode,
+  type WorkflowGraph,
+  type WorkflowNodeType,
+} from '@shared/types/workflow-graph.types';
+
+export const NODE_LLM: WorkflowNodeType = WORKFLOW_NODE_LLM;
+export const NODE_ASSET: WorkflowNodeType = WORKFLOW_NODE_ASSET;
+export const NODE_CONDITION: WorkflowNodeType = WORKFLOW_NODE_CONDITION;
 // Structural loop nodes (loop body is everything between start and end)
-export const NODE_LOOP_START = 'workflow.loopStart';
-export const NODE_LOOP_END = 'workflow.loopEnd';
+export const NODE_LOOP_START: WorkflowNodeType = WORKFLOW_NODE_LOOP_START;
+export const NODE_LOOP_END: WorkflowNodeType = WORKFLOW_NODE_LOOP_END;
 
 // Legacy loop node (kept for backward compatibility)
-export const NODE_LOOP = 'workflow.loop';
-export const NODE_MERGE = 'workflow.merge';
-export const NODE_EXPORT = 'workflow.export';
-export const NODE_PREVIEW = 'ui.preview';
-export const NODE_TOOL = 'workflow.tool';
+export const NODE_LOOP: WorkflowNodeType = WORKFLOW_NODE_LOOP_LEGACY;
+export const NODE_MERGE: WorkflowNodeType = WORKFLOW_NODE_MERGE;
+export const NODE_EXPORT: WorkflowNodeType = WORKFLOW_NODE_EXPORT;
+export const NODE_PREVIEW: WorkflowNodeType = WORKFLOW_NODE_PREVIEW;
+export const NODE_TOOL: WorkflowNodeType = WORKFLOW_NODE_TOOL;
 
 export const CONDITION_TRUE_PORT = 'cond-true';
 export const CONDITION_FALSE_PORT = 'cond-false';
 
-export type WorkflowGraph = {
-  nodes: Array<{
-    id: string;
-    type: string;
-    profileName?: string;
-    prompt?: string;
-    config?: unknown;
-    position?: { x: number; y: number };
-
-    /**
-     * ngDiagram layout properties (optional).
-     *
-     * - size/autoSize are controlled by the resize adornment and allow persisting manual dimensions.
-     * - angle is controlled by the rotation adornment and allows persisting rotated nodes (e.g. diamonds).
-     *
-     * These fields are intentionally optional to remain backward compatible with existing graphs.
-     */
-    size?: { width: number; height: number };
-    autoSize?: boolean;
-    angle?: number;
-
-    // legacy only (read-only for migration)
-    inputFrom?: string | null;
-  }>;
-
-  edges?: Array<{
-    id: string;
-    source: string;
-    target: string;
-
-    sourcePort?: string;
-    targetPort?: string;
-    type?: string;
-    data?: unknown;
-
-    [key: string]: unknown;
-  }>;
-};
+// WorkflowGraph type moved to shared/types/workflow-graph.types.ts
 
 export type DiagramNodeData = {
   label: string;
-  nodeType: string;
+  nodeType: WorkflowNodeType;
   profileName: string;
   prompt: string;
 
@@ -80,7 +59,7 @@ export type DiagramNodeData = {
 
   // Structural loopStart fields
   loopMaxIterations?: number;
-  loopMode?: 'while' | 'until' | 'count';
+  loopMode?: LoopMode;
   loopConditionPrompt?: string;
   loopCount?: number;
   previewMaxLines?: number;
@@ -210,10 +189,10 @@ function normalizeNodes(input: unknown): WorkflowGraph['nodes'] {
 
       return {
         id: String(n.id),
-        type: String(n.type ?? NODE_LLM),
+        type: String(n.type ?? NODE_LLM) as WorkflowNodeType,
         profileName: String(n.profileName ?? ''),
         prompt: String(n.prompt ?? ''),
-        config: n.config ?? null,
+        config: (n.config ?? null) as WorkflowGraph['nodes'][number]['config'],
         inputFrom:
           n.inputFrom === undefined ? null : n.inputFrom === null ? null : String(n.inputFrom),
         position: pos
