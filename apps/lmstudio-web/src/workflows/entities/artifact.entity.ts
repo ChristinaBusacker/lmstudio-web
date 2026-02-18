@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import { JsonObject } from '../engine/typed-access';
+import { JsonObject } from '@shared/index';
 
 export type ArtifactKind = 'json' | 'text' | 'image' | 'binary';
 

@@ -5,7 +5,7 @@ import type { WorkflowGraph } from './engine/graph-types';
 import { buildDependencies, topoSort } from './engine/dependency-graph';
 import { normalizeWorkflowGraph } from './engine/graph-normalizer';
 import type { WorkflowRenderContext } from './engine/template-renderer';
-import { getNumber, getPath, getString, isJsonObject } from './engine/typed-access';
+import { getNumber, getPath, getString, isJsonObject } from '@shared/index';
 
 import { LOOP_END, LOOP_START } from './worker/workflow-worker.constants';
 import {

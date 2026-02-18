@@ -9,13 +9,15 @@ import { AssetExtractService } from '../../assets/asset-extract.service';
 import type { LmMessage } from '../../common/types/llm.types';
 
 import type { IncomingEdge, WorkflowGraphNode } from '../engine/graph-types';
+import { EMPTY_JSON_OBJECT } from '@shared/types/workflow-graph.types';
 import {
   renderTemplate,
   safeJsonParse,
   toPrettyText,
   type WorkflowRenderContext,
 } from '../engine/template-renderer';
-import { asJsonObject, getNumber, getPath, getString, isJsonObject } from '../engine/typed-access';
+import { asJsonObject, getNumber, getPath, getString, isJsonObject } from '@shared/index';
+
 import { isRecord, toJsonObject, toJsonValue } from '../../utils/typed-access';
 import {
   COND_FALSE_PORT,
@@ -164,7 +166,7 @@ export class WorkflowNodeExecutorService {
       ctx.input = null;
     }
 
-    const loopCfg = asJsonObject(getPath(node, 'config', 'loop'));
+    const loopCfg = asJsonObject(getPath(node, 'config', 'loop')) ?? EMPTY_JSON_OBJECT;
     const maxItRaw = getNumber(loopCfg.maxIterations) ?? 10;
     const maxIterations = Math.max(1, Math.min(1000, maxItRaw));
     const joiner = getString(loopCfg.joiner, '\n\n');
@@ -182,8 +184,10 @@ export class WorkflowNodeExecutorService {
     const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
     if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-    const profileObj = asJsonObject(profile as unknown);
-    const params: Record<string, unknown> = { ...asJsonObject(profileObj.params) };
+    const profileObj = asJsonObject(profile as unknown) ?? EMPTY_JSON_OBJECT;
+    const params: Record<string, unknown> = {
+      ...(asJsonObject(profileObj.params) ?? EMPTY_JSON_OBJECT),
+    };
     const modelKey = getString(params.modelKey).trim();
     if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
@@ -632,7 +636,7 @@ export class WorkflowNodeExecutorService {
     }
 
     if (nodeType === 'workflow.tool') {
-      const toolName = getString(getPath(node, 'config', 'tool', 'name')).trim();
+      const toolName = getString().trim();
       if (!toolName) throw new Error(`workflow.tool missing config.tool.name (node ${nodeId})`);
 
       const rawArgs = getPath(node, 'config', 'tool', 'args');
@@ -724,6 +728,8 @@ export class WorkflowNodeExecutorService {
       if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
       const profileObj = asJsonObject(profile as unknown);
+      if (!profileObj) return;
+
       const params: Record<string, unknown> = { ...asJsonObject(profileObj.params) };
       const modelKey = getString(params.modelKey).trim();
       if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);

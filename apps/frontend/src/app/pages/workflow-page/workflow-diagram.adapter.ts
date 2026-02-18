@@ -8,6 +8,7 @@ import {
 } from '@frontend/src/app/core/utils/typed-access';
 import {
   EMPTY_JSON_OBJECT,
+  isJsonObject,
   isWorkflowNodeType,
   type JsonObject,
   type JsonValue,
@@ -221,7 +222,7 @@ function normalizeEdgesPreserveAll(input: unknown, nodeIds: Set<string>): Diagra
       sourcePort: er.sourcePort ? String(er.sourcePort) : undefined,
       targetPort: er.targetPort ? String(er.targetPort) : undefined,
       type: er.type ? String(er.type) : undefined,
-      data: er.data ?? EMPTY_JSON_OBJECT,
+      data: isJsonObject(er.data) ? (er.data as JsonObject) : EMPTY_JSON_OBJECT,
     });
   }
 
@@ -253,7 +254,7 @@ function deriveEdgesFromLegacyInputFrom(nodes: WorkflowGraph['nodes']): DiagramE
       target: n.id,
       sourcePort: DEFAULT_SOURCE_PORT,
       targetPort: DEFAULT_TARGET_PORT,
-      data: {},
+      data: EMPTY_JSON_OBJECT,
     });
   }
 

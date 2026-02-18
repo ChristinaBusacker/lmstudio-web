@@ -1,6 +1,6 @@
 import type { WorkflowGraph } from './graph-types';
 import { getString } from './typed-access';
-import { normalizeWorkflowGraph } from './graph-normalizer';
+import { buildWorkflowGraphIndex } from './graph-normalizer';
 
 export function extractNodeRefs(prompt: string): string[] {
   // supports {{nodes.X}} and {{steps.X}} (+ optional .path)
@@ -15,7 +15,9 @@ export function extractNodeRefs(prompt: string): string[] {
 }
 
 export function buildDependencies(graph: WorkflowGraph) {
-  const { ids, nodeIds, incoming, nodeById } = normalizeWorkflowGraph(graph);
+  const ids = graph.nodes.map((n) => n.id);
+  const idx = buildWorkflowGraphIndex(graph);
+  const { nodeIds, incoming, nodeById } = idx;
 
   const deps = new Map<string, Set<string>>();
   for (const id of ids) deps.set(id, new Set());
