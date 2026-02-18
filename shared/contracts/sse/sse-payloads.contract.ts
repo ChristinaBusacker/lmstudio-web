@@ -33,6 +33,8 @@ export interface ChangedEventPayload {
   reason?: string;
   fields?: string[];
   patch?: JsonObject;
+  modelId?: string;
+  state?: string;
 }
 
 export interface WorkflowNodeRunUpsertPayload {
