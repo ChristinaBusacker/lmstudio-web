@@ -1,18 +1,13 @@
-export type {
+import type {
   WorkflowGraph,
   WorkflowGraphEdge,
   WorkflowGraphNode,
-  WorkflowNodeType,
-  WorkflowNodeConfig,
-  WorkflowNodePosition,
-  WorkflowNodeSize,
-} from '@shared/types/workflow-graph.types';
+} from '@shared/index';
+
+export type { WorkflowGraph, WorkflowGraphEdge, WorkflowGraphNode };
 
 /**
- * Engine-only helpers.
+ * Incoming edges are stored by target node id.
+ * Currently identical to WorkflowGraphEdge (kept as alias for readability).
  */
-export type IncomingEdge = {
-  edgeId: string;
-  fromNodeId: string;
-  fromPort?: string;
-};
+export type IncomingEdge = WorkflowGraphEdge;

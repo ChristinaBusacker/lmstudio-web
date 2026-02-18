@@ -1,123 +1,122 @@
-import type { JsonObject } from './json';
-
-export const WORKFLOW_NODE_LLM = 'lmstudio.llm' as const;
-export const WORKFLOW_NODE_ASSET = 'workflow.asset' as const;
-export const WORKFLOW_NODE_CONDITION = 'workflow.condition' as const;
-export const WORKFLOW_NODE_LOOP_START = 'workflow.loopStart' as const;
-export const WORKFLOW_NODE_LOOP_END = 'workflow.loopEnd' as const;
-export const WORKFLOW_NODE_LOOP_LEGACY = 'workflow.loop' as const;
-export const WORKFLOW_NODE_MERGE = 'workflow.merge' as const;
-export const WORKFLOW_NODE_EXPORT = 'workflow.export' as const;
-export const WORKFLOW_NODE_PREVIEW = 'ui.preview' as const;
-export const WORKFLOW_NODE_TOOL = 'workflow.tool' as const;
-
-export type WorkflowNodeType =
-  | typeof WORKFLOW_NODE_LLM
-  | typeof WORKFLOW_NODE_ASSET
-  | typeof WORKFLOW_NODE_CONDITION
-  | typeof WORKFLOW_NODE_LOOP_START
-  | typeof WORKFLOW_NODE_LOOP_END
-  | typeof WORKFLOW_NODE_LOOP_LEGACY
-  | typeof WORKFLOW_NODE_MERGE
-  | typeof WORKFLOW_NODE_EXPORT
-  | typeof WORKFLOW_NODE_PREVIEW
-  | typeof WORKFLOW_NODE_TOOL;
-
-export type LoopMode = 'while' | 'until' | 'count';
-
-export type WorkflowLlmConfig = {
-  structuredOutput?: {
-    enabled: boolean;
-    strict?: boolean;
-    name?: string;
-    schema: JsonObject;
-  };
-};
-
-export type WorkflowToolConfig = {
-  name: string;
-  args: JsonObject;
-};
-
-export type WorkflowMergeConfig = {
-  separator?: string;
-  inputCount?: number;
-};
-
-export type WorkflowExportConfig = {
-  filename?: string;
-};
-
-export type WorkflowPreviewConfig = {
-  maxLines?: number;
-};
-
-export type WorkflowLoopConfig = {
-  mode?: LoopMode;
-  conditionPrompt?: string;
-  joiner?: string;
-  maxIterations?: number;
-  count?: number;
-
-  /** legacy (kept for backward compatibility) */
-  itemPath?: string;
-  maxItems?: number;
-};
-
-export type WorkflowAssetConfig = {
-  assetId?: string;
-  extract?: boolean;
-};
+import type { JsonObject, JsonValue } from './json.types';
 
 /**
- * Persisted node config format.
+ * Persisted workflow graph shared between frontend and backend.
  *
- * This is intentionally shaped like the UI exports it, so both FE+BE can share
- * a single source of truth.
+ * Notes:
+ * - `inputFrom` is legacy (v1). Do not write it anymore, but keep reading for migration.
+ * - `config` is node-specific. We model the most common shapes but keep it extensible via JsonObject.
  */
-export type WorkflowNodeConfig = {
-  llm?: WorkflowLlmConfig;
-  tool?: WorkflowToolConfig;
-  merge?: WorkflowMergeConfig;
-  export?: WorkflowExportConfig;
-  preview?: WorkflowPreviewConfig;
-  loop?: WorkflowLoopConfig;
-  asset?: WorkflowAssetConfig;
+export interface WorkflowGraph {
+  nodes: WorkflowGraphNode[];
+  edges: WorkflowGraphEdge[];
+}
 
-  /** Escape hatch for future node types. */
-  [key: string]: unknown;
-};
-
-export type WorkflowNodePosition = { x: number; y: number };
-export type WorkflowNodeSize = { width: number; height: number };
-
-export type WorkflowGraphNode = {
+export interface WorkflowGraphNode {
   id: string;
-  type: WorkflowNodeType;
+  /**
+   * Known examples:
+   * - 'lmstudio.llm'
+   * - 'workflow.tool'
+   * - 'workflow.condition'
+   * - 'workflow.merge'
+   * - 'workflow.export'
+   * - 'ui.preview'
+   * - 'workflow.asset'
+   * - 'workflow.loop' (legacy)
+   * - 'workflow.loopStart' | 'workflow.loopEnd' (structural)
+   */
+  type: string;
+
   profileName?: string;
   prompt?: string;
-  config?: WorkflowNodeConfig | null;
-  inputFrom?: string | null;
-  position?: WorkflowNodePosition;
 
-  /** Optional persisted layout data. */
-  size?: WorkflowNodeSize;
+  /** Node-specific configuration (JSON only). */
+  config?: WorkflowNodeConfig;
+
+  /** UI layout metadata. */
+  position?: { x: number; y: number };
+  size?: { width: number; height: number };
   autoSize?: boolean;
   angle?: number;
-  title?: string;
-};
 
-export type WorkflowGraphEdge = {
+  /** Legacy v1 only (read-only). */
+  inputFrom?: string | null;
+
+  /** Allow forward-compatible extra fields from UI. */
+  [key: string]: JsonValue | undefined | null;
+}
+
+export type WorkflowNodeConfig =
+  | WorkflowLlmConfig
+  | WorkflowToolConfig
+  | WorkflowExportConfig
+  | WorkflowMergeConfig
+  | WorkflowPreviewConfig
+  | WorkflowConditionConfig
+  | WorkflowAssetConfig
+  | WorkflowLoopConfig
+  | JsonObject;
+
+export interface WorkflowLlmConfig extends JsonObject {
+  kind?: 'llm';
+  modelKey?: string;
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  systemPrompt?: string;
+}
+
+export interface WorkflowToolConfig extends JsonObject {
+  kind?: 'tool';
+  toolName?: string;
+  args?: JsonObject;
+}
+
+export interface WorkflowExportConfig extends JsonObject {
+  kind?: 'export';
+  filename?: string;
+  mimeType?: string;
+  artifactKind?: string;
+}
+
+export interface WorkflowMergeConfig extends JsonObject {
+  kind?: 'merge';
+  separator?: string;
+}
+
+export interface WorkflowPreviewConfig extends JsonObject {
+  kind?: 'preview';
+}
+
+export interface WorkflowConditionConfig extends JsonObject {
+  kind?: 'condition';
+  prompt?: string;
+}
+
+export interface WorkflowAssetConfig extends JsonObject {
+  kind?: 'asset';
+  assetId?: string;
+}
+
+export interface WorkflowLoopConfig extends JsonObject {
+  kind?: 'loop';
+  maxIterations?: number;
+  joiner?: string;
+  mode?: string;
+}
+
+export interface WorkflowGraphEdge {
   id: string;
   source: string;
   target: string;
   sourcePort?: string;
   targetPort?: string;
+
+  /** Rendering metadata (ng-diagram stores markers/styles here). Must remain JSON-only for persistence. */
   type?: string;
   data?: JsonObject;
-};
 
-export type WorkflowGraph = {
-  nodes: WorkflowGraphNode[];
-  edges?: WorkflowGraphEdge[];
-};
+  /** Allow forward-compatible extra JSON fields. */
+  [key: string]: JsonValue | undefined;
+}

@@ -1,3 +1,5 @@
+import type { WorkflowGraph as SharedWorkflowGraph } from '@shared/index';
+
 export type WorkflowRunStatus =
   | 'queued'
   | 'running'
@@ -13,60 +15,7 @@ export type WorkflowNodeRunStatus = 'pending' | 'running' | 'completed' | 'faile
  * - Persisted: nodes[] + edges[]
  * - Input eines Nodes ergibt sich aus allen incoming edges.
  */
-export type WorkflowGraph = {
-  nodes: Array<{
-    id: string;
-
-    /**
-     * e.g.
-     * - 'lmstudio.llm'
-     * - 'workflow.merge'
-     * - 'workflow.export'
-     * - 'ui.preview'
-     * - 'workflow.condition'
-     * - 'workflow.loop'
-     */
-    type: string;
-
-    profileName?: string;
-    prompt?: string;
-
-    /**
-     * Node-specific config. Stored as plain JSON to keep the graph extensible.
-     */
-    config?: unknown;
-
-    position?: { x: number; y: number };
-
-    /**
-     * v1 legacy. Nicht mehr nutzen, nicht mehr speichern.
-     * (Backend kann trotzdem legacy Graphen lesen und daraus edges ableiten.)
-     */
-    inputFrom?: never;
-  }>;
-
-  /** direction: source -> target */
-  edges?: Array<{
-    id: string;
-    source: string;
-    target: string;
-
-    /**
-     * Port ids are persisted so we can preserve ordering/UX
-     * (e.g. merge inputs in-1..in-n).
-     */
-    sourcePort?: string;
-    targetPort?: string;
-
-    /**
-     * Rendering metadata (ng-diagram stores markers/styles here).
-     */
-    type?: string;
-    data?: unknown;
-
-    [key: string]: unknown;
-  }>;
-};
+export type WorkflowGraph = SharedWorkflowGraph;
 
 export interface Workflow {
   id: string;

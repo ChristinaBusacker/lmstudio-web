@@ -1,4 +1,11 @@
 import { Workflow } from '@frontend/src/app/core/state/workflows/workflow.models';
+import type {
+  JsonObject,
+  JsonValue,
+  WorkflowGraph as SharedWorkflowGraph,
+  WorkflowGraphEdge,
+  WorkflowGraphNode,
+} from '@shared/index';
 import {
   getArray,
   getRecord,
@@ -7,44 +14,28 @@ import {
   type JsonRecord,
 } from '@frontend/src/app/core/utils/typed-access';
 
-import {
-  WORKFLOW_NODE_ASSET,
-  WORKFLOW_NODE_CONDITION,
-  WORKFLOW_NODE_EXPORT,
-  WORKFLOW_NODE_LLM,
-  WORKFLOW_NODE_LOOP_END,
-  WORKFLOW_NODE_LOOP_LEGACY,
-  WORKFLOW_NODE_LOOP_START,
-  WORKFLOW_NODE_MERGE,
-  WORKFLOW_NODE_PREVIEW,
-  WORKFLOW_NODE_TOOL,
-  type LoopMode,
-  type WorkflowGraph,
-  type WorkflowNodeType,
-} from '@shared/types/workflow-graph.types';
-
-export const NODE_LLM: WorkflowNodeType = WORKFLOW_NODE_LLM;
-export const NODE_ASSET: WorkflowNodeType = WORKFLOW_NODE_ASSET;
-export const NODE_CONDITION: WorkflowNodeType = WORKFLOW_NODE_CONDITION;
+export const NODE_LLM = 'lmstudio.llm';
+export const NODE_ASSET = 'workflow.asset';
+export const NODE_CONDITION = 'workflow.condition';
 // Structural loop nodes (loop body is everything between start and end)
-export const NODE_LOOP_START: WorkflowNodeType = WORKFLOW_NODE_LOOP_START;
-export const NODE_LOOP_END: WorkflowNodeType = WORKFLOW_NODE_LOOP_END;
+export const NODE_LOOP_START = 'workflow.loopStart';
+export const NODE_LOOP_END = 'workflow.loopEnd';
 
 // Legacy loop node (kept for backward compatibility)
-export const NODE_LOOP: WorkflowNodeType = WORKFLOW_NODE_LOOP_LEGACY;
-export const NODE_MERGE: WorkflowNodeType = WORKFLOW_NODE_MERGE;
-export const NODE_EXPORT: WorkflowNodeType = WORKFLOW_NODE_EXPORT;
-export const NODE_PREVIEW: WorkflowNodeType = WORKFLOW_NODE_PREVIEW;
-export const NODE_TOOL: WorkflowNodeType = WORKFLOW_NODE_TOOL;
+export const NODE_LOOP = 'workflow.loop';
+export const NODE_MERGE = 'workflow.merge';
+export const NODE_EXPORT = 'workflow.export';
+export const NODE_PREVIEW = 'ui.preview';
+export const NODE_TOOL = 'workflow.tool';
 
 export const CONDITION_TRUE_PORT = 'cond-true';
 export const CONDITION_FALSE_PORT = 'cond-false';
 
-// WorkflowGraph type moved to shared/types/workflow-graph.types.ts
+export type WorkflowGraph = SharedWorkflowGraph;
 
 export type DiagramNodeData = {
   label: string;
-  nodeType: WorkflowNodeType;
+  nodeType: string;
   profileName: string;
   prompt: string;
 
@@ -59,7 +50,7 @@ export type DiagramNodeData = {
 
   // Structural loopStart fields
   loopMaxIterations?: number;
-  loopMode?: LoopMode;
+  loopMode?: 'while' | 'until' | 'count';
   loopConditionPrompt?: string;
   loopCount?: number;
   previewMaxLines?: number;
@@ -120,15 +111,10 @@ export const DEFAULT_TARGET_PORT = 'port-left';
 export const MERGE_OUT_PORT = 'out';
 export const MERGE_IN_PREFIX = 'in-';
 
-export type DiagramEdge = {
-  id: string;
-  source: string;
-  target: string;
-  sourcePort?: string;
-  targetPort?: string;
+export type DiagramEdge = WorkflowGraphEdge & {
   type?: string;
-  data?: unknown;
-  [key: string]: unknown;
+  data?: JsonObject;
+  [key: string]: JsonValue | undefined;
 };
 
 export type DiagramModel = {
@@ -189,10 +175,10 @@ function normalizeNodes(input: unknown): WorkflowGraph['nodes'] {
 
       return {
         id: String(n.id),
-        type: String(n.type ?? NODE_LLM) as WorkflowNodeType,
+        type: String(n.type ?? NODE_LLM),
         profileName: String(n.profileName ?? ''),
         prompt: String(n.prompt ?? ''),
-        config: (n.config ?? null) as WorkflowGraph['nodes'][number]['config'],
+        config: n.config ?? null,
         inputFrom:
           n.inputFrom === undefined ? null : n.inputFrom === null ? null : String(n.inputFrom),
         position: pos
