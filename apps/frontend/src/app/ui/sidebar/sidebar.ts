@@ -64,8 +64,8 @@ export class Sidebar {
     {
       id: 'open',
       label: i18n('menu.chat.open'),
-      action: (id) => {
-        this.router.navigate(['/', 'chat', id]);
+      action: async (id) => {
+        await this.router.navigate(['/', 'chat', id]);
       },
     },
     {
@@ -130,8 +130,8 @@ export class Sidebar {
     {
       id: 'open',
       label: i18n('menu.folder.open'),
-      action: (id) => {
-        this.router.navigate(['/', 'folder', id]);
+      action: async (id) => {
+        await this.router.navigate(['/', 'folder', id]);
       },
     },
     {
@@ -196,8 +196,8 @@ export class Sidebar {
     {
       id: 'open',
       label: i18n('menu.workflow.open'),
-      action: (id) => {
-        this.router.navigate(['/', 'workflow', id]);
+      action: async (id) => {
+        await this.router.navigate(['/', 'workflow', id]);
       },
     },
     {
@@ -316,7 +316,7 @@ export class Sidebar {
   }
 
   onChatReorder(a: unknown): void {
-    //
+    console.log(a);
   }
 
   openChatMenu(ev: MouseEvent, chatId: string): void {

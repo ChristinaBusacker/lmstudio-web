@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository, type FindOptionsWhere } from 'typeorm';
@@ -364,9 +363,9 @@ export class WorkflowsService {
     patch: Partial<{
       iteration: number;
       status: RunState;
-      inputSnapshot: JsonObject;
+      inputSnapshot: JsonObject | null;
       outputText: string | null;
-      outputJson: JsonObject;
+      outputJson: JsonObject | null;
       primaryArtifactId: string | null;
       error: string | null;
       startedAt: Date | null;

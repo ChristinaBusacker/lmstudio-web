@@ -52,8 +52,8 @@ export class FolderPage implements OnInit {
     {
       id: 'open',
       label: i18n('menu.chat.open'),
-      action: (id) => {
-        this.router.navigate(['/', 'chat', id]);
+      action: async (id) => {
+        await this.router.navigate(['/', 'chat', id]);
       },
     },
     {

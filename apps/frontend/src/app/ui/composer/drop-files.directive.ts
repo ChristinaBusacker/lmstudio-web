@@ -68,7 +68,7 @@ export class DropFilesDirective {
     this.dragActiveChange.emit(v);
 
     // Ensure the host is focusable while dragging so keyboard users can still interact.
-    const host = this.el.nativeElement;
+    const host = this.el.nativeElement as HTMLElement;
     if (v) host.setAttribute('data-drop-active', 'true');
     else host.removeAttribute('data-drop-active');
   }

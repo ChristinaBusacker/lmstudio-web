@@ -53,8 +53,8 @@ export class OverviewPage {
     {
       id: 'open',
       label: i18n('menu.chat.open'),
-      action: (id) => {
-        this.router.navigate(['/', 'chat', id]);
+      action: async (id) => {
+        await this.router.navigate(['/', 'chat', id]);
       },
     },
     {
@@ -121,8 +121,8 @@ export class OverviewPage {
     {
       id: 'open',
       label: i18n('menu.folder.open'),
-      action: (id) => {
-        this.router.navigate(['/', 'folder', id]);
+      action: async (id) => {
+        await this.router.navigate(['/', 'folder', id]);
       },
     },
     {

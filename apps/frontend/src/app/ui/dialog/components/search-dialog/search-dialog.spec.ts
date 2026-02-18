@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
-import { StringInputDialog } from './string-input-dialog';
+import { StringInputDialog } from '../string-input-dialog/string-input-dialog';
 
 describe('StringInputDialog', () => {
   let component: StringInputDialog;

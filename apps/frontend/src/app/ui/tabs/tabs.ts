@@ -68,7 +68,7 @@ export class Tabs implements AfterContentInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     const ro = new ResizeObserver(() => this.updateInkbar());
-    ro.observe(this.hostEl.nativeElement);
+    ro.observe(this.hostEl.nativeElement as HTMLElement);
 
     effect(
       () => {

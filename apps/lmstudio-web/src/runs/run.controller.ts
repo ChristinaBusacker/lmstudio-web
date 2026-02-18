@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -15,6 +14,7 @@ import { ListActiveRunsQueryDto } from './dto/active-runs.dto';
 import { ChatEngineService } from '../chats/chat-engine.service';
 import { CancelRunResponseDto } from './dto/cancel-run-response.dto';
 import { ToolOrchestratorService } from '../tools/tool-orchestrator.service';
+import { RunEntity } from './entities/run.entity';
 
 @ApiTags('Runs')
 @Controller()
@@ -45,7 +45,7 @@ export class RunsController {
       failed: 3,
       canceled: 4,
     };
-    list.sort((a: any, b: any) => {
+    list.sort((a: RunEntity, b: RunEntity) => {
       const pa = priority[a.status] ?? 99;
       const pb = priority[b.status] ?? 99;
       if (pa !== pb) return pa - pb;
@@ -103,7 +103,7 @@ export class RunsController {
       failed: 3,
       canceled: 4,
     };
-    list.sort((a: any, b: any) => {
+    list.sort((a: RunEntity, b: RunEntity) => {
       const pa = priority[a.status] ?? 99;
       const pb = priority[b.status] ?? 99;
       if (pa !== pb) return pa - pb;
@@ -117,7 +117,7 @@ export class RunsController {
     return list.map((r) => this.toDto(r));
   }
 
-  private toDto(r: any): RunStatusDto {
+  private toDto(r: RunEntity): RunStatusDto {
     const toIso = (d: any) => (d instanceof Date ? d.toISOString() : d ? String(d) : null);
 
     return {

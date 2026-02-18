@@ -163,8 +163,8 @@ export class ChatPage implements AfterViewInit, OnInit, OnDestroy {
       const txt = await file.text();
       const bundle = JSON.parse(txt) as ChatExportBundleDto;
       this.chatsApi.importChat(bundle).subscribe({
-        next: (meta) => {
-          this.router.navigate(['/', 'chat', meta.id]);
+        next: async (meta) => {
+          await this.router.navigate(['/', 'chat', meta.id]);
         },
         error: (err) => console.error('[ChatPage] importChat failed', err),
       });

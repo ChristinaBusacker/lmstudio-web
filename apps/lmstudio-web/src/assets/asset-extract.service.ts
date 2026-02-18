@@ -64,14 +64,14 @@ async function tryOcrImage(bytes: Buffer): Promise<{ text: string; warnings: str
 
   try {
     // Cause: Typescript isnt able to understand that this is typed now
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
     const Tesseract = await importTesseract(); // <- typed
 
     const lang = (process.env.LMSTUDIO_WEB_OCR_LANG ?? 'eng').trim() || 'eng';
     // Cause: see cause on top. Its a follow error
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+
     const res = await Tesseract.recognize(bytes, lang);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
     const text = String(res?.data?.text ?? '').trim();
 
     if (!text) return { text: '', warnings: ['OCR produced empty text'] };
