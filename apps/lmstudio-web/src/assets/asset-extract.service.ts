@@ -4,7 +4,7 @@ import mammoth from 'mammoth';
 import { pdfBytesToText } from '@backend/src/utils/pdfBytesToText';
 import { AssetsService } from './assets.service';
 import { TesseractModule } from '@frontend/src/app/core/types/tesseract.types';
-import { JsonObject } from '../workflows/engine/typed-access';
+import { JsonObject } from '@shared/index';
 
 export type AssetExtractKind =
   | 'text'

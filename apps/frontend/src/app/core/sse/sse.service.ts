@@ -19,7 +19,7 @@ import type {
   WorkflowRunStatus,
 } from '../state/workflows/workflow.models';
 import { ToastService } from '../../ui/toast/toast.service';
-import type { JsonRecord } from '../utils/typed-access';
+import type { JsonRecord } from '@shared/index';
 import {
   getArray,
   getBoolean,

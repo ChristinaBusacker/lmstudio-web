@@ -1,4 +1,4 @@
-import { getNumber, getPath, getString, isJsonObject } from './typed-access';
+import { getNumber, getPath, getString, isJsonObject } from '@shared/index';
 
 export interface WorkflowLoopContext {
   index?: number;

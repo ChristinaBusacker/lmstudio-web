@@ -5,7 +5,7 @@ import { SettingsService } from '../settings/settings.service';
 import { MessageVariantsService } from '../chats/message-variants.service';
 import { MessagesService } from '../chats/messages.service';
 import { ConfigService } from '@nestjs/config';
-import { JsonObject } from '../workflows/engine/typed-access';
+import { JsonObject } from '@shared/index';
 
 /**
  * Orchestrates "chat actions" that span multiple domains:

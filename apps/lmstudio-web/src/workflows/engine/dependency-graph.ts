@@ -1,5 +1,5 @@
 import type { WorkflowGraph } from './graph-types';
-import { getString } from './typed-access';
+import { getString } from '@shared/index';
 import { buildWorkflowGraphIndex } from './graph-normalizer';
 
 export function extractNodeRefs(prompt: string): string[] {

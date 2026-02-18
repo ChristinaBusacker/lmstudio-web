@@ -6,7 +6,7 @@ import type {
   WorkflowNodeType,
 } from './graph-types';
 import { EMPTY_JSON_OBJECT } from '@shared/types/workflow-graph.types';
-import { asJsonArray, asJsonObject, getString, isJsonObject } from './typed-access';
+import { asJsonArray, asJsonObject, getString, isJsonObject } from '@shared/index';
 
 type RawRecord = Record<string, unknown>;
 
