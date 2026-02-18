@@ -39,7 +39,7 @@ export class ModelsService {
 
     try {
       res = await fetch(url, { method: 'GET' });
-    } catch (e: unknown) {
+    } catch {
       throw new ServiceUnavailableException({
         code: 'LMSTUDIO_UNREACHABLE',
         message: 'Unable to connect to LM Studio.',

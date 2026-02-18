@@ -2,13 +2,11 @@
 import { Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import type { LmMessage, RunParams, StreamDelta } from '../common/types/llm.types';
 import { ConfigService } from '@nestjs/config';
-
+import { JsonArray, JsonObject } from '@shared/types/json';
 interface StreamResult {
   content: string;
-  stats?: any;
+  stats?: JsonObject;
 }
-
-type AnyJson = Record<string, any>;
 
 @Injectable()
 export class ChatEngineService implements OnModuleDestroy {
@@ -27,15 +25,15 @@ export class ChatEngineService implements OnModuleDestroy {
     return messages.map((m) => `${m.role.toUpperCase()}:\n${m.content}`).join('\n\n');
   }
 
-  private getStructuredConfig(params: RunParams): AnyJson | null {
-    const so: any = (params as any)?.structuredOutput;
+  private getStructuredConfig(params: RunParams): JsonObject | null {
+    const so = params?.structuredOutput;
     if (!so || typeof so !== 'object') return null;
     if (so.enabled !== true) return null;
 
     // For strict, schema-enforced output, a JSON Schema object is required.
     if (!so.schema || typeof so.schema !== 'object') return null;
 
-    return so as AnyJson;
+    return so as JsonObject;
   }
 
   async *streamChat(
@@ -70,7 +68,7 @@ export class ChatEngineService implements OnModuleDestroy {
     controller: AbortController,
   ): AsyncGenerator<StreamDelta, StreamResult, void> {
     let full = '';
-    let stats: any;
+    const stats: JsonObject = {};
 
     // IMPORTANT: local line buffer (not shared across runs)
     let lineBuffer = '';
@@ -80,7 +78,7 @@ export class ChatEngineService implements OnModuleDestroy {
     // LM Studio: reasoning separation is controlled by `reasoning: { effort: ... }` for gpt-oss.
     const isGptOss = typeof model === 'string' && model.startsWith('openai/gpt-oss');
 
-    const body: AnyJson = {
+    const body: JsonObject = {
       model,
       input: this.flattenMessages(messages),
       temperature: params.temperature,
@@ -90,7 +88,7 @@ export class ChatEngineService implements OnModuleDestroy {
     };
 
     if (isGptOss) {
-      body.reasoning = { effort: (params as any).reasoningEffort ?? 'medium' };
+      body.reasoning = { effort: params.reasoningEffort ?? 'medium' };
     }
 
     let res: Response;
@@ -140,9 +138,9 @@ export class ChatEngineService implements OnModuleDestroy {
           return { content: full, stats };
         }
 
-        let payload: any;
+        let payload: JsonObject;
         try {
-          payload = JSON.parse(line.slice(6));
+          payload = JSON.parse(line.slice(6)) as JsonObject;
         } catch {
           continue;
         }
@@ -177,7 +175,9 @@ export class ChatEngineService implements OnModuleDestroy {
 
         // Completed
         if (payload?.type === 'response.completed') {
-          stats = payload?.response?.usage ?? payload?.response ?? null;
+          if (payload.response) {
+            stats.response = payload.response;
+          }
           continue;
         }
       }
@@ -193,18 +193,20 @@ export class ChatEngineService implements OnModuleDestroy {
   private async *streamChatCompletions(
     messages: LmMessage[],
     params: RunParams,
-    structured: AnyJson,
+    structured: JsonObject,
     controller: AbortController,
   ): AsyncGenerator<StreamDelta, StreamResult, void> {
     let full = '';
-    let stats: any;
+    const stats: JsonObject = {};
 
     // IMPORTANT: local line buffer (not shared across runs)
     let lineBuffer = '';
 
-    const body: AnyJson = {
+    const messagesConverted = messages as unknown[];
+
+    const body: JsonObject = {
       model: params.modelKey,
-      messages,
+      messages: messagesConverted as JsonArray,
       temperature: params.temperature,
       max_tokens: params.maxTokens,
       top_p: params.topP,
@@ -265,14 +267,15 @@ export class ChatEngineService implements OnModuleDestroy {
           return { content: full, stats };
         }
 
-        let payload: any;
+        let payload: JsonObject;
         try {
-          payload = JSON.parse(line.slice(6));
+          payload = JSON.parse(line.slice(6)) as JsonObject;
         } catch {
           continue;
         }
 
         // Typical OpenAI-compatible delta for chat.completions streaming
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const d = payload?.choices?.[0]?.delta?.content;
         if (typeof d === 'string' && d.length > 0) {
           full += d;
@@ -283,7 +286,7 @@ export class ChatEngineService implements OnModuleDestroy {
         // Usage can appear on the last chunk in some implementations
         const usage = payload?.usage;
         if (usage && typeof usage === 'object') {
-          stats = usage;
+          stats.usage = usage;
         }
       }
     }

@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { JsonObject } from '@shared/index';
 
 export class ExportedVariantDto {
   @ApiProperty() id!: string;
@@ -6,7 +7,8 @@ export class ExportedVariantDto {
   @ApiProperty() isActive!: boolean;
   @ApiProperty() content!: string;
   @ApiProperty({ nullable: true }) reasoning!: string | null;
-  @ApiProperty({ nullable: true, description: 'Arbitrary stats payload' }) stats!: any;
+  @ApiProperty({ nullable: true, description: 'Arbitrary stats payload' })
+  stats!: JsonObject | null;
   @ApiProperty() createdAt!: string;
 }
 

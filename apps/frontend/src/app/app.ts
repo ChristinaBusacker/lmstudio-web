@@ -31,10 +31,8 @@ export class App {
   @ViewChild('toggle') sidebarToggle!: ElementRef<HTMLButtonElement>;
 
   constructor() {
-    // Keep the theme class on <body> in sync with the persisted user preference.
     this.store.select(UserPreferencesState.theme).subscribe((theme) => {
       const body = this.document.body;
-      // Remove any previously applied theme classes.
       for (const c of Array.from(body.classList)) {
         if (c.startsWith('theme-')) body.classList.remove(c);
       }

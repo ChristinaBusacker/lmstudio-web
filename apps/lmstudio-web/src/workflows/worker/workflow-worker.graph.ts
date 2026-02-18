@@ -5,15 +5,22 @@
  */
 
 export type Graph = {
-  nodes?: any[];
+  nodes?: GraphNode[];
   edges?: Array<{
     id?: string;
     source?: string;
     target?: string;
     sourcePort?: string;
     targetPort?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   }>;
+};
+
+export type GraphNode = {
+  id?: string;
+  prompt?: string;
+  inputFrom?: string;
+  [key: string]: unknown;
 };
 
 export type Edge = {
@@ -63,7 +70,7 @@ function normalizeEdges(graph: Graph, nodeIds: Set<string>): Edge[] {
   return deduped.sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function deriveEdgesFromLegacyInputFrom(nodes: any[], nodeIds: Set<string>): Edge[] {
+function deriveEdgesFromLegacyInputFrom(nodes: GraphNode[], nodeIds: Set<string>): Edge[] {
   const out: Edge[] = [];
   for (const n of nodes) {
     const target = String(n?.id ?? '').trim();
@@ -117,9 +124,9 @@ export function buildDependencies(graph: Graph) {
     if (!incoming.has(e.target)) incoming.set(e.target, []);
     incoming.get(e.target)!.push(e);
   }
-  for (const [k, arr] of incoming) arr.sort((a, b) => a.id.localeCompare(b.id));
+  for (const [, arr] of incoming) arr.sort((a, b) => a.id.localeCompare(b.id));
 
-  const nodeById = new Map<string, any>();
+  const nodeById = new Map<string, GraphNode>();
   for (const n of nodes) if (n?.id) nodeById.set(String(n.id), n);
 
   const deps = new Map<string, Set<string>>();

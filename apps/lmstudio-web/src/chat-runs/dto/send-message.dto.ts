@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsObject, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 import type { ChatRunSendMessageRequest } from '@shared/contracts';
+import { JsonObject } from '@backend/src/workflows/engine/typed-access';
 
 export class SendMessageDto implements ChatRunSendMessageRequest {
   @ApiProperty({ example: 'Explain NestJS modules briefly.' })
@@ -32,5 +33,5 @@ export class SendMessageDto implements ChatRunSendMessageRequest {
   })
   @IsOptional()
   @IsObject()
-  settingsSnapshot?: Record<string, any>;
+  settingsSnapshot?: JsonObject;
 }

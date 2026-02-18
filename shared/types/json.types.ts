@@ -1,7 +1,7 @@
 /**
  * JSON-compatible primitive values
  */
-export type JsonPrimitive = string | number | boolean | null;
+export type JsonPrimitive = string | number | boolean | null | undefined;
 
 /**
  * Any JSON-compatible value

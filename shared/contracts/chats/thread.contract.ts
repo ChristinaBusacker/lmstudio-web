@@ -15,7 +15,7 @@ export interface MessageVariant {
   isActive: boolean;
   content: string;
   reasoning: string | null;
-  stats: JsonObject;
+  stats: JsonObject | null;
   createdAt: string;
 }
 
@@ -25,7 +25,7 @@ export interface ThreadVariant {
   isActive: boolean;
   content: string;
   reasoning?: string | null;
-  stats?: JsonObject;
+  stats?: JsonObject | null;
   createdAt: string;
 }
 

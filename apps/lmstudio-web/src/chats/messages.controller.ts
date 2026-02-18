@@ -29,6 +29,7 @@ import {
 } from './dto/message-variants.dto';
 
 import { SoftDeleteMessageResponseDto } from './dto/delete-message-response.dto';
+import { MessageVariantEntity } from './entities/message-variant.entity';
 
 @ApiTags('Messages')
 @Controller('messages')
@@ -104,7 +105,7 @@ export class MessagesController {
    * Maps an entity-like object to a stable API DTO.
    * Keeps OpenAPI honest and decouples DB columns from API contract.
    */
-  private toVariantDto(v: any): MessageVariantDto {
+  private toVariantDto(v: MessageVariantEntity): MessageVariantDto {
     return {
       id: String(v.id),
       messageId: String(v.messageId),
@@ -112,7 +113,7 @@ export class MessagesController {
       isActive: Boolean(v.isActive),
       content: String(v.content ?? ''),
       reasoning: v.reasoning ?? null,
-      stats: v.stats ?? null,
+      stats: v.stats,
       createdAt: v.createdAt instanceof Date ? v.createdAt.toISOString() : String(v.createdAt),
     };
   }

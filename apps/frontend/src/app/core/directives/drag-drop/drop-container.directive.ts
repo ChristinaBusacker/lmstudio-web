@@ -180,7 +180,6 @@ export class DropContainerDirective implements OnDestroy {
       return;
     }
 
-    // Not on any target
     this.clearTargetHover();
 
     // 2) Inside THIS container -> show reorder placeholder

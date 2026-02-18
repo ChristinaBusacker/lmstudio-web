@@ -44,6 +44,8 @@ import { WORKFLOW_NODE_TEMPLATE } from './workflow-diagram.adapter';
 import { WorkflowDiagramFacade } from './workflow-diagram.facade';
 import { WorkflowEditorStateService } from './workflow-editor-state.service';
 import { I18nPipe } from '../../core/i18n/i18n.pipe';
+import { ImportWorkflowBundleRequest } from '@shared/contracts';
+import { NodeModel } from '../../core/types/node-model.type';
 
 function isEditableTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -153,13 +155,12 @@ export class WorkflowPage {
 
     this.workflow$
       .pipe(
-        filter((wf): wf is any => !!wf),
+        filter((wf) => !!wf),
         filter((wf) => wf.id === this.workflowId),
         distinctUntilChanged((a, b) => a.id === b.id && a.updatedAt === b.updatedAt),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((wf) => {
-        // Defer model update to avoid NG0100
         queueMicrotask(() => {
           runInInjectionContext(this.envInjector, () => {
             this.model = this.facade.loadWorkflowGraph(wf).model;
@@ -245,7 +246,6 @@ export class WorkflowPage {
         return;
       }
 
-      // Any unknown action => do nothing.
       return;
     }
 
@@ -268,7 +268,7 @@ export class WorkflowPage {
     const workflowId = this.workflowId;
     if (!workflowId) return;
 
-    const wf = this.store.selectSnapshot(WorkflowsState.selectedWorkflow) as any;
+    const wf = this.store.selectSnapshot(WorkflowsState.selectedWorkflow);
     const baseName = (wf?.name ? String(wf.name) : `workflow-${workflowId}`)
       .replace(/[^\w\-]+/g, '_')
       .trim();
@@ -292,7 +292,7 @@ export class WorkflowPage {
 
     try {
       const text = await file.text();
-      const bundle = JSON.parse(text);
+      const bundle = JSON.parse(text) as ImportWorkflowBundleRequest;
 
       this.workflowApi.importWorkflowBundle(bundle).subscribe({
         next: (wf) => {
@@ -326,7 +326,7 @@ export class WorkflowPage {
     if (mod && key === 'a') {
       stop();
 
-      const model = this.model as any;
+      const model = this.model as NodeModel;
       const nodes = model.nodes().map((n) => n.id);
       const edges = model.edges().map((e) => e.id);
 

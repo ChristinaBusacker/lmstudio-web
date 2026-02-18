@@ -22,11 +22,11 @@ export function i18n(key: string): string {
   if (_envInjector) {
     return runInInjectionContext(_envInjector, () => {
       const store = inject(Store);
-      return store.selectSnapshot(I18nState.value(key));
+      return store.selectSnapshot<string>(I18nState.value(key));
     });
   }
 
   // Fallback: only works if the caller is already in an injection context.
   const store = inject(Store);
-  return store.selectSnapshot(I18nState.value(key));
+  return store.selectSnapshot<string>(I18nState.value(key));
 }

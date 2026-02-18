@@ -3,10 +3,10 @@ import {
   AfterViewInit,
   ChangeDetectionStrategy,
   Component,
-  OnDestroy,
-  OnInit,
   DestroyRef,
   ElementRef,
+  OnDestroy,
+  OnInit,
   ViewChild,
   computed,
   effect,
@@ -14,8 +14,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngxs/store';
 
 import { SseService } from '../../core/sse/sse.service';
@@ -23,12 +22,12 @@ import { CloseChat, OpenChat } from '../../core/state/chat-detail/chat-detail.ac
 import { ChatDetailState } from '../../core/state/chat-detail/chat-detail.state';
 
 import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs';
-import { FoldersState } from '../../core/state/folders/folders.state';
-import { ChatsApi } from '../../core/api/chats.api';
-import { Composer } from '../../ui/composer/composer';
-import { Message } from '../../ui/message/message';
-import { Icon } from '../../ui/icon/icon';
+import { ChatExportBundleDto, ChatsApi } from '../../core/api/chats.api';
 import { I18nPipe } from '../../core/i18n/i18n.pipe';
+import { FoldersState } from '../../core/state/folders/folders.state';
+import { Composer } from '../../ui/composer/composer';
+import { Icon } from '../../ui/icon/icon';
+import { Message } from '../../ui/message/message';
 
 @Component({
   selector: 'app-chat-page',
@@ -68,8 +67,6 @@ export class ChatPage implements AfterViewInit, OnInit, OnDestroy {
 
   constructor() {
     effect(() => {
-      const _len = this.messages().length;
-      const _last = this.lastMessageKey();
       queueMicrotask(() => this.scrollToBottom(false));
     });
   }
@@ -164,7 +161,7 @@ export class ChatPage implements AfterViewInit, OnInit, OnDestroy {
     if (!file) return;
     try {
       const txt = await file.text();
-      const bundle = JSON.parse(txt);
+      const bundle = JSON.parse(txt) as ChatExportBundleDto;
       this.chatsApi.importChat(bundle).subscribe({
         next: (meta) => {
           this.router.navigate(['/', 'chat', meta.id]);

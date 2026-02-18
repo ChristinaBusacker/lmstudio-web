@@ -144,8 +144,8 @@ export class Tabs implements AfterContentInit, AfterViewInit {
     const i = this.selectedIndex();
 
     const btn = btns[i]?.nativeElement;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const header = this.hostEl.nativeElement.querySelector('.tabs__header') as HTMLElement | null;
+    const el = this.hostEl.nativeElement as HTMLElement;
+    const header = el.querySelector<HTMLElement>('.tabs__header');
     if (!btn || !header) return;
 
     const headerRect = header.getBoundingClientRect();

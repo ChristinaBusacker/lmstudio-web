@@ -44,7 +44,7 @@ export class ChatContextBuilder {
       const content = v?.content ?? '';
       if (!content) continue;
 
-      out.push({ role: m.role as any, content });
+      out.push({ role: m.role, content });
     }
 
     return out;

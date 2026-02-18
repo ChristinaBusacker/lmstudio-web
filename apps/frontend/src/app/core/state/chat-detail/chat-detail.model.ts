@@ -1,4 +1,5 @@
 import type { RunState, ThreadMessage } from '@shared/contracts';
+import { JsonObject } from '@shared/index';
 
 export interface ChatDetailStateModel {
   chatId: string | null;
@@ -25,7 +26,7 @@ export interface ChatDetailStateModel {
     {
       runId: string;
       status: RunState;
-      stats?: any;
+      stats?: JsonObject | null;
       error?: string | null;
       updatedAt: string;
     }
@@ -33,4 +34,11 @@ export interface ChatDetailStateModel {
 
   lastSyncAt: string | null;
   error: string | null;
+}
+
+export interface SendMessagePayload {
+  content: string;
+  clientRequestId: string;
+  settingsProfileId?: string;
+  settingsSnapshot?: JsonObject;
 }

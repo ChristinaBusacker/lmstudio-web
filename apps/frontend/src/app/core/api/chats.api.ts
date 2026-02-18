@@ -8,6 +8,7 @@ import type {
   RenameChatRequest,
   SoftDeleteChatResponse,
 } from '@shared/contracts';
+import { JsonObject } from '@shared/index';
 import { Observable } from 'rxjs';
 
 export interface ChatExportBundleDto {
@@ -30,7 +31,7 @@ export interface ChatExportBundleDto {
       isActive: boolean;
       content: string;
       reasoning: string | null;
-      stats: any;
+      stats: JsonObject | null;
       createdAt: string;
     }>;
   }>;

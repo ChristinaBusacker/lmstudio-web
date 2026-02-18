@@ -31,6 +31,8 @@ export interface HeartbeatPayload {
 /** Generic "something changed" payload used for UI refresh triggers. */
 export interface ChangedEventPayload {
   reason?: string;
+  fields?: string[];
+  patch?: JsonObject;
 }
 
 export interface WorkflowNodeRunUpsertPayload {
@@ -41,7 +43,7 @@ export interface WorkflowNodeRunUpsertPayload {
   outputJson?: JsonObject;
   inputSnapshot?: JsonObject;
   nodeId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'stale';
+  status: RunState;
   error?: string | null;
   startedAt?: string | null;
   finishedAt?: string | null;

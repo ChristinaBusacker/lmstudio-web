@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Body,
   Controller,
@@ -23,6 +22,7 @@ import { ChatFolderDto } from './dto/folders/folder.dto';
 import { CreateChatFolderDto } from './dto/folders/create-folder.dto';
 import { UpdateChatFolderDto } from './dto/folders/update-folder.dto';
 import { DeleteChatFolderResponseDto } from './dto/folders/delete-folder-response.dto';
+import { ChatFolderEntity } from './entities/chat-folder.entity';
 
 @ApiTags('Folders')
 @Controller('folders')
@@ -75,7 +75,7 @@ export class FoldersController {
     };
   }
 
-  private toDto = (f: any): ChatFolderDto => ({
+  private toDto = (f: ChatFolderEntity): ChatFolderDto => ({
     id: String(f.id),
     name: String(f.name),
     createdAt: f.createdAt instanceof Date ? f.createdAt.toISOString() : String(f.createdAt),

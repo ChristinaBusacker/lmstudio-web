@@ -278,7 +278,6 @@ export class WorkflowsState {
 
     return this.api.startRun(action.workflowId, action.payload).pipe(
       tap((run) => {
-        // immediate optimistic insert (SSE will follow anyway)
         const s = ctx.getState();
         ctx.patchState({
           runsById: { ...s.runsById, [run.id]: run },

@@ -14,6 +14,6 @@ export class I18nPipe implements PipeTransform {
   private readonly store = inject(Store);
 
   transform(key: string): Observable<string> {
-    return this.store.select(I18nState.value(key));
+    return this.store.select<string>(I18nState.value(key));
   }
 }

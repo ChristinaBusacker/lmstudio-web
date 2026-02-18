@@ -5,6 +5,7 @@ import type {
   ActivateVariantRequest,
   MessageVariant,
 } from '@shared/contracts';
+import { JsonObject } from '@shared/index';
 
 export class CreateVariantDto implements CreateVariantRequest {
   @ApiProperty({ description: 'User-visible content for the new variant' })
@@ -44,7 +45,7 @@ export class MessageVariantDto implements MessageVariant {
     nullable: true,
     additionalProperties: true,
   })
-  stats!: any;
+  stats!: JsonObject | null;
 
   @ApiProperty({ type: String, format: 'date-time' })
   createdAt!: string;

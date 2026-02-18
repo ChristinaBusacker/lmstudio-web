@@ -1,32 +1,33 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  DestroyRef,
   inject,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngxs/store';
 import { combineLatest, distinctUntilChanged, filter, map, tap } from 'rxjs';
 
-import { WorkflowRunList } from '../workflow-run-list/workflow-run-list';
-import { WorkflowRunDetailsComponent } from '../workflow-run-details/workflow-run-details';
+import { SseService } from '@frontend/src/app/core/sse/sse.service';
 import {
+  LoadWorkflowRunDetails,
   LoadWorkflowRuns,
   SetSelectedRun,
-  LoadWorkflowRunDetails,
 } from '@frontend/src/app/core/state/workflows/workflow.actions';
-import { WorkflowsState } from '@frontend/src/app/core/state/workflows/workflow.state';
 import type {
+  WorkflowGraph,
+  WorkflowNodeRun,
   WorkflowRun,
   WorkflowRunDetails,
-  WorkflowNodeRun,
 } from '@frontend/src/app/core/state/workflows/workflow.models';
-import { TabsModule } from '@frontend/src/app/ui/tabs/tabs-module';
-import { SseService } from '@frontend/src/app/core/sse/sse.service';
+import { WorkflowsState } from '@frontend/src/app/core/state/workflows/workflow.state';
 import { Icon } from '@frontend/src/app/ui/icon/icon';
+import { TabsModule } from '@frontend/src/app/ui/tabs/tabs-module';
+import { WorkflowRunDetailsComponent } from '../workflow-run-details/workflow-run-details';
+import { WorkflowRunList } from '../workflow-run-list/workflow-run-list';
 
 type RunVm = WorkflowRun & {
   progress: number | null;
@@ -43,7 +44,7 @@ type RunVm = WorkflowRun & {
 export class WorkflowRunListContainer {
   private readonly store = inject(Store);
   private readonly sse = inject(SseService);
-  private readonly destroyRef;
+  private readonly destroyRef: DestroyRef;
   private cdr = inject(ChangeDetectorRef);
 
   private lastSelectedRunId?: string;
@@ -144,7 +145,7 @@ export class WorkflowRunListContainer {
 
   private countProcessedNodes(nodeRuns: WorkflowNodeRun[]): number {
     const done = new Set<string>();
-    for (const nr of nodeRuns as any[]) {
+    for (const nr of nodeRuns) {
       const status = String(nr?.status ?? '');
       if (status !== 'completed' && status !== 'failed') continue;
       const nodeId = String(nr?.nodeId ?? '').trim();
@@ -154,13 +155,11 @@ export class WorkflowRunListContainer {
     return done.size;
   }
 
-  private countExecutableNodes(graph: any): number {
-    const nodes: any[] = Array.isArray(graph?.nodes) ? graph.nodes : [];
+  private countExecutableNodes(graph: WorkflowGraph): number {
+    const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
 
-    // Minimal rule-set: exclude preview nodes from "work"
     return nodes.filter((n) => {
-      const t = String(n?.type ?? n?.nodeType ?? n?.data?.nodeType ?? '');
-      if (t === 'ui.preview') return false;
+      if (n.type === 'ui.preview') return false;
       return true;
     }).length;
   }

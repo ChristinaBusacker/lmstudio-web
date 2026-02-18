@@ -108,7 +108,7 @@ export class ChatsState {
   }
 
   @Action(CreateChat)
-  create(ctx: StateContext<any>, action: CreateChat) {
+  create(ctx: StateContext<ChatsStateModel>, action: CreateChat) {
     return this.api.create(action.dto).pipe(
       tap((created) => {
         void this.router.navigate(['/chat', created.id]);

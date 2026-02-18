@@ -4,10 +4,11 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { catchError, throwError } from 'rxjs';
 import { ToastService } from '../../ui/toast/toast.service';
+import { JsonObject } from '@shared/index';
 
 type ServerErrorBody = {
   statusCode?: number;
-  message?: any;
+  message?: JsonObject;
   error?: string;
   code?: string;
   baseUrl?: string;

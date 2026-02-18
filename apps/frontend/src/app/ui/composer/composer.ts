@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import {
   AfterViewInit,
@@ -29,6 +28,7 @@ import { Icon } from '../icon/icon';
 import { ToastService } from '../toast/toast.service';
 import { DropFilesDirective } from './drop-files.directive';
 import { I18nPipe } from '../../core/i18n/i18n.pipe';
+import { SendMessagePayload } from '../../core/state/chat-detail/chat-detail.model';
 
 @Component({
   selector: 'app-composer',
@@ -155,6 +155,7 @@ export class Composer implements AfterViewInit {
     if (this.disabled) return;
 
     // IME / composition: niemals auf Enter senden
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if ((event as any).isComposing) return;
 
     if (event.key !== 'Enter') return;
@@ -234,6 +235,9 @@ export class Composer implements AfterViewInit {
 
         this.chatId = created.id;
         this.send();
+
+        // Cause: I start routing on purpose and downt wait for it
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.router.navigate(['/chat', created.id]);
       }),
       catchError((err) => {
@@ -269,7 +273,7 @@ export class Composer implements AfterViewInit {
     this.attachments = [];
     this.uploadError = null;
 
-    const options: any = {
+    const options: SendMessagePayload = {
       content,
       clientRequestId,
     };

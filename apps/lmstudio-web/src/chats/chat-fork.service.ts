@@ -73,7 +73,7 @@ export class ChatForkService {
     let prevNewId: string | null = null;
 
     for (const src of chain) {
-      const created = await this.msgRepo.save(
+      const created = (await this.msgRepo.save(
         this.msgRepo.create({
           chatId: dstChat.id,
           role: src.role,
@@ -81,7 +81,7 @@ export class ChatForkService {
           deletedAt: null,
           editedAt: src.editedAt ?? null,
         }),
-      );
+      )) as MessageEntity;
       idMap.set(src.id, created.id);
       prevNewId = created.id;
     }
@@ -93,7 +93,7 @@ export class ChatForkService {
     const srcMessageIds = chain.map((m) => m.id);
     const variants = await this.variantRepo.find({
       where: { messageId: In(srcMessageIds) },
-      order: { messageId: 'ASC' as any, variantIndex: 'ASC' as any, createdAt: 'ASC' as any },
+      order: { messageId: 'ASC', variantIndex: 'ASC', createdAt: 'ASC' },
     });
 
     if (variants.length) {

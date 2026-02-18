@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnChanges, inject } from '@angular/core';
 import type {
@@ -22,7 +21,7 @@ export class WorkflowRunDetailsComponent implements OnChanges {
 
   @Input({ required: true }) details: WorkflowRunDetails | null = null;
 
-  exports: any[] = [];
+  exports: Array<Artifact | undefined> = [];
 
   ngOnChanges(): void {
     if (this.details) {
@@ -65,7 +64,7 @@ export class WorkflowRunDetailsComponent implements OnChanges {
   }
 
   private isExporterNodeRun(nr: WorkflowNodeRun): boolean {
-    const inputSnapshot = nr.inputSnapshot as any;
+    const inputSnapshot = nr.inputSnapshot;
     if (!inputSnapshot) {
       return false;
     }

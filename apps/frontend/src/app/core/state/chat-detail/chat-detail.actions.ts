@@ -1,4 +1,6 @@
 import type { EnqueueRunResponseDto } from '../../api/chat-runs.api';
+import type { JsonObject } from '@shared/types/json';
+import { SendMessagePayload } from './chat-detail.model';
 
 export class OpenChat {
   static readonly type = '[ChatDetail] Open Chat';
@@ -21,12 +23,7 @@ export class SendMessage {
   static readonly type = '[ChatDetail] Send Message';
   constructor(
     public readonly chatId: string,
-    public readonly payload: {
-      content: string;
-      clientRequestId: string;
-      settingsProfileId?: string;
-      settingsSnapshot?: Record<string, any>;
-    },
+    public readonly payload: SendMessagePayload,
   ) {}
 }
 
@@ -66,7 +63,7 @@ export class ApplyRunStatusFromSse {
       chatId: string;
       runId: string;
       status: 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
-      stats?: any;
+      stats?: JsonObject;
       error?: string | null;
     },
   ) {}

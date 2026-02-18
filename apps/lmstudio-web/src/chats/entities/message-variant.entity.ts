@@ -8,6 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { MessageEntity } from './message.entity';
+import { JsonObject } from '@shared/index';
 
 @Entity('message_variant')
 @Index(['messageId', 'variantIndex'], { unique: true })
@@ -37,7 +38,7 @@ export class MessageVariantEntity {
   reasoning!: string | null;
 
   @Column({ type: 'simple-json', nullable: true })
-  stats!: any | null;
+  stats!: JsonObject | null;
 
   @CreateDateColumn()
   createdAt!: Date;

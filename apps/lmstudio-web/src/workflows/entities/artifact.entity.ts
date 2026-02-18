@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { JsonObject } from '../engine/typed-access';
 
 export type ArtifactKind = 'json' | 'text' | 'image' | 'binary';
 
@@ -28,7 +29,7 @@ export class ArtifactEntity {
   contentText!: string | null;
 
   @Column({ type: 'simple-json', nullable: true })
-  contentJson!: any | null;
+  contentJson!: JsonObject | null;
 
   /**
    * Later: store large blobs on disk/S3 and keep the path here.

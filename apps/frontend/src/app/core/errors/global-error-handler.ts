@@ -2,6 +2,7 @@
 
 import { ErrorHandler, Injectable, NgZone, inject } from '@angular/core';
 import { ToastService } from '../../ui/toast/toast.service';
+import { getString, isRecord } from '../utils/typed-access';
 
 @Injectable()
 export class GlobalErrorHandler implements ErrorHandler {
@@ -24,10 +25,19 @@ export class GlobalErrorHandler implements ErrorHandler {
   private toMessage(error: unknown): string {
     if (!error) return 'Unknown error';
 
+    if (error instanceof Error) return error.message;
+
     // Angular sometimes wraps errors.
-    const anyErr = error as any;
-    const maybeMessage = anyErr?.message ?? anyErr?.rejection?.message;
-    if (typeof maybeMessage === 'string' && maybeMessage.trim()) return maybeMessage;
+    if (isRecord(error)) {
+      const direct = getString(error, 'message');
+      if (direct && direct.trim()) return direct;
+
+      const rejection = error['rejection'];
+      if (isRecord(rejection)) {
+        const rejMsg = getString(rejection, 'message');
+        if (rejMsg && rejMsg.trim()) return rejMsg;
+      }
+    }
 
     try {
       return JSON.stringify(error);

@@ -3,6 +3,8 @@ import { fileTypeFromBuffer } from 'file-type';
 import mammoth from 'mammoth';
 import { pdfBytesToText } from '@backend/src/utils/pdfBytesToText';
 import { AssetsService } from './assets.service';
+import { TesseractModule } from '@frontend/src/app/core/types/tesseract.types';
+import { JsonObject } from '../workflows/engine/typed-access';
 
 export type AssetExtractKind =
   | 'text'
@@ -42,23 +44,41 @@ function looksLikeScannedPdf(text: string): boolean {
   return t.length < 40;
 }
 
+function normalizeTesseractModule(mod: unknown): TesseractModule {
+  // dynamic import in TS/webpack/vite kann { default: ... } oder direkt das Export-Objekt liefern
+  if (mod && typeof mod === 'object') {
+    const m = mod as Record<string, unknown>;
+    const candidate = (m['default'] ?? m) as unknown;
+    return candidate as TesseractModule;
+  }
+  return mod as TesseractModule;
+}
+
+export async function importTesseract(): Promise<TesseractModule> {
+  const modUnknown: unknown = await import('tesseract.js');
+  return normalizeTesseractModule(modUnknown);
+}
+
 async function tryOcrImage(bytes: Buffer): Promise<{ text: string; warnings: string[] } | null> {
   if (process.env.LMSTUDIO_WEB_ENABLE_OCR !== 'true') return null;
 
   try {
-    // Dynamic import so installs that don't want OCR can still run.
-    // tesseract.js is WASM-based and does not require an external binary.
-    const mod: any = await import('tesseract.js');
-    const Tesseract = mod?.default ?? mod;
-    if (!Tesseract?.recognize) return null;
+    // Cause: Typescript isnt able to understand that this is typed now
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const Tesseract = await importTesseract(); // <- typed
 
     const lang = (process.env.LMSTUDIO_WEB_OCR_LANG ?? 'eng').trim() || 'eng';
+    // Cause: see cause on top. Its a follow error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const res = await Tesseract.recognize(bytes, lang);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const text = String(res?.data?.text ?? '').trim();
+
     if (!text) return { text: '', warnings: ['OCR produced empty text'] };
     return { text, warnings: [] };
-  } catch (e: any) {
-    return { text: '', warnings: [`OCR failed: ${String(e?.message ?? e)}`] };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { text: '', warnings: [`OCR failed: ${msg}`] };
   }
 }
 
@@ -108,7 +128,7 @@ export class AssetExtractService {
 
       if (lower.endsWith('.json') || mimeType === 'application/json') {
         try {
-          const parsed = JSON.parse(text);
+          const parsed = JSON.parse(text) as JsonObject;
           baseStats.extractMs = Date.now() - started;
           return {
             kind: 'json',

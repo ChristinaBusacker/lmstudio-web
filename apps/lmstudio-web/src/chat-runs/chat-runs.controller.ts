@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Body, Controller, Param, Post } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -12,6 +11,7 @@ import { ChatRunsService } from './chat-runs.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { RegenerateDto } from './dto/regenerate.dto';
 import { EnqueueRunResponseDto } from './dto/chat-run-responses.dto';
+import { RunEntity } from '../runs/entities/run.entity';
 
 @ApiTags('Chat Runs')
 @Controller()
@@ -78,7 +78,7 @@ export class ChatRunsController {
    * Maps a run-like object (usually RunEntity) to a stable API response.
    * This keeps OpenAPI and UI contract stable even if the DB entity evolves.
    */
-  private toEnqueueRunResponse(run: any): EnqueueRunResponseDto {
+  private toEnqueueRunResponse(run: RunEntity): EnqueueRunResponseDto {
     return {
       runId: String(run.id),
       chatId: String(run.chatId),

@@ -30,7 +30,7 @@ export class DialogService {
 
     if (config.hasBackdrop !== false && config.closeOnBackdropClick !== false) {
       overlayRef.backdropClick().subscribe(() => {
-        dialogRef.close({ action: 'close', data: ctx.result() } as any);
+        dialogRef.close({ action: 'close', data: ctx.result() });
       });
     }
 

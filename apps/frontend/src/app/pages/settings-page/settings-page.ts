@@ -152,11 +152,11 @@ export class SettingsPage implements OnInit {
   // -----------------------
 
   loadModel(modelId: string): void {
-    this.store.dispatch(new LoadModel(modelId, {} as any));
+    this.store.dispatch(new LoadModel(modelId, {}));
   }
 
   unloadModel(modelId: string): void {
-    this.store.dispatch(new UnloadModel(modelId, {} as any));
+    this.store.dispatch(new UnloadModel(modelId, {}));
   }
 
   isModelBusy(id: string): Observable<boolean> {

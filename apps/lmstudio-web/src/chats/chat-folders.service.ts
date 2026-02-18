@@ -18,7 +18,7 @@ export class ChatFoldersService {
   async list() {
     return this.folders.find({
       where: { deletedAt: IsNull() },
-      order: { createdAt: 'ASC' as any },
+      order: { createdAt: 'ASC' },
     });
   }
 

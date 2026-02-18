@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import type { JsonObject } from '@shared/types/json.types';
 
 export type WorkflowRunStatus =
   | 'queued'
@@ -46,7 +47,7 @@ export class WorkflowRunEntity {
   label!: string | null;
 
   @Column({ type: 'simple-json', nullable: true })
-  stats!: any | null;
+  stats!: JsonObject | null;
 
   @Column({ type: 'text', nullable: true })
   error!: string | null;

@@ -34,7 +34,7 @@ export class I18nState {
   }
 
   static value(key: string) {
-    return createSelector([I18nState.dict], (model: I18nModel) => model[key] ?? key);
+    return createSelector([I18nState.dict], (dict: I18nDict): string => dict[key] ?? key);
   }
 
   constructor(private readonly languageService: LanguageService) {}

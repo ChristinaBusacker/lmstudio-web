@@ -49,7 +49,7 @@ export class ChatImportExportService {
       updatedAt: chat.updatedAt.toISOString(),
       messages: msgs.map((m) => ({
         id: m.id,
-        role: m.role as any,
+        role: m.role,
         parentMessageId: m.parentMessageId,
         deletedAt: m.deletedAt ? m.deletedAt.toISOString() : null,
         editedAt: m.editedAt ? m.editedAt.toISOString() : null,

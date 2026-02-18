@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { CreateWorkflowRequest } from '@shared/contracts';
+import { NodeDiagramModel } from '@shared/types/node-model.types';
+import { IsNotEmpty, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateWorkflowDto implements CreateWorkflowRequest {
   @ApiProperty()
@@ -17,5 +18,5 @@ export class CreateWorkflowDto implements CreateWorkflowRequest {
 
   @ApiProperty({ description: 'Blueprint graph JSON' })
   @IsObject()
-  graph!: any;
+  graph!: NodeDiagramModel;
 }

@@ -2,14 +2,19 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository, type FindOptionsWhere } from 'typeorm';
-import { WorkflowEntity } from './entities/workflow.entity';
-import { WorkflowRunEntity, WorkflowRunStatus } from './entities/workflow-run.entity';
-import { WorkflowNodeRunEntity, WorkflowNodeRunStatus } from './entities/workflow-node-run.entity';
-import { ArtifactEntity, ArtifactKind } from './entities/artifact.entity';
+import { SseBusService } from '../sse/sse-bus.service';
+import { CreateWorkflowRunDto } from './dto/create-workflow-run.dto';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
-import { CreateWorkflowRunDto } from './dto/create-workflow-run.dto';
-import { SseBusService } from '../sse/sse-bus.service';
+
+import { ArtifactEntity, ArtifactKind } from './entities/artifact.entity';
+import { WorkflowNodeRunEntity } from './entities/workflow-node-run.entity';
+import { WorkflowRunEntity, WorkflowRunStatus } from './entities/workflow-run.entity';
+import { WorkflowEntity } from './entities/workflow.entity';
+import { RunState } from '@shared/contracts';
+import { ImportWorkflowBundleDto } from './dto/import-workflow-bundle.dto';
+import { NodeModelEdge, NodeModelNode } from '@shared/types/node-model.types';
+import { JsonObject } from '@shared/types/json';
 
 type WorkflowExportBundle = {
   workflow: WorkflowEntity;
@@ -42,11 +47,12 @@ export class WorkflowsService {
   }
 
   async create(ownerKey: string, dto: CreateWorkflowDto) {
+    const graph = dto.graph ?? { nodes: [], edges: [] };
     const wf = this.workflows.create({
       ownerKey,
       name: dto.name,
       description: dto.description ?? null,
-      graph: dto.graph ?? { nodes: [] },
+      graph,
     });
     return this.workflows.save(wf);
   }
@@ -357,10 +363,10 @@ export class WorkflowsService {
     nodeId: string,
     patch: Partial<{
       iteration: number;
-      status: WorkflowNodeRunStatus;
-      inputSnapshot: any;
+      status: RunState;
+      inputSnapshot: JsonObject;
       outputText: string | null;
-      outputJson: any;
+      outputJson: JsonObject;
       primaryArtifactId: string | null;
       error: string | null;
       startedAt: Date | null;
@@ -409,7 +415,7 @@ export class WorkflowsService {
           workflowRunId: saved.workflowRunId,
           nodeId: saved.nodeId,
           status: saved.status,
-          inputSnapshot: saved.inputSnapshot ?? null,
+          inputSnapshot: saved.inputSnapshot ?? undefined,
           outputText: saved.outputText ?? undefined,
           outputJson: saved.outputJson ?? undefined,
           primaryArtifactId: saved.primaryArtifactId ?? undefined,
@@ -432,7 +438,7 @@ export class WorkflowsService {
       mimeType: string | null;
       filename: string | null;
       contentText: string | null;
-      contentJson: any;
+      contentJson: JsonObject;
       blobPath: string | null;
     }>,
   ) {
@@ -526,12 +532,12 @@ export class WorkflowsService {
     }
 
     const nodeRuns = await this.nodeRuns.find({
-      where: { workflowRunId: runIds as any },
+      where: { workflowRunId: In(runIds) },
       order: { createdAt: 'ASC' },
     });
 
     const artifacts = await this.artifacts.find({
-      where: { workflowRunId: runIds as any },
+      where: { workflowRunId: In(runIds) },
       order: { createdAt: 'ASC' },
     });
 
@@ -540,7 +546,7 @@ export class WorkflowsService {
 
   async importWorkflowBundle(
     ownerKey: string,
-    dto: { bundle: any; name?: string },
+    dto: ImportWorkflowBundleDto,
   ): Promise<WorkflowEntity> {
     const bundle = dto.bundle;
     if (!bundle?.workflow) {
@@ -576,7 +582,7 @@ export class WorkflowsService {
     if (!wf) throw new NotFoundException(`Workflow not found: ${run.workflowId}`);
 
     const graph = wf.graph ?? {};
-    const nodes: any[] = Array.isArray(graph.nodes) ? graph.nodes : [];
+    const nodes: NodeModelNode[] = graph.nodes ?? [];
 
     const ids = nodes.map((n) => String(n?.id ?? '')).filter(Boolean);
     const nodeIds = new Set(ids);
@@ -598,7 +604,7 @@ export class WorkflowsService {
     type Edge = { source: string; target: string };
 
     const normalizeEdges = (): Edge[] => {
-      const raw: any[] = Array.isArray(graph?.edges) ? graph.edges : [];
+      const raw: NodeModelEdge[] = Array.isArray(graph?.edges) ? graph.edges : [];
       const out: Edge[] = [];
 
       for (const e of raw) {
@@ -643,7 +649,7 @@ export class WorkflowsService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const [k, arr] of incoming) arr.sort((a, b) => a.localeCompare(b));
 
-    const nodeById = new Map<string, any>();
+    const nodeById = new Map<string, NodeModelNode>();
     for (const n of nodes) if (n?.id) nodeById.set(String(n.id), n);
 
     const adj = new Map<string, Set<string>>();
@@ -692,16 +698,16 @@ export class WorkflowsService {
     }
 
     const affectedNodeRuns = await this.nodeRuns.find({
-      where: { workflowRunId: runId, nodeId: In([...downstream]) as any },
+      where: { workflowRunId: runId, nodeId: In([...downstream]) },
     });
     const affectedNodeRunIds = affectedNodeRuns.map((r) => r.id);
 
     if (affectedNodeRunIds.length) {
       await this.artifacts.delete({
         workflowRunId: runId,
-        nodeRunId: In(affectedNodeRunIds) as any,
+        nodeRunId: In(affectedNodeRunIds),
       });
-      await this.nodeRuns.delete({ workflowRunId: runId, nodeId: In([...downstream]) as any });
+      await this.nodeRuns.delete({ workflowRunId: runId, nodeId: In([...downstream]) });
     }
 
     await this.runs.update(

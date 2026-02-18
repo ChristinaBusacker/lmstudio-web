@@ -1,3 +1,4 @@
+import { JsonObject } from '@shared/index';
 import type {
   CreateWorkflowPayload,
   UpdateWorkflowPayload,
@@ -111,7 +112,7 @@ export class ApplyWorkflowRunStatusFromSse {
       runId: string;
       status: WorkflowRunStatus;
       currentNodeId: string | null;
-      stats: any;
+      stats: JsonObject | null;
       error: string | null;
     },
   ) {}

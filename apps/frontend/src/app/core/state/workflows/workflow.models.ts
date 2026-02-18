@@ -98,7 +98,7 @@ export interface WorkflowNodeRun {
   workflowRunId: string;
   nodeId: string;
   status: WorkflowNodeRunStatus;
-  inputSnapshot: unknown;
+  inputSnapshot: WorkflowNodeRunInputSnapshot | null;
   outputText: string;
   outputJson: unknown;
   primaryArtifactId: string | null;
@@ -106,6 +106,19 @@ export interface WorkflowNodeRun {
   startedAt: string | null;
   finishedAt: string | null;
   createdAt: string;
+}
+
+export interface WorkflowNodeRunInputSnapshot {
+  sources: string[];
+  filename?: string;
+  note: string;
+  loop?: {
+    maxIterations: number;
+    joiner: string;
+    mode: string;
+  };
+  conditionPrompt?: string;
+  toolName: string;
 }
 
 export type ArtifactKind = 'json' | 'text' | 'image' | 'binary';

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { JsonObject } from '@shared/types/json.types';
 import type { IsoDateTimeString } from '../common/datetime.contract';
 import type { RunState } from '../runs/run.contract';
 
@@ -24,5 +24,5 @@ export interface ChatRunSendMessageRequest {
   content: string;
   clientRequestId: string;
   settingsProfileId?: string;
-  settingsSnapshot?: Record<string, any>;
+  settingsSnapshot?: JsonObject;
 }

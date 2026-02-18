@@ -7,6 +7,7 @@ import { Store } from '@ngxs/store';
 import { LoadUserPreferences, UpdateUserPreferences } from './user-preferences.actions';
 import type { ThemeName, UserPreferencesModel } from './user-preferences.model';
 import { LoadI18n } from '../../i18n/i18n.actions';
+import { getString, isRecord } from '../../utils/typed-access';
 
 const STORAGE_KEY = 'lmstudio-web:userPreferences';
 
@@ -58,13 +59,16 @@ export class UserPreferencesState {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return null;
-      const json = JSON.parse(raw) as any;
 
-      const language = json?.language === 'en' || json?.language === 'fr' ? json.language : 'de';
+      const parsed: unknown = JSON.parse(raw);
+      if (!isRecord(parsed)) return null;
+
+      const languageRaw = getString(parsed, 'language');
+      const language = languageRaw === 'en' || languageRaw === 'fr' ? languageRaw : 'de';
+
+      const themeRaw = getString(parsed, 'theme');
       const theme: ThemeName =
-        json?.theme === 'Dark' || json?.theme === 'Light' || json?.theme === 'Glass'
-          ? json.theme
-          : 'LMStudio';
+        themeRaw === 'Dark' || themeRaw === 'Light' || themeRaw === 'Glass' ? themeRaw : 'LMStudio';
 
       return { language, theme };
     } catch {

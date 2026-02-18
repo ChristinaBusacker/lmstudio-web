@@ -104,22 +104,22 @@ export class ChatsService {
 
     const where: FindOptionsWhere<ChatEntity> = {};
     if (!params?.includeDeleted) {
-      (where as any).deletedAt = IsNull();
+      where.deletedAt = IsNull();
     }
 
     if (params?.folderId !== undefined) {
-      if (params.folderId === 'null') (where as any).folderId = IsNull();
-      else (where as any).folderId = params.folderId;
+      if (params.folderId === 'null') where.folderId = IsNull();
+      else where.folderId = params.folderId;
     }
 
     if (params?.cursor) {
       // Cursor: updatedAt < cursor
-      (where as any).updatedAt = LessThan(new Date(params.cursor));
+      where.updatedAt = LessThan(new Date(params.cursor));
     }
 
     return this.chats.find({
       where,
-      order: { updatedAt: 'DESC' as any },
+      order: { updatedAt: 'DESC' },
       take: limit,
       select: [
         'id',

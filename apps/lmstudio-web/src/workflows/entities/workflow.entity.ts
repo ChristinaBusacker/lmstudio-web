@@ -1,3 +1,4 @@
+import { NodeDiagramModel } from '@shared/types/node-model.types';
 import {
   Column,
   CreateDateColumn,
@@ -27,7 +28,7 @@ export class WorkflowEntity {
    * Blueprint graph JSON: { nodes: [...], edges: [...] }
    */
   @Column({ type: 'simple-json' })
-  graph!: any;
+  graph!: NodeDiagramModel;
 
   @CreateDateColumn()
   createdAt!: Date;

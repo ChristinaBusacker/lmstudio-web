@@ -5,6 +5,7 @@ import { SettingsService } from '../settings/settings.service';
 import { MessageVariantsService } from '../chats/message-variants.service';
 import { MessagesService } from '../chats/messages.service';
 import { ConfigService } from '@nestjs/config';
+import { JsonObject } from '../workflows/engine/typed-access';
 
 /**
  * Orchestrates "chat actions" that span multiple domains:
@@ -38,7 +39,7 @@ export class ChatRunsService {
    *
    * NOTE: modelKey must always be present (env fallback is allowed).
    */
-  private getHardDefaults(): Record<string, any> {
+  private getHardDefaults(): JsonObject {
     return {
       temperature: 0.7,
       maxTokens: 800,
@@ -51,10 +52,7 @@ export class ChatRunsService {
   /**
    * Merges two settings objects. Later keys override earlier keys.
    */
-  private mergeSettings(
-    base: Record<string, any>,
-    override?: Record<string, any>,
-  ): Record<string, any> {
+  private mergeSettings(base: JsonObject, override?: JsonObject): JsonObject {
     return { ...base, ...(override ?? {}) };
   }
 
@@ -70,18 +68,15 @@ export class ChatRunsService {
    */
   private async resolveSettingsSnapshot(params: {
     settingsProfileId?: string;
-    settingsSnapshotOverride?: Record<string, any>;
-  }): Promise<{ snapshot: Record<string, any>; profileId: string | null }> {
+    settingsSnapshotOverride?: JsonObject;
+  }): Promise<{ snapshot: JsonObject; profileId: string | null }> {
     const hardDefaults = this.getHardDefaults();
 
     const profile = params.settingsProfileId
       ? await this.settings.getById(params.settingsProfileId)
       : await this.settings.getDefault('default');
 
-    const withProfile = this.mergeSettings(
-      hardDefaults,
-      (profile?.params ?? {}) as Record<string, any>,
-    );
+    const withProfile = this.mergeSettings(hardDefaults, (profile?.params ?? {}) as JsonObject);
 
     const effectiveSnapshot = this.mergeSettings(withProfile, params.settingsSnapshotOverride);
 
@@ -111,7 +106,7 @@ export class ChatRunsService {
     content: string;
     clientRequestId: string;
     settingsProfileId?: string;
-    settingsSnapshot?: Record<string, any>;
+    settingsSnapshot?: JsonObject;
   }) {
     const chat = await this.chats.getChat(params.chatId);
     if (!chat) throw new NotFoundException(`Chat not found: ${params.chatId}`);

@@ -9,7 +9,7 @@
         class="input input-small"
         type="text"
         [value]="filter()"
-        (input)="onFilterInput($any($event.target).value ?? '')"
+        (input)="onFilterInput($event.target.value ?? '')"
         [placeholder]="'common.filter' | i18n | async"
       />
 

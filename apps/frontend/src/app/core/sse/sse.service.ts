@@ -28,6 +28,7 @@ import {
   isRecord,
   safeJsonParse,
 } from '../utils/typed-access';
+import { JsonObject } from '@shared/index';
 
 @Injectable({ providedIn: 'root' })
 export class SseService {
@@ -220,7 +221,7 @@ export class SseService {
           chatId: e.chatId,
           runId: e.runId,
           status,
-          stats: payload ? (payload['stats'] ?? null) : null,
+          stats: payload ? ((payload['stats'] ?? undefined) as JsonObject) : undefined,
           error: payload ? (getString(payload, 'error') ?? null) : null,
         }),
       );
@@ -257,7 +258,7 @@ export class SseService {
           runId: e.runId,
           status,
           currentNodeId: payload ? (getString(payload, 'currentNodeId') ?? null) : null,
-          stats: payload ? (payload['stats'] ?? null) : null,
+          stats: payload ? ((payload['stats'] ?? undefined) as JsonObject) : null,
           error: payload ? (getString(payload, 'error') ?? null) : null,
         }),
       );

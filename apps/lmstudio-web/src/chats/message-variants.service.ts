@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { MessageVariantEntity } from './entities/message-variant.entity';
+import { JsonObject } from '@shared/index';
 
 @Injectable()
 export class MessageVariantsService {
@@ -13,7 +14,7 @@ export class MessageVariantsService {
   async list(messageId: string) {
     return this.variants.find({
       where: { messageId },
-      order: { variantIndex: 'ASC' as any, createdAt: 'ASC' as any },
+      order: { variantIndex: 'ASC', createdAt: 'ASC' },
     });
   }
 
@@ -25,7 +26,7 @@ export class MessageVariantsService {
     messageId: string;
     content: string;
     reasoning?: string | null;
-    stats?: any | null;
+    stats?: JsonObject | null;
   }) {
     const existing = await this.list(params.messageId);
     const nextIndex = existing.length ? Math.max(...existing.map((v) => v.variantIndex)) + 1 : 0;

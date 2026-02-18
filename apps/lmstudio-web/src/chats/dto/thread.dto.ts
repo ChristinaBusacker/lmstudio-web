@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { ThreadVariant, ThreadMessage, ChatThreadResponse } from '@shared/contracts';
+import { JsonObject } from '@shared/index';
 
 export class ThreadVariantDto implements ThreadVariant {
   @ApiProperty({ type: String }) id!: string;
@@ -19,7 +20,7 @@ export class ThreadVariantDto implements ThreadVariant {
     nullable: true,
     additionalProperties: true,
   })
-  stats?: any | null;
+  stats?: JsonObject | null;
 
   @ApiProperty({ type: String, format: 'date-time' })
   createdAt!: string;
