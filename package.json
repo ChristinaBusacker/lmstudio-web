@@ -22,13 +22,13 @@
     "migration:revert": "npm run typeorm -- migration:revert",
     "migrate": "npm run migration:generate && npm run migration:run",
     "format": "prettier --write \"apps/**/*.ts\" \"apps/**/*.html\" \"apps/**/*.scss\" \"shared/**/*.ts\"",
-    "lint": "eslint \"{apps,shared,test}/**/*.ts\" --fix",
+    "lint": "eslint \"{apps,shared}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./apps/lmstudio-web/test/jest-e2e.json",
-    "lint:check": "eslint \"{apps,shared,test}/**/*.ts\""
+    "lint:check": "eslint \"{apps,shared}/**/*.ts\""
   },
   "dependencies": {
     "@angular/cdk": "^21.1.2",
@@ -134,8 +134,24 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "setupFilesAfterEnv": [
+      "<rootDir>/apps/lmstudio-web/test/jest.setup.ts"
+    ],
+    "moduleNameMapper": {
+      "^@shared/(.*)$": "<rootDir>/shared/$1",
+      "^@backend/(.*)$": "<rootDir>/apps/lmstudio-web/src/$1",
+      "^@frontend/(.*)$": "<rootDir>/apps/frontend/src/$1"
+    },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "apps/lmstudio-web/src/**/*.{ts,js}",
+      "shared/**/*.{ts,js}",
+      "!**/*.spec.ts",
+      "!apps/lmstudio-web/src/main.ts",
+      "!apps/lmstudio-web/src/**/migrations/**",
+      "!apps/lmstudio-web/src/**/data-source.ts",
+      "!**/*.module.ts",
+      "!**/*.dto.ts",
+      "!**/*.entity.ts"
     ],
     "coverageDirectory": "./coverage",
     "testEnvironment": "node"
