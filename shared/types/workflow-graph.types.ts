@@ -40,40 +40,22 @@ export interface WorkflowGraph {
 
 export interface WorkflowGraphNode {
   id: string;
-  /**
-   * Known examples:
-   * - 'lmstudio.llm'
-   * - 'workflow.tool'
-   * - 'workflow.condition'
-   * - 'workflow.merge'
-   * - 'workflow.export'
-   * - 'ui.preview'
-   * - 'workflow.asset'
-   * - 'workflow.loop' (legacy)
-   * - 'workflow.loopStart' | 'workflow.loopEnd' (structural)
-   */
   type: WorkflowNodeType;
 
-  /** Optional UI label. */
   title?: string;
-
   profileName?: string;
   prompt?: string;
-
-  /** Node-specific configuration (JSON only). */
   config?: WorkflowNodeConfig | null;
 
-  /** UI layout metadata. */
   position?: { x: number; y: number };
   size?: { width: number; height: number };
   autoSize?: boolean;
   angle?: number;
 
-  /** Legacy v1 only (read-only). */
   inputFrom?: string | null;
 
-  /** Allow forward-compatible extra fields from UI. */
-  [key: string]: JsonValue | undefined | null;
+  // 👇 explizit NUR Zusatzfelder
+  [key: string]: JsonValue | undefined | null | WorkflowNodeConfig;
 }
 
 export type WorkflowNodeConfig =
@@ -84,10 +66,9 @@ export type WorkflowNodeConfig =
   | WorkflowPreviewConfig
   | WorkflowConditionConfig
   | WorkflowAssetConfig
-  | WorkflowLoopConfig
-  | JsonObject;
+  | WorkflowLoopConfig;
 
-export interface WorkflowLlmConfig extends JsonObject {
+export interface WorkflowLlmConfig {
   kind?: 'llm';
   modelKey?: string;
   temperature?: number;
@@ -96,39 +77,41 @@ export interface WorkflowLlmConfig extends JsonObject {
   systemPrompt?: string;
 }
 
-export interface WorkflowToolConfig extends JsonObject {
+export interface WorkflowToolConfig {
   kind?: 'tool';
-  toolName?: string;
-  args?: JsonObject;
+  tool: {
+    name: string;
+    args: JsonObject;
+  };
 }
 
-export interface WorkflowExportConfig extends JsonObject {
+export interface WorkflowExportConfig {
   kind?: 'export';
   filename?: string;
   mimeType?: string;
   artifactKind?: string;
 }
 
-export interface WorkflowMergeConfig extends JsonObject {
+export interface WorkflowMergeConfig {
   kind?: 'merge';
   separator?: string;
 }
 
-export interface WorkflowPreviewConfig extends JsonObject {
+export interface WorkflowPreviewConfig {
   kind?: 'preview';
 }
 
-export interface WorkflowConditionConfig extends JsonObject {
+export interface WorkflowConditionConfig {
   kind?: 'condition';
   prompt?: string;
 }
 
-export interface WorkflowAssetConfig extends JsonObject {
+export interface WorkflowAssetConfig {
   kind?: 'asset';
   assetId?: string;
 }
 
-export interface WorkflowLoopConfig extends JsonObject {
+export interface WorkflowLoopConfig {
   kind?: 'loop';
   maxIterations?: number;
   joiner?: string;

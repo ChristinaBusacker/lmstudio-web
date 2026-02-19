@@ -4,9 +4,24 @@ import type { PagedResponse, PageRequest } from '../common/pagination.contract';
 import type { JsonObject } from '@shared/types/json';
 import type { WorkflowGraph } from '@shared/types/workflow-graph.types';
 
-export type WorkflowStatus = 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type WorkflowStatus =
+  | 'idle'
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'canceled'
+  | 'paused';
 
-export type WorkflowStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+export type WorkflowStepStatus =
+  | 'pending'
+  | 'running'
+  | 'queued'
+  | 'completed'
+  | 'failed'
+  | 'skipped'
+  | 'canceled'
+  | 'paused';
 
 export interface WorkflowStep {
   key: string;

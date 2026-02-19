@@ -1,16 +1,6 @@
+import { SettingsParams } from '@shared/index';
 import { toErrorMessage } from './error.util';
 import { getRecord, isRecord } from './typed-access';
-
-export type SettingsParams = {
-  systemPrompt?: string;
-  modelKey?: string;
-  temperature?: number;
-  maxTokens?: number;
-  topP?: number;
-  /** Enables tool usage (e.g. web_search/web_read/doc_read) for runs using this profile. */
-  toolsEnabled?: boolean;
-  [k: string]: unknown;
-};
 
 const CORE_KEYS = new Set([
   'systemPrompt',

@@ -71,7 +71,7 @@ export class SseEnvelopeApiDto<
 
 export class RunStatusEventPayloadDto implements RunStatusEventPayload {
   @ApiProperty({
-    enum: ['queued', 'running', 'completed', 'failed', 'canceled'],
+    enum: ['queued', 'running', 'completed', 'failed', 'paused', 'canceled'],
     description: 'Current run status.',
   })
   status!: RunState;
@@ -90,7 +90,7 @@ export class RunStatusEventPayloadDto implements RunStatusEventPayload {
 
 export class WorkflowRunStatusPayloadDto implements WorkflowRunStatusPayload {
   @ApiProperty({
-    enum: ['queued', 'running', 'completed', 'failed', 'canceled'],
+    enum: ['queued', 'running', 'completed', 'failed', 'paused', 'canceled'],
   })
   status!: RunState;
 

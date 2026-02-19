@@ -8,10 +8,8 @@ import type { WorkflowRenderContext } from './engine/template-renderer';
 import { getNumber, getPath, getString, isJsonObject } from '@shared/index';
 
 import { LOOP_END, LOOP_START } from './worker/workflow-worker.constants';
-import {
-  WorkflowNodeExecutorService,
-  type LoopRange,
-} from './execution/workflow-node-executor.service';
+import { WorkflowNodeExecutorService } from './execution/workflow-node-executor.service';
+import { LoopRange } from './execution/node-executor.interface';
 
 @Injectable()
 export class WorkflowWorkerService implements OnModuleInit, OnModuleDestroy {

@@ -15,7 +15,6 @@ import {
   UpdateSettingsProfilePayload,
 } from '@frontend/src/app/core/api/settings.api';
 import {
-  SettingsParams,
   createDefaultParams,
   normalizeParams,
   extractExtras,
@@ -25,6 +24,7 @@ import {
 import { AutoResizeDirective } from '@frontend/src/app/core/directives/textarea/auto-size.directive';
 import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 import { isRecord } from '../../../../core/utils/typed-access';
+import { SettingsParams } from '@shared/index';
 
 @Component({
   selector: 'app-profile-editor',

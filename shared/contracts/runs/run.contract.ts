@@ -32,7 +32,7 @@ export interface RunStatus {
   finishedAt: IsoDateTimeString | null;
 
   error: string | null;
-  stats: JsonObject;
+  stats: JsonObject | null;
 
   createdVariantId: string | null;
 

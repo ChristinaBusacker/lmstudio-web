@@ -7,6 +7,7 @@ import type {
 } from './graph-types';
 import { EMPTY_JSON_OBJECT } from '@shared/types/workflow-graph.types';
 import { getString, isJsonObject } from '@shared/index';
+import { toJsonObject } from '@backend/src/utils/typed-access';
 
 type RawRecord = Record<string, unknown>;
 
@@ -130,11 +131,6 @@ export function buildWorkflowGraphIndex(graph: WorkflowGraph): WorkflowGraphInde
   for (const arr of incoming.values()) arr.sort((a, b) => a.id.localeCompare(b.id));
 
   return { nodeById, incoming, nodeIds, edgeIds };
-}
-
-export function toJsonObject(value: unknown): JsonObject | undefined {
-  const obj = toJsonObject(value);
-  return obj ? (obj as JsonObject) : undefined;
 }
 
 export function toJsonValue(value: unknown): JsonValue | undefined {
