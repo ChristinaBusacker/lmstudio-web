@@ -18,7 +18,6 @@ import { WorkflowToolNodeExecutorService } from './execution/workflow-tool-node-
 import { LlmNodeExecutorService } from './execution/llm-node-executor.service';
 import { WorkflowConditionNodeExecutorService } from './execution/workflow-condition-node-executor.service';
 import { WorkflowLoopStartExecutorService } from './execution/workflow-loop-start-executor.service';
-import { WorkflowExecutionFacade } from './execution/workflow-execution.facade';
 
 @Module({
   imports: [
@@ -44,7 +43,6 @@ import { WorkflowExecutionFacade } from './execution/workflow-execution.facade';
     LlmNodeExecutorService,
     WorkflowConditionNodeExecutorService,
     WorkflowLoopStartExecutorService,
-    WorkflowExecutionFacade,
   ],
   exports: [WorkflowsService],
 })

@@ -106,8 +106,22 @@ export class LlmNodeExecutorService implements WorkflowNodeExecutor {
       if (value?.delta) full += value.delta;
     }
 
+    const structuredEnabled = getPath(params, 'structuredOutput.enabled') === true;
     const parsed = safeJsonParse(full.trim());
+
+    if (structuredEnabled && !parsed.ok) {
+      throw new Error(
+        `Structured output is enabled for node ${nodeId}, but the model did not return valid JSON: ${parsed.error}`,
+      );
+    }
+
     if (parsed.ok) {
+      if (structuredEnabled && !isRecord(parsed.value)) {
+        throw new Error(
+          `Structured output is enabled for node ${nodeId}, but the model returned non-object JSON.`,
+        );
+      }
+
       const parsedObj = isRecord(parsed.value)
         ? toJsonObject(parsed.value)
         : toJsonObject({ value: toJsonValue(parsed.value) });

@@ -11,16 +11,13 @@ export interface NodeExecutionArgs {
   incoming: Map<string, IncomingEdge[]>;
   ctx: WorkflowRenderContext;
   iteration: number;
+
+  /** Only set for workflow.loopStart execution. */
+  loopRange?: LoopRange;
 }
 
 export interface WorkflowNodeExecutor {
   /** Node type key, e.g. "lmstudio.llm" */
   readonly type: string;
   execute(args: NodeExecutionArgs): Promise<void>;
-}
-
-export interface NodeExecutionArgs {
-  loopRange?: LoopRange;
-  body?: string[];
-  endId?: string;
 }

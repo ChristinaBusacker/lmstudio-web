@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 
 import { WorkflowsService } from '../workflows.service';
 import { SettingsService } from '../../settings/settings.service';
 import { ChatEngineService } from '../../chats/chat-engine.service';
 import { AssetsService } from '../../assets/assets.service';
 import { AssetExtractService } from '../../assets/asset-extract.service';
+import { ToolOrchestratorService } from '../../tools/tool-orchestrator.service';
 
 import type { LmMessage } from '../../common/types/llm.types';
 import type { IncomingEdge, WorkflowGraphNode } from '../engine/graph-types';
@@ -42,12 +43,14 @@ export class WorkflowNodeExecutorService {
     private readonly workflows: WorkflowsService,
     private readonly settings: SettingsService,
     private readonly engine: ChatEngineService,
+    private readonly toolOrchestrator: ToolOrchestratorService,
     private readonly assets: AssetsService,
     private readonly assetExtract: AssetExtractService,
 
     llmExec: LlmNodeExecutorService,
     toolExec: WorkflowToolNodeExecutorService,
     condExec: WorkflowConditionNodeExecutorService,
+    @Inject(forwardRef(() => WorkflowLoopStartExecutorService))
     loopExec: WorkflowLoopStartExecutorService,
   ) {
     this.executors = new Map<string, WorkflowNodeExecutor>([
@@ -93,7 +96,7 @@ export class WorkflowNodeExecutorService {
   }
 
   /**
-   * Public wrapper used by WorkflowExecutionFacade + loop executor.
+   * Public wrapper used by the loop executor.
    * This MUST exist so external services can execute nodes for loop iterations.
    */
   async executeNodeInternal(args: NodeExecutionArgs): Promise<void> {
@@ -270,6 +273,14 @@ export class WorkflowNodeExecutorService {
       const asset = await this.assets.getById(assetId);
       const extract = getPath(node, 'config.asset.extract') === true;
 
+      // Always read the document via tool so the UI + downstream nodes can rely on a consistent shape.
+      const { result: docReadResult, artifactId: docReadArtifactId } =
+        await this.toolOrchestrator.executeToolDirect({
+          runId,
+          toolName: 'doc_read',
+          toolArgs: { assetId },
+        });
+
       let extractedText: string | null = null;
       let extractedJson: unknown | null = null;
       let extractWarnings: string[] = [];
@@ -292,6 +303,8 @@ export class WorkflowNodeExecutorService {
         sizeBytes: asset.sizeBytes,
         sha256: asset.sha256,
         docRead: { assetId },
+        docReadResult: toJsonValue(docReadResult),
+        docReadArtifactId: docReadArtifactId ? String(docReadArtifactId) : null,
         kind,
         extractedText,
         extractedJson: toJsonValue(extractedJson),
@@ -304,7 +317,7 @@ export class WorkflowNodeExecutorService {
         status: 'completed',
         startedAt: new Date(),
         finishedAt: new Date(),
-        outputText: extractedText ?? '',
+        outputText: extractedText ?? this.toText(docReadResult),
         outputJson: out,
         primaryArtifactId: null,
         inputSnapshot: { sources: sourcesSorted, note: 'workflow.asset' },

@@ -1,17 +1,26 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
+
 import { WorkflowsService } from '../workflows.service';
 import { SettingsService } from '../../settings/settings.service';
 import { ChatEngineService } from '../../chats/chat-engine.service';
 
-import type { WorkflowNodeExecutor, NodeExecutionArgs } from './node-executor.interface';
+import type { WorkflowNodeExecutor, NodeExecutionArgs, LoopRange } from './node-executor.interface';
+
 import { renderTemplate, safeJsonParse, toPrettyText } from '../engine/template-renderer';
 import { getNumber, getPath, getString } from '@shared/index';
 import { EMPTY_JSON_OBJECT } from '@shared/types/workflow-graph.types';
 import { toJsonObject } from '../../utils/typed-access';
-import { WorkflowExecutionFacade } from './workflow-execution.facade';
-import { LOOP_END, LOOP_START, type LoopMode } from '../worker/workflow-worker.constants';
 
-export type LoopRange = { body: string[]; endId: string };
+import {
+  COND_FALSE_PORT,
+  COND_TRUE_PORT,
+  LOOP_END,
+  LOOP_START,
+  type LoopMode,
+} from '../worker/workflow-worker.constants';
+
+import { compareStringIds } from './workflow-executor.utils';
+import { WorkflowNodeExecutorService } from './workflow-node-executor.service';
 
 @Injectable()
 export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
@@ -22,23 +31,126 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
     private readonly workflows: WorkflowsService,
     private readonly settings: SettingsService,
     private readonly engine: ChatEngineService,
-    private readonly exec: WorkflowExecutionFacade, // to execute body nodes
+    @Inject(forwardRef(() => WorkflowNodeExecutorService))
+    private readonly dispatcher: WorkflowNodeExecutorService,
   ) {}
 
   private toText(v: unknown): string {
     return toPrettyText(v);
   }
 
+  private requireLoopRange(nodeId: string, range: LoopRange | undefined): LoopRange {
+    if (!range) {
+      throw new Error(
+        `LoopStart ${nodeId} missing loopRange metadata. This should be precomputed by WorkflowWorkerService.`,
+      );
+    }
+    return range;
+  }
+
   async execute(args: NodeExecutionArgs): Promise<void> {
     const { runId, nodeId, node, nodeById, incoming, ctx } = args;
 
-    // LoopStart is structural: iteration is always 0 for the start node itself
-    // Body nodes run with iteration=index
+    const range = this.requireLoopRange(nodeId, args.loopRange);
+
+    // --- Determine active incoming edges (condition branching) ---
+    const edgesInAll = (incoming.get(nodeId) ?? []).slice();
+
+    const edgesIn = edgesInAll.filter((e) => {
+      const srcId = getString(e.source).trim();
+      const srcNode = nodeById.get(srcId);
+      const srcType = getString(srcNode?.type, 'lmstudio.llm');
+
+      if (srcType !== 'workflow.condition') return true;
+
+      const condOut = ctx.nodes?.[srcId];
+      if (typeof condOut !== 'boolean') {
+        throw new Error(`Missing/invalid condition output for node ${srcId}`);
+      }
+
+      const port = getString(e.sourcePort, COND_TRUE_PORT);
+      return condOut ? port === COND_TRUE_PORT : port === COND_FALSE_PORT;
+    });
+
+    const activeSourcesSorted = edgesIn
+      .map((e) => getString(e.source).trim())
+      .filter(Boolean)
+      .slice()
+      .sort(compareStringIds);
+
+    // If this node has incoming edges but none are active (inactive branch), skip.
+    if (edgesInAll.length > 0 && activeSourcesSorted.length === 0) {
+      const startedAt = new Date();
+      await this.workflows.upsertNodeRun(runId, nodeId, {
+        status: 'completed',
+        startedAt,
+        finishedAt: startedAt,
+        outputText: '',
+        outputJson: null,
+        primaryArtifactId: null,
+        inputSnapshot: { sources: [], note: 'skipped (inactive condition branch)' },
+        error: null,
+      });
+
+      await this.workflows.upsertNodeRun(runId, range.endId, {
+        status: 'completed',
+        startedAt,
+        finishedAt: startedAt,
+        outputText: '',
+        outputJson: null,
+        primaryArtifactId: null,
+        inputSnapshot: { sources: [nodeId], note: 'workflow.loopEnd (skipped structural)' },
+        error: null,
+      });
+
+      ctx.nodes[nodeId] = '';
+      ctx.nodes[range.endId] = '';
+      return;
+    }
+
+    // Data-flow: only right->left edges become automatic input.
+    const dataEdges = edgesIn.filter(
+      (e) =>
+        getString(e.sourcePort).trim() === 'port-right' &&
+        getString(e.targetPort).trim() === 'port-left',
+    );
+
+    const sourcesSorted = dataEdges
+      .map((e) => getString(e.source).trim())
+      .filter(Boolean)
+      .slice()
+      .sort(compareStringIds);
+
+    // Build ctx.input from upstream data deps (same semantics as normal nodes)
+    if (sourcesSorted.length === 1) {
+      const src = sourcesSorted[0];
+      if (!(src in ctx.nodes)) {
+        throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
+      }
+      ctx.input = ctx.nodes[src];
+    } else if (sourcesSorted.length > 1) {
+      const parts: string[] = [];
+      for (const src of sourcesSorted) {
+        if (!(src in ctx.nodes)) {
+          throw new Error(`Missing upstream output: ${src} required by ${nodeId}`);
+        }
+        const t = this.toText(ctx.nodes[src]).trim();
+        if (!t) continue;
+        parts.push(`### Input from ${src}\n${t}`);
+      }
+      ctx.input = parts.join('\n\n---\n\n');
+    } else {
+      ctx.input = null;
+    }
+
+    // Dependency set for shortcut templating {{nodeId.*}}
+    ctx.__depsForRender = new Set<string>(sourcesSorted);
+
+    // --- Read loop config ---
     const loopCfgRaw = getPath(node, 'config.loop');
     const loopCfg = toJsonObject(loopCfgRaw) ?? EMPTY_JSON_OBJECT;
 
     const mode = getString(loopCfg.mode, 'until') as LoopMode;
-
     const joiner = getString(loopCfg.joiner, '\n\n');
 
     const maxItRaw = getNumber(loopCfg.maxIterations) ?? 10;
@@ -64,25 +176,28 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
 
     const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
     if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
-    const profileObj = toJsonObject(profile as unknown) ?? EMPTY_JSON_OBJECT;
 
+    const profileObj = toJsonObject(profile as unknown) ?? EMPTY_JSON_OBJECT;
     const params: Record<string, unknown> = {
       ...(toJsonObject(profileObj.params) ?? EMPTY_JSON_OBJECT),
     };
-    params.toolsEnabled = false; // loop condition must never use tools
+
+    // loop condition must never use tools
+    params.toolsEnabled = false;
+
+    const modelKey = getString(params.modelKey).trim();
+    if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
     const systemPrompt = getString(profileObj.systemPrompt).trim();
-
-    // Find loop end + body range (you already have this computed somewhere today)
-    // If your worker already computes a range and passes it into executeLoopStart:
-    // then change the interface to pass it in, or store it in node.config.loop.range.
-    const range = this.findLoopRangeOrThrow(nodeId, nodeById); // implement based on your existing worker logic
 
     const startedAt = new Date();
     await this.workflows.upsertNodeRun(runId, nodeId, {
       status: 'running',
       startedAt,
       inputSnapshot: {
+        sources: sourcesSorted,
+        profileName,
+        modelKey,
         loop: { maxIterations, joiner, mode, count },
         note: 'workflow.loopStart',
       },
@@ -104,17 +219,17 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
         joined: items.join(joiner),
       };
 
-      // Execute body nodes
+      // Execute body nodes for this iteration
       for (const bodyNodeId of range.body) {
         const bodyNode = nodeById.get(bodyNodeId);
         if (!bodyNode) continue;
 
         const bodyType = getString(bodyNode.type, 'lmstudio.llm');
         if (bodyType === LOOP_START || bodyType === LOOP_END) {
-          throw new Error(`Nested loops not supported (found ${bodyType} in loop body)`);
+          throw new Error(`Nested loops are not supported (found ${bodyType} in loop body)`);
         }
 
-        await this.exec.executeNode({
+        await this.dispatcher.executeNodeInternal({
           runId,
           nodeId: bodyNodeId,
           node: bodyNode,
@@ -134,7 +249,7 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
         continue;
       }
 
-      // WHILE/UNTIL: evaluate via LLM structured output
+      // WHILE/UNTIL: evaluate via LLM structured boolean output
       params.structuredOutput = {
         enabled: true,
         strict: true,
@@ -198,42 +313,42 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
       index++;
     }
 
-    const text = items.join(joiner);
+    const joined = items.join(joiner);
+    const loopOut = { items: items.slice(), joined };
+
     const artifact = await this.workflows.createArtifact(runId, null, {
       kind: 'text',
       mimeType: 'text/plain',
-      contentText: text,
+      contentText: joined,
     });
 
     await this.workflows.upsertNodeRun(runId, nodeId, {
       status: 'completed',
       finishedAt: new Date(),
-      outputText: text,
-      outputJson: null,
+      outputText: joined,
+      outputJson: loopOut,
       primaryArtifactId: artifact.id,
-      inputSnapshot: { loop: { maxIterations, joiner, mode, count }, note: 'workflow.loopStart' },
+      inputSnapshot: {
+        sources: sourcesSorted,
+        loop: { maxIterations, joiner, mode, count },
+        note: 'workflow.loopStart',
+      },
       error: null,
     });
 
-    // Mark loopEnd structural node completed
+    // loopEnd acts as the "output" node for downstream flow.
     await this.workflows.upsertNodeRun(runId, range.endId, {
       status: 'completed',
       startedAt,
       finishedAt: new Date(),
-      outputText: '',
-      outputJson: null,
-      primaryArtifactId: null,
+      outputText: joined,
+      outputJson: loopOut,
+      primaryArtifactId: artifact.id,
       inputSnapshot: { sources: [nodeId], note: 'workflow.loopEnd (structural)' },
       error: null,
     });
 
-    ctx.nodes[nodeId] = text;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private findLoopRangeOrThrow(_loopStartId: string, _nodeById: Map<string, any>): LoopRange {
-    // Use your existing WorkflowWorker range finder here.
-    // I’m not inventing it because you already have it.
-    throw new Error('Loop range resolver not wired yet.');
+    ctx.nodes[nodeId] = loopOut;
+    ctx.nodes[range.endId] = loopOut;
   }
 }
