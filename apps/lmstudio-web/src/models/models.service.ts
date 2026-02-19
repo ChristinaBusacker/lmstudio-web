@@ -137,9 +137,12 @@ export class ModelsService {
     for (const model of json.models ?? []) {
       const instances = Array.isArray(model.loaded_instances) ? model.loaded_instances : [];
 
-      for (const inst of instances as any[]) {
+      const isObject = (v: unknown): v is Record<string, unknown> =>
+        typeof v === 'object' && v !== null;
+      for (const inst of instances) {
         // Docs: loaded_instances entries contain "id" (instance identifier) and "config" :contentReference[oaicite:2]{index=2}
-        const instanceId = typeof inst?.id === 'string' ? inst.id : undefined;
+        const instanceId =
+          isObject(inst) && typeof inst['id'] === 'string' ? (inst['id'] as string) : undefined;
 
         out.push({
           id: model.key, // model identifier

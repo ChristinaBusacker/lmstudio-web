@@ -58,9 +58,9 @@ export class RunsService {
     return this.runs.find({
       where: {
         queueKey,
-        status: In(['queued', 'running'] as any),
+        status: In(['queued', 'running'] satisfies RunStatus[]),
       },
-      order: { status: 'ASC' as any, createdAt: 'ASC' as any },
+      order: { status: 'ASC', createdAt: 'ASC' },
       take: limit,
     });
   }
@@ -76,9 +76,9 @@ export class RunsService {
       where: {
         chatId,
         queueKey,
-        status: In(['queued', 'running'] as any),
+        status: In(['queued', 'running'] satisfies RunStatus[]),
       },
-      order: { status: 'ASC' as any, createdAt: 'ASC' as any },
+      order: { status: 'ASC', createdAt: 'ASC' },
       take: limit,
     });
   }

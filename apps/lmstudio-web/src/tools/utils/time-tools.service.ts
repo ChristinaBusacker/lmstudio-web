@@ -244,8 +244,9 @@ export class TimeToolsService {
       };
     }
 
-    const pickComponents = (c: any) => {
-      if (!c) return null;
+    const pickComponents = (c: unknown) => {
+      if (!c || typeof c !== 'object') return null;
+
       const keys = [
         'year',
         'month',
@@ -255,10 +256,13 @@ export class TimeToolsService {
         'second',
         'millisecond',
         'timezoneOffset',
-      ];
+      ] as const;
+
       const out: Record<string, number | null> = {};
+      const maybeGet = (c as { get?: (key: string) => unknown }).get;
+
       for (const k of keys) {
-        const v = c.get ? c.get(k) : undefined;
+        const v = typeof maybeGet === 'function' ? maybeGet(k) : undefined;
         out[k] = typeof v === 'number' ? v : null;
       }
       return out;

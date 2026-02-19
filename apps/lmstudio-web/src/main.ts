@@ -1,16 +1,17 @@
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { mkdirSync } from 'fs';
 import { join } from 'path';
-import express from 'express';
+import express, { type Request, type Response } from 'express';
 import { getNetworkAddresses } from './utils/getNetworkAdress';
 
 async function bootstrap() {
   mkdirSync(join(__dirname, 'data'), { recursive: true });
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const distRoot = join(__dirname);
 
@@ -37,12 +38,11 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   // Expose OpenAPI JSON explicitly
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
-  app.use('/api/openapi.json', (_req, res) => res.json(document));
+  app.use('/api/openapi.json', (_req: Request, res: Response) => res.json(document));
 
   app.use('/ui', express.static(join(distRoot, 'ui', 'browser')));
 
-  app.use(/^\/ui(\/.*)?$/, (req, res) => {
+  app.use(/^\/ui(\/.*)?$/, (_req: Request, res: Response) => {
     res.sendFile(join(distRoot, 'ui', 'browser', 'index.html'));
   });
 
@@ -81,4 +81,4 @@ async function bootstrap() {
   console.log('────────────────────────────');
 }
 
-bootstrap();
+void bootstrap();

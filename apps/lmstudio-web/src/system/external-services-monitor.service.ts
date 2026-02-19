@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { ConfigService } from '@nestjs/config';
 import type { ExternalServiceStatus } from '@shared/contracts';
 import { SseBusService } from '../sse/sse-bus.service';
+import { normalizeError } from '../common/utils/error.util';
 
 type ServiceKey = 'lmstudio' | 'searxng';
 
@@ -107,14 +108,14 @@ export class ExternalServicesMonitorService implements OnModuleInit, OnModuleDes
       });
 
       return { name: 'lmstudio', enabled, ok: true, baseUrl, checkedAt, error: null };
-    } catch (e: any) {
+    } catch (e: unknown) {
       return {
         name: 'lmstudio',
         enabled,
         ok: false,
         baseUrl,
         checkedAt,
-        error: String(e?.message ?? e),
+        error: normalizeError(e).message,
       };
     }
   }
@@ -159,14 +160,14 @@ export class ExternalServicesMonitorService implements OnModuleInit, OnModuleDes
       });
 
       return { name: 'searxng', enabled, ok: true, baseUrl, checkedAt, error: null };
-    } catch (e: any) {
+    } catch (e: unknown) {
       return {
         name: 'searxng',
         enabled,
         ok: false,
         baseUrl,
         checkedAt,
-        error: String(e?.message ?? e),
+        error: normalizeError(e).message,
       };
     }
   }

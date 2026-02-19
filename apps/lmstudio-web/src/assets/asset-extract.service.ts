@@ -5,6 +5,7 @@ import { pdfBytesToText } from '@backend/src/utils/pdfBytesToText';
 import { AssetsService } from './assets.service';
 import { TesseractModule } from '@frontend/src/app/core/types/tesseract.types';
 import { JsonObject } from '@shared/index';
+import { normalizeError } from '../common/utils/error.util';
 
 export type AssetExtractKind =
   | 'text'
@@ -139,7 +140,7 @@ export class AssetExtractService {
             warnings: [],
             stats: baseStats,
           };
-        } catch (e: any) {
+        } catch (e: unknown) {
           baseStats.extractMs = Date.now() - started;
           return {
             kind: 'json',
@@ -147,7 +148,7 @@ export class AssetExtractService {
             filename,
             text,
             json: null,
-            warnings: [`Invalid JSON: ${String(e?.message ?? e)}`],
+            warnings: [`Invalid JSON: ${normalizeError(e).message}`],
             stats: baseStats,
           };
         }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import Ajv, { type ErrorObject } from 'ajv';
+import { normalizeError } from '../../common/utils/error.util';
 
 @Injectable()
 export class JsonToolsService {
@@ -40,10 +41,10 @@ export class JsonToolsService {
         ok: false,
         errors,
       };
-    } catch (e: any) {
+    } catch (e: unknown) {
       return {
         ok: false,
-        error: e?.message ? String(e.message) : 'Validation failed.',
+        error: normalizeError(e).message ?? 'Validation failed.',
       };
     }
   }
@@ -94,11 +95,11 @@ export class JsonToolsService {
         json,
         repairedText: candidate,
       };
-    } catch (e: any) {
+    } catch (e: unknown) {
       return {
         ok: false,
         repaired: true,
-        error: e?.message ? String(e.message) : 'Could not repair JSON.',
+        error: normalizeError(e).message ?? 'Could not repair JSON.',
         repairedText: candidate,
       };
     }

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { normalizeError } from '../../common/utils/error.util';
 
 type EvalArgs = {
   expression: string;
@@ -357,11 +358,11 @@ export class MathToolsService {
         valueRaw: value,
         precision,
       };
-    } catch (e: any) {
+    } catch (e: unknown) {
       return {
         ok: false,
         expression: expr,
-        error: e?.message ? String(e.message) : 'Math evaluation failed.',
+        error: normalizeError(e) ?? 'Math evaluation failed.',
       };
     }
   }

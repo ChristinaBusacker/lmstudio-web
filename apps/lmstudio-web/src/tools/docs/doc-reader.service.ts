@@ -7,6 +7,7 @@ import { RunArtifactsService } from '../run-artifacts.service';
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import sanitizeHtml from 'sanitize-html';
+import { normalizeError } from '../../common/utils/error.util';
 
 export type ParsedFile = {
   name: string;
@@ -148,13 +149,13 @@ export class DocReaderService {
 
         const buf = await entry.buffer();
         out.push(await this.readSingle(buf, name, 'about:blank'));
-      } catch (e: any) {
+      } catch (e: unknown) {
         out.push({
           name,
           mimeType: await detectMime(Buffer.alloc(0), name),
           kind: 'unknown',
           content: { text: null, json: null },
-          warnings: [String(e?.message ?? e)],
+          warnings: [normalizeError(e).message],
           stats: { bytes: 0, chars: 0, extractMs: 0, ocr: false },
         });
       }
@@ -190,14 +191,14 @@ export class DocReaderService {
         warnings: extracted.warnings,
         stats: extracted.stats,
       };
-    } catch (e: any) {
+    } catch (e: unknown) {
       const mimeType = await detectMime(bytes, name);
       return {
         name,
         mimeType,
         kind: 'unknown',
         content: { text: null, json: null },
-        warnings: [String(e?.message ?? e)],
+        warnings: [normalizeError(e).message],
         stats: { bytes: bytes.length, chars: 0, extractMs: 0, ocr: false },
       };
     }

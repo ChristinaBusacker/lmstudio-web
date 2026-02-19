@@ -155,8 +155,7 @@ export class Composer implements AfterViewInit {
     if (this.disabled) return;
 
     // IME / composition: niemals auf Enter senden
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if ((event as any).isComposing) return;
+    if (event.isComposing) return;
 
     if (event.key !== 'Enter') return;
 

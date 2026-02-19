@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
+import { GenerationSettingsProfileEntity } from './entities/generation-settings-profile.entity';
 import {
   Body,
   Controller,
@@ -96,12 +98,12 @@ export class SettingsController {
     return this.toDto(p);
   }
 
-  private toDto(p: any): SettingsProfileDto {
+  private toDto(p: GenerationSettingsProfileEntity): SettingsProfileDto {
     return {
       id: String(p.id),
       ownerKey: String(p.ownerKey),
       name: String(p.name),
-      params: (p.params ?? {}) as Record<string, any>,
+      params: (p.params ?? {}) as Record<string, unknown>,
       isDefault: Boolean(p.isDefault),
       createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : String(p.createdAt),
       updatedAt: p.updatedAt instanceof Date ? p.updatedAt.toISOString() : String(p.updatedAt),

@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { normalizeWorkflowGraph } from './graph-normalizer';
 import type { WorkflowGraph } from './graph-types';
 
