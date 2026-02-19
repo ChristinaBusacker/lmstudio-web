@@ -223,7 +223,7 @@ export class Composer implements AfterViewInit {
 
   private createChat(): Observable<ChatMetaDto | null> {
     return this.api.create({}).pipe(
-      tap((created) => {
+      tap(async (created) => {
         this.store.dispatch(new OpenChat(created.id));
 
         if (this.folderId) {
@@ -236,8 +236,7 @@ export class Composer implements AfterViewInit {
         this.send();
 
         // Cause: I start routing on purpose and downt wait for it
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        this.router.navigate(['/chat', created.id]);
+        await this.router.navigate(['/chat', created.id]);
       }),
       catchError((err) => {
         console.error('[Chats] create failed', err);

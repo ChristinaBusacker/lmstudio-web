@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 import { GenerationSettingsProfileEntity } from './entities/generation-settings-profile.entity';
 import {
   Body,

@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ChatContextBuilder } from '../chats/chat-context.builder';
 import { ChatEngineService } from '../chats/chat-engine.service';

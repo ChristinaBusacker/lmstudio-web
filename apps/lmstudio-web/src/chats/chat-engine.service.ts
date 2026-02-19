@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import type { LmMessage, RunParams, StreamDelta } from '../common/types/llm.types';
 import { ConfigService } from '@nestjs/config';
