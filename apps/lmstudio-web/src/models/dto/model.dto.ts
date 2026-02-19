@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import type {
-  LmModelState,
   LmModelListItem,
   LmModelDetails,
   LoadModelRequest,
@@ -10,6 +9,7 @@ import type {
   LoadModelResponse,
   UnloadModelResponse,
 } from '@shared/contracts';
+import { ModelLoadState } from '@shared/index';
 
 export class ModelListItemDto implements LmModelListItem {
   @ApiProperty() id!: string;
@@ -22,7 +22,7 @@ export class ModelListItemDto implements LmModelListItem {
   @ApiPropertyOptional() quantization?: string;
 
   @ApiProperty({ enum: ['loaded', 'not-loaded', 'unknown'] })
-  state!: LmModelState;
+  state!: ModelLoadState;
 
   @ApiPropertyOptional({ description: 'Max context length reported by LM Studio' })
   maxContextLength?: number;

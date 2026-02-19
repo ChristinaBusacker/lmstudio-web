@@ -1,4 +1,4 @@
-export type LmModelState = 'loaded' | 'not-loaded' | 'unknown';
+import { ModelLoadState } from '@shared/types/models.types';
 
 export interface LmModelListItem {
   id: string;
@@ -6,7 +6,7 @@ export interface LmModelListItem {
   publisher?: string;
   arch?: string;
   quantization?: string;
-  state: LmModelState;
+  state: ModelLoadState;
   maxContextLength?: number;
 }
 

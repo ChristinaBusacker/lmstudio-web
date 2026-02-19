@@ -81,12 +81,7 @@ export default tseslint.config(
 
   // 7) Nest / Node side: backend-specific override
   {
-    files: [
-      'apps/**/src/**/*.ts',
-      'apps/**/src/**/*.tsx',
-      'apps/**/test/**/*.ts',
-      'apps/**/test/**/*.tsx',
-    ],
+    files: ['apps/lmstudio-web/src/**/*.ts', 'apps/lmstudio-web/test/**/*.ts'],
     // Only target backend app(s) explicitly (adjust paths if your backend is elsewhere)
     // If your Nest app is exactly apps/lmstudio-web, tighten to that:
     // files: ['apps/lmstudio-web/**/*.ts'],
