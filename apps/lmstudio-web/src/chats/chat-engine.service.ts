@@ -275,7 +275,7 @@ export class ChatEngineService implements OnModuleDestroy {
         }
 
         // Typical OpenAI-compatible delta for chat.completions streaming
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
         const d = payload?.choices?.[0]?.delta?.content;
         if (typeof d === 'string' && d.length > 0) {
           full += d;

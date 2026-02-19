@@ -13,7 +13,7 @@ describe('normalizeWorkflowGraph', () => {
   it('normalizes nodes and filters invalid edges', () => {
     const graph = g({
       nodes: [
-        { id: 'a', type: 'workflow.llm', title: 'A', prompt: 'hi', config: {} },
+        { id: 'a', type: 'lmstudio.llm', title: 'A', prompt: 'hi', config: {} },
         { id: 'b', type: 'workflow.tool', title: 'B', prompt: '', config: {} },
         { id: '', type: 'workflow.tool' }, // invalid
       ],
@@ -46,8 +46,8 @@ describe('normalizeWorkflowGraph', () => {
   it('derives edges from legacy inputFrom when edges are empty', () => {
     const graph = g({
       nodes: [
-        { id: 'a', type: 'workflow.llm', prompt: 'hi', config: {} },
-        { id: 'b', type: 'workflow.llm', prompt: 'yo', inputFrom: 'a', config: {} },
+        { id: 'a', type: 'lmstudio.llm', prompt: 'hi', config: {} },
+        { id: 'b', type: 'lmstudio.llm', prompt: 'yo', inputFrom: 'a', config: {} },
       ],
       edges: [],
     });
@@ -68,8 +68,8 @@ describe('normalizeWorkflowGraph', () => {
   it('dedupes equivalent edges stably', () => {
     const graph = g({
       nodes: [
-        { id: 'a', type: 'workflow.llm', prompt: 'hi', config: {} },
-        { id: 'b', type: 'workflow.llm', prompt: 'yo', config: {} },
+        { id: 'a', type: 'lmstudio.llm', prompt: 'hi', config: {} },
+        { id: 'b', type: 'lmstudio.llm', prompt: 'yo', config: {} },
       ],
       edges: [
         { id: '1', source: 'a', target: 'b', sourcePort: 'x', targetPort: 'y' },
