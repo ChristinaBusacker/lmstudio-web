@@ -2,9 +2,31 @@ import { Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestj
 import type { LmMessage, RunParams, StreamDelta } from '../common/types/llm.types';
 import { ConfigService } from '@nestjs/config';
 import { JsonArray, JsonObject } from '@shared/types/json';
+import { normalizeError } from '../common/utils/error.util';
 interface StreamResult {
   content: string;
   stats?: JsonObject;
+}
+
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === 'object' && value !== null;
+}
+
+function getPath(value: unknown, path: Array<string | number>): unknown {
+  let cur: unknown = value;
+  for (const key of path) {
+    if (typeof key === 'number') {
+      if (!Array.isArray(cur)) return undefined;
+      cur = cur[key];
+      continue;
+    }
+
+    if (!isRecord(cur)) return undefined;
+    cur = cur[key];
+  }
+  return cur;
 }
 
 @Injectable()
@@ -98,13 +120,14 @@ export class ChatEngineService implements OnModuleDestroy {
         signal: controller.signal,
         body: JSON.stringify(body),
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Network / refused / DNS / etc.
+      const err = normalizeError(e);
       throw new ServiceUnavailableException({
         code: 'LMSTUDIO_UNREACHABLE',
         message: 'Unable to connect to LM Studio.',
         baseUrl: this.baseUrl,
-        detail: String(e?.message ?? e),
+        detail: err.message,
       });
     }
 
@@ -228,12 +251,13 @@ export class ChatEngineService implements OnModuleDestroy {
         signal: controller.signal,
         body: JSON.stringify(body),
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const err = normalizeError(e);
       throw new ServiceUnavailableException({
         code: 'LMSTUDIO_UNREACHABLE',
         message: 'Unable to connect to LM Studio.',
         baseUrl: this.baseUrl,
-        detail: String(e?.message ?? e),
+        detail: err.message,
       });
     }
 
@@ -275,7 +299,7 @@ export class ChatEngineService implements OnModuleDestroy {
 
         // Typical OpenAI-compatible delta for chat.completions streaming
 
-        const d = payload?.choices?.[0]?.delta?.content;
+        const d = getPath(payload, ['choices', 0, 'delta', 'content']);
         if (typeof d === 'string' && d.length > 0) {
           full += d;
           yield { delta: d };

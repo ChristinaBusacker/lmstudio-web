@@ -12,6 +12,27 @@ import { RunsService } from './runs.service';
 import { SseBusService } from '../sse/sse-bus.service';
 import { ToolOrchestratorService } from '../tools/tool-orchestrator.service';
 import { ConfigService } from '@nestjs/config';
+import type { RunParams } from '../common/types/llm.types';
+
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === 'object' && value !== null;
+}
+
+function getPath(value: unknown, path: Array<string | number>): unknown {
+  let cur: unknown = value;
+  for (const key of path) {
+    if (typeof key === 'number') {
+      if (!Array.isArray(cur)) return undefined;
+      cur = cur[key];
+      continue;
+    }
+    if (!isRecord(cur)) return undefined;
+    cur = cur[key];
+  }
+  return cur;
+}
 
 interface RunExecContext {
   runId: string;
@@ -30,7 +51,7 @@ interface RunExecContext {
   think: ThinkParseState;
 
   /** Frozen settings snapshot */
-  params: Record<string, any>;
+  params: RunParams;
 
   /** One-time debug flag to avoid spamming logs */
   didLogEngineShape: boolean;
@@ -144,7 +165,7 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
       lastFlushMs: Date.now(),
       think: createThinkParseState(),
 
-      params: (run.settingsSnapshot ?? {}) as Record<string, any>,
+      params: (run.settingsSnapshot ?? {}) as RunParams,
       didLogEngineShape: false,
     };
   }
@@ -153,72 +174,72 @@ export class RunWorkerService implements OnModuleInit, OnModuleDestroy {
    * Extract "content delta" and any "reasoning delta" that might come in a separate channel.
    * This is intentionally defensive because different model servers encode this differently.
    */
-  private extractDeltas(value: any): { contentDelta: string; reasoningDelta: string } {
+  private extractDeltas(value: unknown): { contentDelta: string; reasoningDelta: string } {
     let contentDelta = '';
     let reasoningDelta = '';
 
-    // Most common: value.delta is a string
-    if (typeof value?.delta === 'string') {
-      contentDelta = value.delta;
-    }
+    const delta = getPath(value, ['delta']);
+    if (typeof delta === 'string') contentDelta = delta;
 
-    // Sometimes: value.delta is an object (OpenAI-ish / custom)
-    // e.g. delta: { content: "...", reasoning: "..." }
-    if (value?.delta && typeof value.delta === 'object') {
-      if (typeof value.delta.content === 'string') contentDelta = value.delta.content;
-      if (typeof value.delta.reasoning === 'string') reasoningDelta = value.delta.reasoning;
-      if (typeof value.delta.thinking === 'string') reasoningDelta = value.delta.thinking;
-      if (typeof value.delta.analysis === 'string') reasoningDelta = value.delta.analysis;
-    }
+    // Sometimes: delta is an object: { content, reasoning/thinking/analysis }
+    const deltaContent = getPath(value, ['delta', 'content']);
+    if (typeof deltaContent === 'string') contentDelta = deltaContent;
+
+    const deltaReasoning =
+      getPath(value, ['delta', 'reasoning']) ??
+      getPath(value, ['delta', 'thinking']) ??
+      getPath(value, ['delta', 'analysis']);
+    if (typeof deltaReasoning === 'string') reasoningDelta = deltaReasoning;
 
     // Alternative separate keys we might see
-    if (typeof value?.reasoningDelta === 'string') reasoningDelta = value.reasoningDelta;
-    if (typeof value?.thinkingDelta === 'string') reasoningDelta = value.thinkingDelta;
+    const altReasoning =
+      getPath(value, ['reasoningDelta']) ??
+      getPath(value, ['thinkingDelta']) ??
+      getPath(value, ['reasoning']) ??
+      getPath(value, ['thinking']) ??
+      getPath(value, ['analysis']);
+    if (typeof altReasoning === 'string') reasoningDelta = altReasoning;
 
-    if (typeof value?.reasoning === 'string') reasoningDelta = value.reasoning;
-    if (typeof value?.thinking === 'string') reasoningDelta = value.thinking;
-    if (typeof value?.analysis === 'string') reasoningDelta = value.analysis;
+    // Some servers: message: { content, reasoning/thinking/analysis } per tick
+    const msgContent = getPath(value, ['message', 'content']);
+    if (!contentDelta && typeof msgContent === 'string') contentDelta = msgContent;
 
-    // Some servers: message: { content: "...", reasoning: "..." } per tick
-    if (value?.message && typeof value.message === 'object') {
-      if (!contentDelta && typeof value.message.content === 'string')
-        contentDelta = value.message.content;
-      if (!reasoningDelta && typeof value.message.reasoning === 'string')
-        reasoningDelta = value.message.reasoning;
-      if (!reasoningDelta && typeof value.message.thinking === 'string')
-        reasoningDelta = value.message.thinking;
-      if (!reasoningDelta && typeof value.message.analysis === 'string')
-        reasoningDelta = value.message.analysis;
-    }
+    const msgReasoning =
+      getPath(value, ['message', 'reasoning']) ??
+      getPath(value, ['message', 'thinking']) ??
+      getPath(value, ['message', 'analysis']);
+    if (!reasoningDelta && typeof msgReasoning === 'string') reasoningDelta = msgReasoning;
 
     return { contentDelta, reasoningDelta };
   }
 
   private async consumeStream(ctx: RunExecContext) {
-    const systemPrompt = ctx.params.systemPrompt || '';
+    const systemPromptValue = getPath(ctx.params, ['systemPrompt']);
+    const systemPrompt = typeof systemPromptValue === 'string' ? systemPromptValue : '';
 
     const messages = await this.contextBuilder.buildActiveContext(
       ctx.chatId,
       systemPrompt as string,
     );
 
-    const raw = (ctx.params as any)?.toolsEnabled;
-
+    // toolsEnabled can come from persisted JSON, so accept a few legacy encodings.
+    const rawTools = getPath(ctx.params, ['toolsEnabled']);
     const toolsEnabled =
-      typeof raw === 'boolean'
-        ? raw
-        : typeof raw === 'string'
-          ? raw.toLowerCase() !== 'false'
-          : typeof raw === 'number'
-            ? raw !== 0
+      typeof rawTools === 'boolean'
+        ? rawTools
+        : typeof rawTools === 'string'
+          ? rawTools.toLowerCase() !== 'false'
+          : typeof rawTools === 'number'
+            ? rawTools !== 0
             : true;
 
     // If structured output is enabled, prefer schema-enforced output and disable tool calling for now.
-    const structuredEnabled = Boolean((ctx.params as any)?.structuredOutput?.enabled);
+    const rawStructured = getPath(ctx.params, ['structuredOutput', 'enabled']);
+    const structuredEnabled = rawStructured === true;
 
     const gen =
       toolsEnabled && !structuredEnabled
-        ? this.toolOrchestrator.streamWithTools(ctx.runId, messages, ctx.params as any)
+        ? this.toolOrchestrator.streamWithTools(ctx.runId, messages, ctx.params)
         : this.engine.streamChat(ctx.runId, messages, ctx.params);
 
     while (true) {
