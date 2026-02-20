@@ -134,6 +134,11 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "globals": {
+      "ts-jest": {
+        "isolatedModules": true
+      }
+    },
     "setupFilesAfterEnv": [
       "<rootDir>/apps/lmstudio-web/test/jest.setup.ts"
     ],
