@@ -1,7 +1,12 @@
 import type { JsonObject, JsonValue } from '@shared/index';
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  if (typeof value !== 'object' || value === null) return false;
+  if (Array.isArray(value)) return false;
+  // Only treat plain objects as records (exclude Date, Error, class instances, etc.)
+  if (value instanceof Date) return false;
+  if (value instanceof Error) return false;
+  return Object.getPrototypeOf(value) === Object.prototype;
 }
 
 export function getRecord(obj: unknown, key: string): Record<string, unknown> | null {

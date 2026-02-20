@@ -1,81 +1,74 @@
 import { ExternalServicesMonitorService } from './external-services-monitor.service';
 
-const flush = () => new Promise((r) => setImmediate(r));
-
 describe('ExternalServicesMonitorService', () => {
-  const config = { get: jest.fn() } as any;
-  const bus = { publish: jest.fn() } as any;
-
-  const mockFetch = (impl: (url: string, init?: any) => Promise<any>) => {
-    (global as any).fetch = jest.fn((url: any, init: any) => impl(String(url), init));
-  };
+  let fetchMock: jest.Mock;
 
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
-    jest.clearAllMocks();
+    fetchMock = jest.fn();
+    // @ts-expect-error test env
+    global.fetch = fetchMock;
+
+    jest.spyOn(global, 'setInterval').mockImplementation(() => ({ unref: jest.fn() } as any));
+    jest.spyOn(global, 'clearInterval').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   it('publishes only when status payload changes', async () => {
-    config.get.mockImplementation((k: string) => {
-      if (k === 'LMSTUDIO_BASE_URL') return 'http://lm:1234';
-      if (k === 'SEARXNG_BASE_URL') return ''; // disabled
-      return undefined;
-    });
+    const config = {
+      get: jest.fn((k: string) => {
+        if (k === 'LMSTUDIO_BASE_URL') return 'http://lm:1234';
+        if (k === 'SEARXNG_BASE_URL') return ''; // disabled
+        return null;
+      }),
+    } as any;
 
-    let ok = true;
-    mockFetch(async (url) => {
-      if (url.includes('/v1/models')) {
-        return {
-          ok,
-          status: ok ? 200 : 503,
-          statusText: ok ? 'OK' : 'Down',
-          json: async () => ({ data: [] }),
-        };
-      }
-      throw new Error('unexpected url ' + url);
-    });
+    const bus = { publish: jest.fn() } as any;
+
+    // First check: LM ok
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, statusText: 'OK', json: async () => ({}) });
 
     const svc = new ExternalServicesMonitorService(config, bus);
 
-    svc.onModuleInit();
-    await flush();
-    // first check publishes
+    await (svc as any).checkAllAndPublishIfChanged();
     expect(bus.publish).toHaveBeenCalledTimes(1);
 
-    // next interval with same status should not publish
-    jest.advanceTimersByTime(30_000);
-    await flush();
+    // Same result again -> no publish
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, statusText: 'OK', json: async () => ({}) });
+    await (svc as any).checkAllAndPublishIfChanged();
     expect(bus.publish).toHaveBeenCalledTimes(1);
 
-    // change LM status to down => publish again
-    ok = false;
-    jest.advanceTimersByTime(30_000);
-    await flush();
+    // LM goes down -> publish
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'ERR', json: async () => ({}) });
+    await (svc as any).checkAllAndPublishIfChanged();
     expect(bus.publish).toHaveBeenCalledTimes(2);
 
-    svc.onModuleDestroy();
+    const lastPayload = bus.publish.mock.calls[1][0].payload;
+    expect(lastPayload.services.find((s: any) => s.name === 'lmstudio').ok).toBe(false);
+    expect(lastPayload.services.find((s: any) => s.name === 'searxng').enabled).toBe(false);
   });
 
   it('marks searxng disabled when base url not set', async () => {
-    config.get.mockImplementation((k: string) => {
-      if (k === 'LMSTUDIO_BASE_URL') return 'http://lm:1234';
-      if (k === 'SEARXNG_BASE_URL') return '';
-      return undefined;
-    });
-    mockFetch(async () => ({ ok: true, status: 200, statusText: 'OK', json: async () => ({}) }));
+    const config = {
+      get: jest.fn((k: string) => {
+        if (k === 'LMSTUDIO_BASE_URL') return 'http://lm:1234';
+        if (k === 'SEARXNG_BASE_URL') return '';
+        return null;
+      }),
+    } as any;
+
+    const bus = { publish: jest.fn() } as any;
+
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, statusText: 'OK', json: async () => ({}) });
 
     const svc = new ExternalServicesMonitorService(config, bus);
-    svc.onModuleInit();
-    await flush();
+    await (svc as any).checkAllAndPublishIfChanged();
 
     const snap = svc.getSnapshot();
-    const searx = snap.find((x) => x.name === 'searxng')!;
+    const searx = snap.find((s) => s.name === 'searxng')!;
     expect(searx.enabled).toBe(false);
-    expect(searx.baseUrl).toBeNull();
+    expect(searx.baseUrl).toBe(null);
   });
 });

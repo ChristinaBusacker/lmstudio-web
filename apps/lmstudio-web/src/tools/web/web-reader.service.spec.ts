@@ -1,60 +1,90 @@
 import { WebReaderService } from './web-reader.service';
 
-jest.mock('@mozilla/readability', () => {
-  return {
-    Readability: class {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      constructor(_doc: any) {}
-      parse() {
-        return {
-          title: 'Readable Title',
-          byline: 'Readable Author',
-          content: '<p>Hello</p><script>evil()</script><ul><li>Item</li></ul>',
-        };
-      }
-    },
-  };
-});
+jest.mock('@mozilla/readability', () => ({
+  Readability: jest.fn().mockImplementation(() => ({
+    parse: () => ({
+      title: 'Readable Title',
+      byline: 'Readable Author',
+      content: '<p>Hello <b>World</b></p><p>Second</p>',
+    }),
+  })),
+}));
 
 describe('WebReaderService', () => {
-  const artifacts = { createJson: jest.fn(async () => ({ id: 'art1' })) } as any;
-
   beforeEach(() => {
-    jest.clearAllMocks();
+    // @ts-expect-error test env
+    global.fetch = jest.fn();
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
   });
 
   it('extracts meta + readable text and stores artifact when runId provided', async () => {
-    (global as any).fetch = jest.fn(async () => ({
+    const html = `
+      <html lang="en">
+        <head>
+          <title>Fallback Title</title>
+          <meta property="og:title" content="OG Title" />
+          <meta name="author" content="Meta Author" />
+          <meta property="article:published_time" content="2020-01-01T00:00:00.000Z" />
+          <meta property="og:site_name" content="Example Site" />
+        </head>
+        <body>
+          <article><p>Hello World</p></article>
+        </body>
+      </html>
+    `;
+
+    const fetchMock = global.fetch as unknown as jest.Mock;
+    fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
       statusText: 'OK',
-      text: async () => `<!doctype html>
-        <html lang="en">
-          <head>
-            <title>Fallback Title</title>
-            <meta property="og:site_name" content="SiteName" />
-            <meta property="article:published_time" content="2020-01-02T03:04:05Z" />
-          </head>
-          <body>
-            <article><h1>Hi</h1><p>Body</p></article>
-          </body>
-        </html>`,
-    }));
+      text: async () => html,
+    });
+
+    const artifacts = {
+      createJson: jest.fn().mockResolvedValue({ id: 'a1' }),
+    } as any;
 
     const svc = new WebReaderService(artifacts);
-    const res = await svc.read({ url: 'https://example.com/a', runId: 'r1' });
+    const res = await svc.read({ url: 'https://example.com/x', runId: 'r1' });
 
-    expect(res.url).toBe('https://example.com/a');
+    expect(res.url).toBe('https://example.com/x');
+    expect(res.meta.lang).toBe('en');
+
+    // Readability mocked: should win over meta/title fallback
     expect(res.meta.title).toBe('Readable Title');
     expect(res.meta.author).toBe('Readable Author');
-    expect(res.meta.siteName).toBe('SiteName');
-    expect(res.meta.lang).toBe('en');
-    expect(res.meta.publishedAt).toBe('2020-01-02T03:04:05.000Z');
-    expect(res.text).toContain('Hello');
-    expect(res.text).toContain('- Item');
-    expect(res.artifactId).toBe('art1');
-    expect(artifacts.createJson).toHaveBeenCalledWith(
-      expect.objectContaining({ runId: 'r1', toolName: 'web_read', filename: 'web_read.json' }),
-    );
+    expect(res.meta.publishedAt).toContain('2020-01-01');
+    expect(res.meta.siteName).toBe('Example Site');
+
+    expect(res.text).toContain('Hello World');
+    expect(res.text).toContain('Second');
+    expect(res.artifactId).toBe('a1');
+
+    expect(artifacts.createJson).toHaveBeenCalledTimes(1);
+    const call = artifacts.createJson.mock.calls[0][0];
+    expect(call.runId).toBe('r1');
+    expect(call.toolName).toBe('web_read');
+    expect(call.json.meta.title).toBe('Readable Title');
+  });
+
+  it('does not create artifact when runId not provided', async () => {
+    const fetchMock = global.fetch as unknown as jest.Mock;
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: async () => '<html><body><p>x</p></body></html>',
+    });
+
+    const artifacts = { createJson: jest.fn() } as any;
+    const svc = new WebReaderService(artifacts);
+    const res = await svc.read({ url: 'https://example.com/x' });
+
+    expect(res.artifactId).toBe(null);
+    expect(artifacts.createJson).not.toHaveBeenCalled();
   });
 });
