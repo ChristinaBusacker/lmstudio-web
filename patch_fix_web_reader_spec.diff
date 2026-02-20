@@ -1,0 +1,35 @@
+diff --git a/apps/lmstudio-web/src/tools/web/web-reader.service.spec.ts b/apps/lmstudio-web/src/tools/web/web-reader.service.spec.ts
+index 5d8c9f2..b4c8a77 100644
+--- a/apps/lmstudio-web/src/tools/web/web-reader.service.spec.ts
++++ b/apps/lmstudio-web/src/tools/web/web-reader.service.spec.ts
+@@
++import { JSDOM } from 'jsdom';
+ import { WebReaderService } from './web-reader.service';
+
+ jest.mock('@mozilla/readability', () => ({
+@@
+   Readability: jest.fn().mockImplementation(() => ({
+     parse: () => ({
+@@
+     }),
+   })),
+ }));
+
+ describe('WebReaderService', () => {
+   it('extracts meta + readable text and stores artifact when runId provided', async () => {
++    const dom = new JSDOM(`
++      <html>
++        <head>
++          <meta property="og:title" content="Example Title" />
++          <meta property="og:description" content="Example Description" />
++        </head>
++        <body>
++          <article><p>Hello World</p></article>
++        </body>
++      </html>
++    `);
++
++    global.document = dom.window.document as any;
++
+     const svc = new WebReaderService(
+       { createText: jest.fn() } as any,

@@ -1,0 +1,172 @@
+*** Begin Patch
+*** Update File: apps/lmstudio-web/src/utils/typed-access.ts
+@@
+ export function isRecord(value: unknown): value is Record<string, unknown> {
+-  return typeof value === 'object' && value !== null && !Array.isArray(value);
++  if (typeof value !== 'object' || value === null) return false;
++  if (Array.isArray(value)) return false;
++  // Only treat plain objects (and null-prototype objects) as records.
++  // This avoids swallowing Dates, Errors, class instances, etc.
++  const proto = Object.getPrototypeOf(value);
++  return proto === Object.prototype || proto === null;
+ }
+*** End Patch
+*** Begin Patch
+*** Delete File: apps/lmstudio-web/src/tools/web/web-reader.service.spec.ts
+*** End Patch
+*** Begin Patch
+*** Add File: apps/lmstudio-web/src/tools/web/web-reader.service.spec.ts
++import { WebReaderService } from './web-reader.service';
++
++// Keep JSDOM real (service uses querySelector). Only mock Readability output.
++jest.mock('@mozilla/readability', () => {
++  return {
++    Readability: jest.fn().mockImplementation(() => ({
++      parse: () => ({
++        title: 'Readable Title',
++        byline: 'Readable Author',
++        content: '<p>Hello</p><p>World</p>',
++      }),
++    })),
++  };
++});
++
++describe('WebReaderService', () => {
++  beforeEach(() => {
++    (globalThis as any).fetch = jest.fn();
++  });
++
++  it('extracts meta + readable text and stores artifact when runId provided', async () => {
++    (globalThis.fetch as jest.Mock).mockResolvedValue({
++      ok: true,
++      status: 200,
++      statusText: 'OK',
++      text: async () => `
++        <html lang="en">
++          <head>
++            <title>Fallback Title</title>
++            <meta name="author" content="Meta Author" />
++            <meta property="og:site_name" content="Example Site" />
++            <meta property="article:published_time" content="2020-01-01T00:00:00.000Z" />
++          </head>
++          <body><article><p>ignored</p></article></body>
++        </html>
++      `,
++    });
++
++    const artifacts = {
++      createJson: jest.fn().mockResolvedValue({ id: 'a1' }),
++    } as any;
++
++    const svc = new WebReaderService(artifacts);
++    const res = await svc.read({ url: 'https://example.com/post', runId: 'r1' });
++
++    expect(res.url).toBe('https://example.com/post');
++    expect(res.meta).toEqual({
++      title: 'Readable Title',
++      author: 'Readable Author',
++      publishedAt: '2020-01-01T00:00:00.000Z',
++      siteName: 'Example Site',
++      lang: 'en',
++    });
++
++    expect(res.text).toContain('Hello');
++    expect(res.text).toContain('World');
++    expect(res.artifactId).toBe('a1');
++
++    expect(artifacts.createJson).toHaveBeenCalledTimes(1);
++    const [payload] = artifacts.createJson.mock.calls[0];
++    expect(payload.runId).toBe('r1');
++    expect(payload.toolName).toBe('web_read');
++    expect(payload.filename).toBe('web_read.json');
++    expect(payload.json.url).toBe('https://example.com/post');
++    expect(payload.json.meta.title).toBe('Readable Title');
++  });
++});
++
+*** End Patch
+*** Begin Patch
+*** Delete File: apps/lmstudio-web/src/system/external-services-monitor.service.spec.ts
+*** End Patch
+*** Begin Patch
+*** Add File: apps/lmstudio-web/src/system/external-services-monitor.service.spec.ts
++import { ExternalServicesMonitorService } from './external-services-monitor.service';
++
++describe('ExternalServicesMonitorService', () => {
++  beforeEach(() => {
++    jest.useRealTimers();
++    (globalThis as any).fetch = jest.fn();
++  });
++
++  it('publishes only when status payload changes', async () => {
++    const config = {
++      get: jest.fn((k: string) => {
++        if (k === 'LMSTUDIO_BASE_URL') return 'http://lm:1234';
++        if (k === 'SEARXNG_BASE_URL') return ''; // disabled
++        return undefined;
++      }),
++    } as any;
++
++    const bus = { publish: jest.fn() } as any;
++    const svc = new ExternalServicesMonitorService(config, bus);
++
++    // First check: LM ok, searx disabled => publish
++    (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
++      ok: true,
++      status: 200,
++      statusText: 'OK',
++      json: async () => ({ data: [] }),
++    });
++
++    await (svc as any).checkAllAndPublishIfChanged();
++    expect(bus.publish).toHaveBeenCalledTimes(1);
++
++    // Second check: same payload => no publish
++    (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
++      ok: true,
++      status: 200,
++      statusText: 'OK',
++      json: async () => ({ data: [] }),
++    });
++    await (svc as any).checkAllAndPublishIfChanged();
++    expect(bus.publish).toHaveBeenCalledTimes(1);
++
++    // Third check: LM down => payload changes => publish again
++    (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
++      ok: false,
++      status: 503,
++      statusText: 'Service Unavailable',
++      json: async () => ({ error: 'nope' }),
++    });
++    await (svc as any).checkAllAndPublishIfChanged();
++    expect(bus.publish).toHaveBeenCalledTimes(2);
++  });
++
++  it('marks searxng disabled when base url not set', async () => {
++    const config = {
++      get: jest.fn((k: string) => {
++        if (k === 'LMSTUDIO_BASE_URL') return 'http://lm:1234';
++        if (k === 'SEARXNG_BASE_URL') return '';
++        return undefined;
++      }),
++    } as any;
++
++    const bus = { publish: jest.fn() } as any;
++    const svc = new ExternalServicesMonitorService(config, bus);
++
++    (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
++      ok: true,
++      status: 200,
++      statusText: 'OK',
++      json: async () => ({ data: [] }),
++    });
++
++    await (svc as any).checkAllAndPublishIfChanged();
++    const snap = svc.getSnapshot();
++    const searx = snap.find((s) => s.name === 'searxng')!;
++    expect(searx.enabled).toBe(false);
++    expect(searx.baseUrl).toBe(null);
++  });
++});
++
+*** End Patch

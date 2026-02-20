@@ -1,0 +1,18 @@
+diff --git a/apps/lmstudio-web/src/system/external-services-monitor.service.spec.ts b/apps/lmstudio-web/src/system/external-services-monitor.service.spec.ts
+index 3a92d41..9d4d1a8 100644
+--- a/apps/lmstudio-web/src/system/external-services-monitor.service.spec.ts
++++ b/apps/lmstudio-web/src/system/external-services-monitor.service.spec.ts
+@@
+ beforeEach(() => {
++  jest.spyOn(global, 'setInterval').mockImplementation(() => 0 as any);
++  jest.spyOn(global, 'clearInterval').mockImplementation(() => {});
+ });
+
+ afterEach(() => {
++  jest.restoreAllMocks();
+ });
+
+ it('publishes only when status payload changes', async () => {
+@@
+-  await new Promise((r) => setTimeout(r, 10));
++  await (svc as any).check();

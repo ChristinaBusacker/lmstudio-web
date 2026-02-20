@@ -1,0 +1,700 @@
+diff -ruN /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/assets/assets.service.spec.ts /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/assets/assets.service.spec.ts
+--- /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/assets/assets.service.spec.ts	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/assets/assets.service.spec.ts	2026-02-20 19:53:51.569593048 +0000
+@@ -0,0 +1,78 @@
++import { AssetsService } from './assets.service';
++
++jest.mock('fs', () => {
++  const actual = jest.requireActual('fs');
++  return {
++    ...actual,
++    promises: {
++      mkdir: jest.fn(async () => undefined),
++      writeFile: jest.fn(async () => undefined),
++      readFile: jest.fn(async () => Buffer.from('file-bytes')),
++    },
++  };
++});
++
++describe('AssetsService', () => {
++  const repo = {
++    findOne: jest.fn(),
++    create: jest.fn((x) => x),
++    save: jest.fn(async (x) => ({ ...x, id: x.id ?? 'a1' })),
++  } as any;
++
++  beforeEach(() => {
++    jest.clearAllMocks();
++  });
++
++  it('deduplicates uploads by sha256', async () => {
++    const svc = new AssetsService(repo);
++
++    repo.findOne.mockResolvedValueOnce({ id: 'existing', sha256: 'x', path: '/tmp/x' });
++
++    const res = await svc.saveUpload({
++      originalname: 'a.txt',
++      mimetype: 'text/plain',
++      size: 3,
++      buffer: Buffer.from('abc'),
++    } as any);
++
++    expect(res.id).toBe('existing');
++    expect(repo.save).not.toHaveBeenCalled();
++  });
++
++  it('writes file to disk and stores path for new upload', async () => {
++    const svc = new AssetsService(repo);
++
++    repo.findOne.mockResolvedValueOnce(null);
++    // first save returns entity with id
++    repo.save
++      .mockResolvedValueOnce({
++        id: 'a1',
++        originalFilename: 'a.pdf',
++        mimeType: 'application/pdf',
++        sizeBytes: 10,
++        sha256: 'hash',
++        path: '',
++      })
++      // second save persists path
++      .mockImplementationOnce(async (x) => x);
++
++    const res = await svc.saveUpload({
++      originalname: 'a.pdf',
++      mimetype: 'application/pdf',
++      size: 10,
++      buffer: Buffer.from('bytes'),
++    } as any);
++
++    expect(res.id).toBe('a1');
++    expect(res.path).toContain('data');
++    expect(res.path).toContain('assets');
++    expect(res.path).toContain('a1');
++  });
++
++  it('readBytes reads the stored disk path', async () => {
++    const svc = new AssetsService(repo);
++    repo.findOne.mockResolvedValueOnce({ id: 'a1', path: '/tmp/a1.bin' });
++    const buf = await svc.readBytes('a1');
++    expect(buf.toString('utf8')).toBe('file-bytes');
++  });
++});
+diff -ruN /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/chat-runs/chat-runs.service.spec.ts /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/chat-runs/chat-runs.service.spec.ts
+--- /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/chat-runs/chat-runs.service.spec.ts	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/chat-runs/chat-runs.service.spec.ts	2026-02-20 19:54:46.762092278 +0000
+@@ -0,0 +1,112 @@
++import { BadRequestException, NotFoundException } from '@nestjs/common';
++import { ChatRunsService } from './chat-runs.service';
++
++describe('ChatRunsService', () => {
++  const chats = {
++    getChat: jest.fn(),
++    createUserMessage: jest.fn(),
++    createAssistantPlaceholder: jest.fn(),
++    ensureAutoTitle: jest.fn(),
++    setChatHead: jest.fn(),
++  } as any;
++  const runs = { createQueuedRun: jest.fn() } as any;
++  const settings = { getById: jest.fn(), getDefault: jest.fn() } as any;
++  const variants = { createAndActivate: jest.fn() } as any;
++  const messages = { getById: jest.fn(), markEdited: jest.fn() } as any;
++  const config = { get: jest.fn() } as any;
++
++  beforeEach(() => {
++    jest.clearAllMocks();
++    config.get.mockImplementation((k: string) => {
++      if (k === 'LMSTUDIO_DEFAULT_MODEL') return 'model-default';
++      return undefined;
++    });
++  });
++
++  it('sendAndEnqueue orchestrates messages + head + settings snapshot + queued run', async () => {
++    chats.getChat.mockResolvedValue({ id: 'c1', activeHeadMessageId: 'h0' });
++    chats.createUserMessage.mockResolvedValue({ id: 'u1', role: 'user' });
++    chats.createAssistantPlaceholder.mockResolvedValue({ id: 'a1', role: 'assistant' });
++    settings.getDefault.mockResolvedValue({ id: 'p1', params: { temperature: 0.1 } });
++    runs.createQueuedRun.mockResolvedValue({ id: 'r1' });
++
++    const svc = new ChatRunsService(chats, runs, settings, variants, messages, config);
++    const res = await svc.sendAndEnqueue({
++      chatId: 'c1',
++      content: ' hello ',
++      clientRequestId: 'req-1',
++      settingsSnapshot: { topP: 0.5 } as any,
++    });
++
++    expect(res).toEqual({ id: 'r1' });
++    expect(chats.createUserMessage).toHaveBeenCalledWith({
++      chatId: 'c1',
++      content: 'hello',
++      parentMessageId: 'h0',
++    });
++    expect(chats.createAssistantPlaceholder).toHaveBeenCalledWith({ chatId: 'c1', parentMessageId: 'u1' });
++    expect(chats.setChatHead).toHaveBeenCalledWith('c1', 'a1');
++    expect(runs.createQueuedRun).toHaveBeenCalledWith(
++      expect.objectContaining({
++        chatId: 'c1',
++        clientRequestId: 'req-1',
++        sourceMessageId: 'u1',
++        targetMessageId: 'a1',
++        headMessageIdAtStart: 'h0',
++        settingsProfileId: 'p1',
++        settingsSnapshot: expect.objectContaining({
++          temperature: 0.1,
++          topP: 0.5,
++          modelKey: 'model-default',
++        }),
++      }),
++    );
++  });
++
++  it('sendAndEnqueue rejects empty content', async () => {
++    chats.getChat.mockResolvedValue({ id: 'c1', activeHeadMessageId: null });
++    const svc = new ChatRunsService(chats, runs, settings, variants, messages, config);
++    await expect(
++      svc.sendAndEnqueue({ chatId: 'c1', content: '   ', clientRequestId: 'x' }),
++    ).rejects.toBeInstanceOf(BadRequestException);
++  });
++
++  it('sendAndEnqueue throws NotFound for missing chat', async () => {
++    chats.getChat.mockResolvedValue(null);
++    const svc = new ChatRunsService(chats, runs, settings, variants, messages, config);
++    await expect(
++      svc.sendAndEnqueue({ chatId: 'no', content: 'hi', clientRequestId: 'x' }),
++    ).rejects.toBeInstanceOf(NotFoundException);
++  });
++
++  it('regenerate creates a new active variant and enqueues run with parent user as source', async () => {
++    messages.getById
++      .mockResolvedValueOnce({
++        id: 'a1',
++        chatId: 'c1',
++        role: 'assistant',
++        deletedAt: null,
++        parentMessageId: 'u1',
++      })
++      .mockResolvedValueOnce({ id: 'u1', role: 'user', deletedAt: null });
++    settings.getDefault.mockResolvedValue({ id: 'p1', params: { modelKey: 'm1' } });
++    runs.createQueuedRun.mockResolvedValue({ id: 'r1' });
++
++    const svc = new ChatRunsService(chats, runs, settings, variants, messages, config);
++    const res = await svc.regenerate({ messageId: 'a1', clientRequestId: 'req-2' });
++
++    expect(res).toEqual({ id: 'r1' });
++    expect(variants.createAndActivate).toHaveBeenCalledWith({ messageId: 'a1', content: '', reasoning: null });
++    expect(messages.markEdited).toHaveBeenCalledWith('a1');
++    expect(chats.setChatHead).toHaveBeenCalledWith('c1', 'a1');
++    expect(runs.createQueuedRun).toHaveBeenCalledWith(
++      expect.objectContaining({
++        chatId: 'c1',
++        clientRequestId: 'req-2',
++        sourceMessageId: 'u1',
++        targetMessageId: 'a1',
++        headMessageIdAtStart: 'a1',
++      }),
++    );
++  });
++});
+diff -ruN /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/models/models.service.spec.ts /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/models/models.service.spec.ts
+--- /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/models/models.service.spec.ts	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/models/models.service.spec.ts	2026-02-20 19:54:21.259503459 +0000
+@@ -0,0 +1,137 @@
++import { ModelsService } from './models.service';
++
++describe('ModelsService', () => {
++  const sse = { publish: jest.fn() } as any;
++  const config = {
++    get: jest.fn((key: string, def?: any) => {
++      if (key === 'LMSTUDIO_BASE_URL') return 'http://127.0.0.1:1234/';
++      if (key === 'LMSTUDIO_API_TOKEN') return 'token123';
++      return def;
++    }),
++  } as any;
++
++  const mockFetch = (impl: (url: string, init?: any) => Promise<any>) => {
++    (global as any).fetch = jest.fn((url: any, init: any) => impl(String(url), init));
++  };
++
++  beforeEach(() => {
++    jest.clearAllMocks();
++  });
++
++  it('listModels maps REST models into DTOs', async () => {
++    mockFetch(async (url) => {
++      expect(url).toBe('http://127.0.0.1:1234/api/v1/models');
++      return {
++        ok: true,
++        status: 200,
++        statusText: 'OK',
++        json: async () => ({
++          models: [
++            {
++              key: 'm1',
++              type: 'llm',
++              publisher: 'pub',
++              architecture: 'arch',
++              quantization: { name: 'q4' },
++              state: 'loaded',
++              max_context_length: 8192,
++              loaded_instances: [{ id: 'inst1' }],
++            },
++          ],
++        }),
++      };
++    });
++
++    const svc = new ModelsService(sse, config);
++    const models = await svc.listModels();
++    expect(models).toEqual([
++      {
++        id: 'm1',
++        type: 'llm',
++        publisher: 'pub',
++        arch: 'arch',
++        quantization: 'q4',
++        state: 'loaded',
++        maxContextLength: 8192,
++      },
++    ]);
++  });
++
++  it('getModel throws NotFoundException when model is missing', async () => {
++    mockFetch(async () => ({ ok: true, status: 200, statusText: 'OK', json: async () => ({ models: [] }) }));
++    const svc = new ModelsService(sse, config);
++    await expect(svc.getModel('nope')).rejects.toThrow('Model not found');
++  });
++
++  it('listLoaded returns loaded instance identifiers only', async () => {
++    mockFetch(async () => ({
++      ok: true,
++      status: 200,
++      statusText: 'OK',
++      json: async () => ({
++        models: [
++          { key: 'm1', type: 'llm', state: 'loaded', loaded_instances: [{ id: 'i1' }, {}] },
++          { key: 'm2', type: 'embedding', state: 'loaded', loaded_instances: null },
++        ],
++      }),
++    }));
++
++    const svc = new ModelsService(sse, config);
++    const loaded = await svc.listLoaded();
++    expect(loaded).toEqual([{ id: 'm1', identifier: 'i1', type: 'llm' }]);
++  });
++
++  it('loadModel publishes events and maps to REST payload', async () => {
++    const calls: Array<{ url: string; init?: any }> = [];
++    mockFetch(async (url, init) => {
++      calls.push({ url, init });
++      if (url.endsWith('/api/v1/models')) {
++        return {
++          ok: true,
++          status: 200,
++          statusText: 'OK',
++          json: async () => ({ models: [{ key: 'm1', type: 'llm', state: 'not-loaded', max_context_length: 1 }] }),
++        };
++      }
++      if (url.endsWith('/api/v1/models/load')) {
++        return {
++          ok: true,
++          status: 200,
++          statusText: 'OK',
++          json: async () => ({ instance_id: 'inst42' }),
++        };
++      }
++      throw new Error('Unexpected url: ' + url);
++    });
++
++    const svc = new ModelsService(sse, config);
++    const res = await svc.loadModel('m1', { contextLength: 123 } as any);
++    expect(res).toEqual({ id: 'm1', identifier: 'inst42', state: 'loaded' });
++
++    // Authorization header is attached when token present
++    const loadCall = calls.find((c) => c.url.endsWith('/api/v1/models/load'))!;
++    expect(loadCall.init.headers.Authorization).toContain('Bearer');
++    expect(JSON.parse(loadCall.init.body)).toEqual({ model: 'm1', echo_load_config: true, context_length: 123 });
++
++    expect(sse.publish).toHaveBeenCalledWith(
++      expect.objectContaining({ type: 'models.changed', payload: expect.objectContaining({ reason: 'model-loading-started' }) }),
++    );
++    expect(sse.publish).toHaveBeenCalledWith(
++      expect.objectContaining({ type: 'models.changed', payload: expect.objectContaining({ reason: 'model-loaded' }) }),
++    );
++  });
++
++  it('unloadModel is idempotent when there is no loaded instance', async () => {
++    mockFetch(async () => ({
++      ok: true,
++      status: 200,
++      statusText: 'OK',
++      json: async () => ({ models: [{ key: 'm1', type: 'llm', state: 'not-loaded', loaded_instances: [] }] }),
++    }));
++
++    const svc = new ModelsService(sse, config);
++    const res = await svc.unloadModel('m1', {} as any);
++    expect(res).toEqual({ id: 'm1', identifier: undefined, state: 'not-loaded' });
++    expect(sse.publish).not.toHaveBeenCalled();
++  });
++});
+diff -ruN /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/system/external-services-monitor.service.spec.ts /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/system/external-services-monitor.service.spec.ts
+--- /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/system/external-services-monitor.service.spec.ts	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/system/external-services-monitor.service.spec.ts	2026-02-20 19:55:07.890323720 +0000
+@@ -0,0 +1,81 @@
++import { ExternalServicesMonitorService } from './external-services-monitor.service';
++
++const flush = () => new Promise((r) => setImmediate(r));
++
++describe('ExternalServicesMonitorService', () => {
++  const config = { get: jest.fn() } as any;
++  const bus = { publish: jest.fn() } as any;
++
++  const mockFetch = (impl: (url: string, init?: any) => Promise<any>) => {
++    (global as any).fetch = jest.fn((url: any, init: any) => impl(String(url), init));
++  };
++
++  beforeEach(() => {
++    jest.useFakeTimers();
++    jest.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
++    jest.clearAllMocks();
++  });
++
++  afterEach(() => {
++    jest.useRealTimers();
++  });
++
++  it('publishes only when status payload changes', async () => {
++    config.get.mockImplementation((k: string) => {
++      if (k === 'LMSTUDIO_BASE_URL') return 'http://lm:1234';
++      if (k === 'SEARXNG_BASE_URL') return ''; // disabled
++      return undefined;
++    });
++
++    let ok = true;
++    mockFetch(async (url) => {
++      if (url.includes('/v1/models')) {
++        return {
++          ok,
++          status: ok ? 200 : 503,
++          statusText: ok ? 'OK' : 'Down',
++          json: async () => ({ data: [] }),
++        };
++      }
++      throw new Error('unexpected url ' + url);
++    });
++
++    const svc = new ExternalServicesMonitorService(config, bus);
++
++    svc.onModuleInit();
++    await flush();
++    // first check publishes
++    expect(bus.publish).toHaveBeenCalledTimes(1);
++
++    // next interval with same status should not publish
++    jest.advanceTimersByTime(30_000);
++    await flush();
++    expect(bus.publish).toHaveBeenCalledTimes(1);
++
++    // change LM status to down => publish again
++    ok = false;
++    jest.advanceTimersByTime(30_000);
++    await flush();
++    expect(bus.publish).toHaveBeenCalledTimes(2);
++
++    svc.onModuleDestroy();
++  });
++
++  it('marks searxng disabled when base url not set', async () => {
++    config.get.mockImplementation((k: string) => {
++      if (k === 'LMSTUDIO_BASE_URL') return 'http://lm:1234';
++      if (k === 'SEARXNG_BASE_URL') return '';
++      return undefined;
++    });
++    mockFetch(async () => ({ ok: true, status: 200, statusText: 'OK', json: async () => ({}) }));
++
++    const svc = new ExternalServicesMonitorService(config, bus);
++    svc.onModuleInit();
++    await flush();
++
++    const snap = svc.getSnapshot();
++    const searx = snap.find((x) => x.name === 'searxng')!;
++    expect(searx.enabled).toBe(false);
++    expect(searx.baseUrl).toBeNull();
++  });
++});
+diff -ruN /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/tools/run-artifacts.service.spec.ts /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/tools/run-artifacts.service.spec.ts
+--- /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/tools/run-artifacts.service.spec.ts	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/tools/run-artifacts.service.spec.ts	2026-02-20 19:56:07.165723020 +0000
+@@ -0,0 +1,30 @@
++import { RunArtifactsService } from './run-artifacts.service';
++
++describe('RunArtifactsService', () => {
++  const repo = {
++    create: jest.fn((x) => x),
++    save: jest.fn(async (x) => ({ ...x, id: 'a1' })),
++  } as any;
++
++  beforeEach(() => {
++    jest.clearAllMocks();
++  });
++
++  it('creates JSON artifacts with expected fields', async () => {
++    const svc = new RunArtifactsService(repo);
++    const res = await svc.createJson({ runId: 'r1', toolName: 't', json: { a: 1 }, filename: 'x.json' });
++    expect(res).toEqual(expect.objectContaining({ id: 'a1', runId: 'r1', kind: 'json' }));
++    expect(repo.create).toHaveBeenCalledWith(
++      expect.objectContaining({ runId: 'r1', toolName: 't', mimeType: 'application/json', filename: 'x.json' }),
++    );
++  });
++
++  it('creates text artifacts with default mime type', async () => {
++    const svc = new RunArtifactsService(repo);
++    const res = await svc.createText({ runId: 'r1', toolName: null, text: 'hi' });
++    expect(res).toEqual(expect.objectContaining({ id: 'a1', runId: 'r1', kind: 'text' }));
++    expect(repo.create).toHaveBeenCalledWith(
++      expect.objectContaining({ mimeType: 'text/plain', contentText: 'hi', contentJson: null }),
++    );
++  });
++});
+diff -ruN /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/tools/web/web-reader.service.spec.ts /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/tools/web/web-reader.service.spec.ts
+--- /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/tools/web/web-reader.service.spec.ts	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/tools/web/web-reader.service.spec.ts	2026-02-20 19:55:50.666092769 +0000
+@@ -0,0 +1,60 @@
++import { WebReaderService } from './web-reader.service';
++
++jest.mock('@mozilla/readability', () => {
++  return {
++    Readability: class {
++      // eslint-disable-next-line @typescript-eslint/no-unused-vars
++      constructor(_doc: any) {}
++      parse() {
++        return {
++          title: 'Readable Title',
++          byline: 'Readable Author',
++          content: '<p>Hello</p><script>evil()</script><ul><li>Item</li></ul>',
++        };
++      }
++    },
++  };
++});
++
++describe('WebReaderService', () => {
++  const artifacts = { createJson: jest.fn(async () => ({ id: 'art1' })) } as any;
++
++  beforeEach(() => {
++    jest.clearAllMocks();
++  });
++
++  it('extracts meta + readable text and stores artifact when runId provided', async () => {
++    (global as any).fetch = jest.fn(async () => ({
++      ok: true,
++      status: 200,
++      statusText: 'OK',
++      text: async () => `<!doctype html>
++        <html lang="en">
++          <head>
++            <title>Fallback Title</title>
++            <meta property="og:site_name" content="SiteName" />
++            <meta property="article:published_time" content="2020-01-02T03:04:05Z" />
++          </head>
++          <body>
++            <article><h1>Hi</h1><p>Body</p></article>
++          </body>
++        </html>`,
++    }));
++
++    const svc = new WebReaderService(artifacts);
++    const res = await svc.read({ url: 'https://example.com/a', runId: 'r1' });
++
++    expect(res.url).toBe('https://example.com/a');
++    expect(res.meta.title).toBe('Readable Title');
++    expect(res.meta.author).toBe('Readable Author');
++    expect(res.meta.siteName).toBe('SiteName');
++    expect(res.meta.lang).toBe('en');
++    expect(res.meta.publishedAt).toBe('2020-01-02T03:04:05.000Z');
++    expect(res.text).toContain('Hello');
++    expect(res.text).toContain('- Item');
++    expect(res.artifactId).toBe('art1');
++    expect(artifacts.createJson).toHaveBeenCalledWith(
++      expect.objectContaining({ runId: 'r1', toolName: 'web_read', filename: 'web_read.json' }),
++    );
++  });
++});
+diff -ruN /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/tools/web/web-search.service.spec.ts /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/tools/web/web-search.service.spec.ts
+--- /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/tools/web/web-search.service.spec.ts	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/tools/web/web-search.service.spec.ts	2026-02-20 19:55:30.475413398 +0000
+@@ -0,0 +1,81 @@
++import { ServiceUnavailableException } from '@nestjs/common';
++import { WebSearchService } from './web-search.service';
++
++describe('WebSearchService', () => {
++  const config = { get: jest.fn() } as any;
++  const artifacts = { createJson: jest.fn(async () => ({ id: 'art1' })) } as any;
++
++  const mockFetch = (impl: (url: string) => Promise<any>) => {
++    (global as any).fetch = jest.fn((url: any) => impl(String(url)));
++  };
++
++  beforeEach(() => {
++    jest.clearAllMocks();
++  });
++
++  it('uses searxng when configured and stores artifact when runId provided', async () => {
++    config.get.mockImplementation((k: string) => (k === 'SEARXNG_BASE_URL' ? 'http://sx' : undefined));
++
++    mockFetch(async (url) => {
++      expect(url).toContain('http://sx/search');
++      expect(url).toContain('format=json');
++      expect(url).toContain('engines=google');
++      return {
++        ok: true,
++        status: 200,
++        statusText: 'OK',
++        json: async () => ({
++          results: [
++            { title: 'T', url: 'https://e', content: 'S', engine: 'google', publishedDate: '2020-01-01' },
++          ],
++        }),
++      };
++    });
++
++    const svc = new WebSearchService(config, artifacts);
++    const res = await svc.search({ q: 'hi', limit: 5, runId: 'r1' });
++
++    expect(res.query).toBe('hi');
++    expect(res.results[0]).toEqual(
++      expect.objectContaining({ title: 'T', url: 'https://e', snippet: 'S', engine: 'google' }),
++    );
++    expect(res.artifactId).toBe('art1');
++    expect(artifacts.createJson).toHaveBeenCalledWith(
++      expect.objectContaining({ runId: 'r1', toolName: 'web_search', filename: 'web_search.json' }),
++    );
++  });
++
++  it('throws ServiceUnavailableException when searxng configured but unreachable', async () => {
++    config.get.mockImplementation((k: string) => (k === 'SEARXNG_BASE_URL' ? 'http://sx' : undefined));
++    (global as any).fetch = jest.fn(async () => {
++      throw new Error('connection refused');
++    });
++
++    const svc = new WebSearchService(config, artifacts);
++    await expect(svc.search({ q: 'x', limit: 3 })).rejects.toBeInstanceOf(ServiceUnavailableException);
++  });
++
++  it('falls back to DuckDuckGo when searxng not configured', async () => {
++    config.get.mockImplementation(() => '');
++
++    mockFetch(async (url) => {
++      expect(url).toContain('https://api.duckduckgo.com/');
++      return {
++        ok: true,
++        status: 200,
++        statusText: 'OK',
++        json: async () => ({
++          RelatedTopics: [
++            { Text: 'Example - Something', FirstURL: 'https://ddg.example' },
++            { Topics: [{ Text: 'Nested - Topic', FirstURL: 'https://ddg.nested' }] },
++          ],
++        }),
++      };
++    });
++
++    const svc = new WebSearchService(config, artifacts);
++    const res = await svc.search({ q: 'q', limit: 2 });
++    expect(res.results).toHaveLength(2);
++    expect(res.results[0].engine).toBe('duckduckgo');
++  });
++});
+diff -ruN /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/utils/getNetworkAdress.spec.ts /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/utils/getNetworkAdress.spec.ts
+--- /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/utils/getNetworkAdress.spec.ts	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/utils/getNetworkAdress.spec.ts	2026-02-20 19:56:50.005029899 +0000
+@@ -0,0 +1,17 @@
++import { getNetworkAddresses } from './getNetworkAdress';
++
++jest.mock('os', () => ({
++  networkInterfaces: () => ({
++    lo: [{ family: 'IPv4', internal: true, address: '127.0.0.1' }],
++    eth0: [
++      { family: 'IPv4', internal: false, address: '192.168.0.2' },
++      { family: 'IPv6', internal: false, address: '::1' },
++    ],
++  }),
++}));
++
++describe('getNetworkAddresses', () => {
++  it('returns non-internal IPv4 addresses', () => {
++    expect(getNetworkAddresses()).toEqual(['192.168.0.2']);
++  });
++});
+diff -ruN /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/utils/pdfBytesToText.spec.ts /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/utils/pdfBytesToText.spec.ts
+--- /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/utils/pdfBytesToText.spec.ts	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/utils/pdfBytesToText.spec.ts	2026-02-20 19:57:05.602762142 +0000
+@@ -0,0 +1,21 @@
++jest.mock('pdf-parse', () => {
++  return {
++    PDFParse: jest.fn().mockImplementation(() => ({
++      getText: jest.fn(async () => ({ text: '  Hello PDF  ' })),
++      destroy: jest.fn(async () => undefined),
++    })),
++  };
++});
++
++import { pdfBytesToText } from './pdfBytesToText';
++import { PDFParse } from 'pdf-parse';
++
++describe('pdfBytesToText', () => {
++  it('extracts text and always destroys parser', async () => {
++    const text = await pdfBytesToText(Buffer.from('x'));
++    expect(text).toBe('Hello PDF');
++    expect(PDFParse).toHaveBeenCalled();
++    const instance = (PDFParse as unknown as jest.Mock).mock.results[0]!.value;
++    expect(instance.destroy).toHaveBeenCalled();
++  });
++});
+diff -ruN /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/utils/typed-access.spec.ts /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/utils/typed-access.spec.ts
+--- /mnt/data/base4/lmstudio-web-testing/apps/lmstudio-web/src/utils/typed-access.spec.ts	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/work4/lmstudio-web-testing/apps/lmstudio-web/src/utils/typed-access.spec.ts	2026-02-20 19:56:35.499141465 +0000
+@@ -0,0 +1,43 @@
++import {
++  getArray,
++  getNumber,
++  getRecord,
++  getString,
++  isRecord,
++  safeJsonParse,
++  toJsonObject,
++  toJsonValue,
++} from './typed-access';
++
++describe('typed-access utils', () => {
++  it('isRecord identifies plain objects', () => {
++    expect(isRecord({ a: 1 })).toBe(true);
++    expect(isRecord(null)).toBe(false);
++    expect(isRecord([])).toBe(false);
++  });
++
++  it('getRecord/getArray/getString/getNumber return typed values or null', () => {
++    const o: any = { rec: { a: 1 }, arr: [1], s: 'x', n: 2 };
++    expect(getRecord(o, 'rec')).toEqual({ a: 1 });
++    expect(getArray(o, 'arr')).toEqual([1]);
++    expect(getString(o, 's')).toBe('x');
++    expect(getNumber(o, 'n')).toBe(2);
++    expect(getString(o, 'missing')).toBeNull();
++  });
++
++  it('safeJsonParse returns null on invalid json', () => {
++    expect(safeJsonParse('{')).toBeNull();
++    expect(safeJsonParse('{"a":1}')).toEqual({ a: 1 });
++  });
++
++  it('toJsonValue stringifies unsupported values and recurses into arrays/objects', () => {
++    const v = toJsonValue({ a: 1, b: [true, new Date('2020-01-01T00:00:00.000Z')] } as any);
++    expect(v).toEqual({ a: 1, b: [true, expect.any(String)] });
++    expect((v as any).b[1]).toContain('2020');
++  });
++
++  it('toJsonObject drops non-record inputs to empty object', () => {
++    expect(toJsonObject(null)).toEqual({});
++    expect(toJsonObject([] as any)).toEqual({});
++  });
++});
