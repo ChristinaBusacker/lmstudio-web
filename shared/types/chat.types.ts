@@ -1,3 +1,5 @@
+import { JsonObject } from './json.types';
+
 export type ChatCompletionToolCallDelta = {
   index?: number;
   id?: string;
@@ -35,3 +37,8 @@ export type ChatRequestMessage =
       }>;
     }
   | { role: 'tool'; content: string; tool_call_id: string };
+
+export interface StreamResult {
+  content: string;
+  stats?: JsonObject;
+}

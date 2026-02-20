@@ -10,6 +10,7 @@ export type QueryBuilderLike = {
   andWhere: jest.MockedFunction<
     (condition: string, parameters?: Record<string, unknown>) => QueryBuilderLike
   >;
+  groupBy: jest.MockedFunction<(expression: string) => QueryBuilderLike>;
   orderBy: jest.MockedFunction<(sort: string, order?: 'ASC' | 'DESC') => QueryBuilderLike>;
   take: jest.MockedFunction<(count: number) => QueryBuilderLike>;
   skip: jest.MockedFunction<(count: number) => QueryBuilderLike>;
@@ -24,6 +25,7 @@ export function createMockQueryBuilder(seed?: Partial<QueryBuilderLike>): QueryB
   qb.addSelect = jest.fn((_selection: string, _alias?: string) => qb);
   qb.where = jest.fn((_condition: string, _parameters?: Record<string, unknown>) => qb);
   qb.andWhere = jest.fn((_condition: string, _parameters?: Record<string, unknown>) => qb);
+  qb.groupBy = jest.fn((_expression: string) => qb);
   qb.orderBy = jest.fn((_sort: string, _order?: 'ASC' | 'DESC') => qb);
   qb.take = jest.fn((_count: number) => qb);
   qb.skip = jest.fn((_count: number) => qb);

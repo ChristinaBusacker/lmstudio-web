@@ -3,10 +3,7 @@ import type { LmMessage, RunParams, StreamDelta } from '../common/types/llm.type
 import { ConfigService } from '@nestjs/config';
 import { JsonArray, JsonObject } from '@shared/types/json';
 import { normalizeError } from '../common/utils/error.util';
-interface StreamResult {
-  content: string;
-  stats?: JsonObject;
-}
+import { StreamResult } from '@shared/index';
 
 type UnknownRecord = Record<string, unknown>;
 
