@@ -4,15 +4,18 @@ describe('ExternalServicesMonitorService', () => {
   let fetchMock: jest.Mock;
 
   beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+
     fetchMock = jest.fn();
-    // @ts-expect-error test env
     global.fetch = fetchMock;
 
-    jest.spyOn(global, 'setInterval').mockImplementation(() => ({ unref: jest.fn() } as any));
+    jest.spyOn(global, 'setInterval').mockImplementation(() => ({ unref: jest.fn() }) as any);
     jest.spyOn(global, 'clearInterval').mockImplementation(() => {});
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -28,7 +31,12 @@ describe('ExternalServicesMonitorService', () => {
     const bus = { publish: jest.fn() } as any;
 
     // First check: LM ok
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, statusText: 'OK', json: async () => ({}) });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ({}),
+    });
 
     const svc = new ExternalServicesMonitorService(config, bus);
 
@@ -36,12 +44,22 @@ describe('ExternalServicesMonitorService', () => {
     expect(bus.publish).toHaveBeenCalledTimes(1);
 
     // Same result again -> no publish
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, statusText: 'OK', json: async () => ({}) });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ({}),
+    });
     await (svc as any).checkAllAndPublishIfChanged();
     expect(bus.publish).toHaveBeenCalledTimes(1);
 
     // LM goes down -> publish
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'ERR', json: async () => ({}) });
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: 'ERR',
+      json: async () => ({}),
+    });
     await (svc as any).checkAllAndPublishIfChanged();
     expect(bus.publish).toHaveBeenCalledTimes(2);
 
@@ -61,7 +79,12 @@ describe('ExternalServicesMonitorService', () => {
 
     const bus = { publish: jest.fn() } as any;
 
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, statusText: 'OK', json: async () => ({}) });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ({}),
+    });
 
     const svc = new ExternalServicesMonitorService(config, bus);
     await (svc as any).checkAllAndPublishIfChanged();

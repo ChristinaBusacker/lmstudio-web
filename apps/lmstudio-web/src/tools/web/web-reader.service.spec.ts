@@ -1,23 +1,28 @@
-import { WebReaderService } from './web-reader.service';
-
-jest.mock('@mozilla/readability', () => ({
-  Readability: jest.fn().mockImplementation(() => ({
-    parse: () => ({
+jest.mock('@mozilla/readability', () => {
+  const ReadabilityMock = jest.fn().mockImplementation(() => ({
+    parse: jest.fn(() => ({
       title: 'Readable Title',
       byline: 'Readable Author',
       content: '<p>Hello <b>World</b></p><p>Second</p>',
-    }),
-  })),
-}));
+    })),
+  }));
+
+  return {
+    __esModule: true,
+    Readability: ReadabilityMock,
+    default: ReadabilityMock,
+  };
+});
+
+import { WebReaderService } from './web-reader.service';
 
 describe('WebReaderService', () => {
   beforeEach(() => {
-    // @ts-expect-error test env
     global.fetch = jest.fn();
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
   });
 
   it('extracts meta + readable text and stores artifact when runId provided', async () => {
@@ -54,7 +59,6 @@ describe('WebReaderService', () => {
     expect(res.url).toBe('https://example.com/x');
     expect(res.meta.lang).toBe('en');
 
-    // Readability mocked: should win over meta/title fallback
     expect(res.meta.title).toBe('Readable Title');
     expect(res.meta.author).toBe('Readable Author');
     expect(res.meta.publishedAt).toContain('2020-01-01');
