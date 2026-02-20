@@ -12,7 +12,7 @@ export class LanguageService {
   constructor(private readonly http: HttpClient) {}
 
   load(language: LanguageCode): Observable<I18nDict> {
-    return this.http.get<Record<string, unknown>>(`/languages/${language}.json`).pipe(
+    return this.http.get<Record<string, unknown>>(`languages/${language}.json`).pipe(
       map((raw) => {
         const dict: I18nDict = {};
         for (const [k, v] of Object.entries(raw ?? {})) {
