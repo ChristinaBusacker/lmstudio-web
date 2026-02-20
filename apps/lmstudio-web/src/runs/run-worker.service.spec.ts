@@ -203,8 +203,7 @@ describe('RunWorkerService', () => {
       config as ConfigService,
     );
 
-    const exec = (svc as unknown as { executeRun: (runId: string) => Promise<void> }).executeRun;
-    await exec('r1');
+    await (svc as unknown as { executeRun: (runId: string) => Promise<void> }).executeRun('r1');
 
     expect(engine.streamChat).toHaveBeenCalled();
     expect(toolOrchestrator.streamWithTools).not.toHaveBeenCalled();

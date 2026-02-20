@@ -143,10 +143,12 @@
       "<rootDir>/apps/lmstudio-web/test/jest.setup.ts"
     ],
     "moduleNameMapper": {
-      "^@shared/(.*)$": "<rootDir>/shared/$1",
-      "^@backend/(.*)$": "<rootDir>/apps/lmstudio-web/src/$1",
+      "^@backend/src/(.*)$": "<rootDir>/apps/lmstudio-web/src/$1",
+      "^@backend/(.*)$": "<rootDir>/apps/lmstudio-web/$1",
+      "^@shared/(.*)$": "<rootDir>/libs/shared/src/$1",
       "^@frontend/(.*)$": "<rootDir>/apps/frontend/src/$1",
-      "^file-type$": "<rootDir>/apps/lmstudio-web/test/mocks/file-type.ts"
+      "^file-type$": "<rootDir>/apps/lmstudio-web/test/mocks/file-type.ts",
+      "^jsdom$": "<rootDir>/apps/lmstudio-web/test/mocks/jsdom.ts"
     },
     "collectCoverageFrom": [
       "apps/lmstudio-web/src/**/*.{ts,js}",
