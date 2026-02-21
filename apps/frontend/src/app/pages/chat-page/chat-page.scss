@@ -31,6 +31,54 @@
   gap: 12px;
 }
 
+.loader {
+  width: 16px;
+  height: 16px;
+}
+
+/* Lightweight "assistant is working" bubble shown while runs are queued/running. */
+.message.status {
+  align-self: self-start;
+  background-color: rgba(22, 22, 22, 0.2);
+  padding: 10px;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 130rem;
+  opacity: 0.8;
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .spacer {
+    flex: 1;
+  }
+
+  .role {
+    text-transform: uppercase;
+    font-weight: bold;
+    font-size: 1.2rem;
+  }
+
+  .content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  .statusModel {
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+      monospace;
+    font-size: 0.85rem;
+    opacity: 0.9;
+  }
+}
+
 .hint,
 .empty {
   opacity: 0.7;

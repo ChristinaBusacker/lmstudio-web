@@ -25,6 +25,7 @@ import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs';
 import { ChatExportBundleDto, ChatsApi } from '../../core/api/chats.api';
 import { I18nPipe } from '../../core/i18n/i18n.pipe';
 import { FoldersState } from '../../core/state/folders/folders.state';
+import { ModelsState } from '../../core/state/models/models.state';
 import { Composer } from '../../ui/composer/composer';
 import { Icon } from '../../ui/icon/icon';
 import { Message } from '../../ui/message/message';
@@ -64,9 +65,56 @@ export class ChatPage implements AfterViewInit, OnInit, OnDestroy {
 
   readonly messages = this.store.selectSignal(ChatDetailState.messages);
   readonly runsMap = this.store.selectSignal(ChatDetailState.runs);
+  readonly pendingModelKey = this.store.selectSignal(ChatDetailState.pendingModelKey);
+  readonly models = this.store.selectSignal(ModelsState.all);
+
+  /**
+   * Status shown in the thread under the last user message while a run is queued/running.
+   * We intentionally keep this simple and derived from state.
+   */
+  readonly assistantStatus = computed(() => {
+    const runsMap = this.runsMap();
+    const runs = Object.values(runsMap ?? {}).filter(
+      (r) => r.status === 'queued' || r.status === 'running',
+    );
+    if (!runs.length) return null;
+
+    // pick the most recently updated active run
+    runs.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
+    const run = runs[0];
+    if (!run) return null;
+
+    // Only show status if the last message is a user message (i.e. assistant response is pending).
+    const msgs = this.messages();
+    const last = msgs[msgs.length - 1];
+    if (!last || last.role !== 'user') return null;
+
+    if (run.status === 'queued') {
+      const key = this.pendingModelKey();
+      const models = this.models();
+      const isLoaded = key ? models.some((m) => m.id === key && m.state === 'loaded') : true;
+      if (key && !isLoaded) {
+        return { key: 'composer.status.loadingModel', modelKey: key } as const;
+      }
+      return { key: 'composer.status.queued', modelKey: null } as const;
+    }
+
+    if (run.status === 'running') {
+      return { key: 'composer.status.processing', modelKey: null } as const;
+    }
+
+    return null;
+  });
 
   constructor() {
     effect(() => {
+      queueMicrotask(() => this.scrollToBottom(false));
+    });
+
+    // When the status bubble appears/changes, keep the user pinned to the bottom.
+    effect(() => {
+      const st = this.assistantStatus();
+      if (!st) return;
       queueMicrotask(() => this.scrollToBottom(false));
     });
   }

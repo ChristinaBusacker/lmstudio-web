@@ -17,11 +17,14 @@ import { Store } from '@ngxs/store';
 import { catchError, map, Observable, of, tap } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatsApi, type ChatMetaDto } from '../../core/api/chats.api';
-import { OpenChat, SendMessage } from '../../core/state/chat-detail/chat-detail.actions';
+import {
+  OpenChat,
+  SendMessage,
+  SetPendingModelKey,
+} from '../../core/state/chat-detail/chat-detail.actions';
 import { ChatDetailState } from '../../core/state/chat-detail/chat-detail.state';
 import { MoveChat, ReloadChats } from '../../core/state/chats/chats.actions';
 import { CancelRun } from '../../core/state/runs/runs.actions';
-import { RunsState } from '../../core/state/runs/runs.state';
 import { LoadProfiles } from '../../core/state/settings/settings.actions';
 import { SettingsState } from '../../core/state/settings/settings.state';
 import { Icon } from '../icon/icon';
@@ -63,13 +66,18 @@ export class Composer implements AfterViewInit {
   @ViewChild('configSelect', { static: false })
   private configSelect?: ElementRef<HTMLSelectElement>;
 
-  isStreaming$: Observable<boolean> = this.chatId
-    ? this.store.select(RunsState.activeByChat(this.chatId)).pipe(
-        map(() => {
-          return false;
-        }),
-      )
-    : of(false);
+  /**
+   * We derive streaming/busy state from the chat detail run map.
+   * RunsState is global and may not be SSE-driven in all flows.
+   */
+  readonly isStreaming$: Observable<boolean> = this.store.select(ChatDetailState.runs).pipe(
+    map((runsMap) => {
+      const runs = Object.values(runsMap ?? {});
+      return runs.some((r) => r.status === 'queued' || r.status === 'running');
+    }),
+  );
+
+  // Status messaging was moved into the chat thread (under the last user message).
 
   disabled = false;
   value = '';
@@ -84,7 +92,13 @@ export class Composer implements AfterViewInit {
   @ViewChild('fileInput', { static: false })
   private fileInput?: ElementRef<HTMLInputElement>;
 
-  activeRuns = this.chatId ? this.store.select(RunsState.activeByChat(this.chatId)) : of([]);
+  activeRuns = this.store
+    .select(ChatDetailState.runs)
+    .pipe(
+      map((runsMap) =>
+        Object.values(runsMap ?? {}).filter((r) => r.status === 'queued' || r.status === 'running'),
+      ),
+    );
 
   profiles$ = this.store.select(SettingsState.profiles);
 
@@ -280,6 +294,16 @@ export class Composer implements AfterViewInit {
       options.settingsProfileId = this.selectedProfile;
     }
 
+    // Track the model key for nicer status messaging inside the chat thread. UI-only.
+    if (this.selectedProfile) {
+      const profiles = this.store.selectSnapshot(SettingsState.profiles);
+      const p = profiles.find((x) => x.id === this.selectedProfile) ?? null;
+      const modelKey = (p?.params as Record<string, unknown> | undefined)?.['modelKey'];
+      this.store.dispatch(new SetPendingModelKey(typeof modelKey === 'string' ? modelKey : null));
+    } else {
+      this.store.dispatch(new SetPendingModelKey(null));
+    }
+
     this.store.dispatch(new SendMessage(chatId, options));
   }
 
@@ -347,12 +371,14 @@ export class Composer implements AfterViewInit {
   abort(): void {
     if (!this.chatId) return;
 
-    const run = this.store.selectSnapshot(RunsState.activeByChat(this.chatId))[0];
-    if (!run) return;
+    const runsMap = this.store.selectSnapshot(ChatDetailState.runs);
+    const active = Object.values(runsMap ?? {}).filter(
+      (r) => r.status === 'queued' || r.status === 'running',
+    );
+    if (!active.length) return;
 
-    const runId = run.id;
-
-    this.store.dispatch(new CancelRun(runId));
+    active.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
+    this.store.dispatch(new CancelRun(active[0].runId));
   }
 
   private fallbackClientRequestId(): string {

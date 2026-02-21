@@ -27,6 +27,15 @@ export class SendMessage {
   ) {}
 }
 
+/**
+ * UI-only hint used to display a nicer status message under the last user message.
+ * Not sent to the backend.
+ */
+export class SetPendingModelKey {
+  static readonly type = '[ChatDetail] Set Pending Model Key';
+  constructor(public readonly modelKey: string | null) {}
+}
+
 export class RegenerateAssistantMessage {
   static readonly type = '[ChatDetail] Regenerate Assistant Message';
   constructor(
