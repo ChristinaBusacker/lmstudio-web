@@ -1,0 +1,86 @@
+/* ---------------- merge ports ---------------- */
+.content-projection {
+  background-color: transparent !important;
+}
+
+.mergePort,
+.mergeOutPort,
+.condOutPort {
+  position: absolute;
+  z-index: 5;
+  transform: scale(1) translate(-50%, -50%) !important;
+  /* reliable connection / hit target */
+  --ng-diagram-port-size: 14px;
+  --ng-diagram-port-bg: transparent;
+  --ng-diagram-port-border: transparent;
+}
+
+.mergePort {
+  left: -28px;
+}
+
+.mergeOutPort {
+  right: -12px;
+}
+
+.mergePortInner,
+.condPortInner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 2.4rem 0 0 2.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--color-primary);
+  user-select: none;
+  min-width: 7rem;
+}
+
+.mergePortDot,
+.condPortDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+.mergePortBadge {
+  width: 22px;
+  height: 18px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  opacity: 0.9;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  flex: 0 0 auto;
+}
+
+.mergePortLabelText {
+  font-size: 11px;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+  width: 110px;
+}
+
+.mergeOutInner {
+  padding-right: 8px;
+  padding-left: 8px;
+}
+
+.field.inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label-inline {
+  font-size: 12px;
+  opacity: 0.9;
+}

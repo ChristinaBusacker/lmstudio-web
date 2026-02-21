@@ -94,12 +94,10 @@ describe('ToolsController', () => {
       { name: 'file', mimeType: 'txt', kind: 'test', content: {}, warnings: [] },
     ];
     const resp: {
-      sourceUrl: null;
       sourceAssetId: 'a1';
       entries: ParsedFile[];
       artifactId: null;
     } = {
-      sourceUrl: null,
       sourceAssetId: 'a1',
       entries,
       artifactId: null,
