@@ -44,7 +44,10 @@ describe('ChatRunsService', () => {
       content: 'hello',
       parentMessageId: 'h0',
     });
-    expect(chats.createAssistantPlaceholder).toHaveBeenCalledWith({ chatId: 'c1', parentMessageId: 'u1' });
+    expect(chats.createAssistantPlaceholder).toHaveBeenCalledWith({
+      chatId: 'c1',
+      parentMessageId: 'u1',
+    });
     expect(chats.setChatHead).toHaveBeenCalledWith('c1', 'a1');
     expect(runs.createQueuedRun).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -96,7 +99,11 @@ describe('ChatRunsService', () => {
     const res = await svc.regenerate({ messageId: 'a1', clientRequestId: 'req-2' });
 
     expect(res).toEqual({ id: 'r1' });
-    expect(variants.createAndActivate).toHaveBeenCalledWith({ messageId: 'a1', content: '', reasoning: null });
+    expect(variants.createAndActivate).toHaveBeenCalledWith({
+      messageId: 'a1',
+      content: '',
+      reasoning: null,
+    });
     expect(messages.markEdited).toHaveBeenCalledWith('a1');
     expect(chats.setChatHead).toHaveBeenCalledWith('c1', 'a1');
     expect(runs.createQueuedRun).toHaveBeenCalledWith(

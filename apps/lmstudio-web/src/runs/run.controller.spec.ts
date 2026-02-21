@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { RunsController } from './run.controller';
 import { RunsService } from './runs.service';
 import { ChatEngineService } from '../chats/chat-engine.service';

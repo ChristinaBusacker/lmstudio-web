@@ -123,7 +123,6 @@ describe('AssetExtractService', () => {
     expect(r2.text).toBe('OCR TEXT');
     expect(r2.warnings).toEqual([]);
 
-    // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
     const tess = require('tesseract.js');
 
     // depending on normalizeTesseractModule / default handling, recognize can live on default or top-level

@@ -14,6 +14,7 @@ export default tseslint.config(
       'deploy/**',
       'apps/lmstudio-web/src/migrations/**',
       '**/*.generated.*',
+      '**/*spec.ts'
     ],
   },
 

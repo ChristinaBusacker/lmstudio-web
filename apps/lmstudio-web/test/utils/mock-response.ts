@@ -8,7 +8,6 @@ import type { Response } from 'express';
  * This keeps controller unit tests strict without pulling in supertest.
  */
 export function createMockResponse(): Response {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   const res = {
     setHeader: jest.fn(),
     send: jest.fn(),

@@ -58,7 +58,7 @@ function normalizeTesseractModule(mod: unknown): TesseractModule {
 export async function importTesseract(): Promise<TesseractModule> {
   // Prefer require() in Node/Jest so jest.mock('tesseract.js') works reliably
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+    // @typescript-eslint/no-require-imports
     const modUnknown: unknown = require('tesseract.js');
     return normalizeTesseractModule(modUnknown);
   } catch {

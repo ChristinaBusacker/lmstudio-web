@@ -8,7 +8,12 @@ function createTxRepoSeed() {
   repo.update = jest.fn(async () => undefined);
   repo.create = jest.fn((x: any) => x);
   repo.save = jest.fn(async (x: any) => ({ id: 'p-new', ...x }));
-  repo.findOne = jest.fn(async () => ({ id: 'p1', ownerKey: 'default', name: 'X', isDefault: true }));
+  repo.findOne = jest.fn(async () => ({
+    id: 'p1',
+    ownerKey: 'default',
+    name: 'X',
+    isDefault: true,
+  }));
   return repo;
 }
 

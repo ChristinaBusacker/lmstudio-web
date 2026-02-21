@@ -16,18 +16,24 @@ function extractInValues(op: any): unknown[] {
 describe('WorkflowsService', () => {
   it('createRun publishes workflow.run.status', async () => {
     const workflows = createMockRepo<WorkflowEntity>({
-      findOne: jest.fn(async () => ({ id: 'w1', ownerKey: 'o1' } as any)) as any,
-    } as any);
+      findOne: jest.fn(async () => ({ id: 'w1', ownerKey: 'o1' }) as any) as any,
+    });
 
     const runs = createMockRepo<WorkflowRunEntity>({
       save: jest.fn(async (x: any) => ({ id: 'r1', ...x })) as any,
-    } as any);
+    });
 
     const nodeRuns = createMockRepo<WorkflowNodeRunEntity>();
     const artifacts = createMockRepo<ArtifactEntity>();
     const sse = { publish: jest.fn() } as any;
 
-    const svc = new WorkflowsService(workflows as any, runs as any, nodeRuns as any, artifacts as any, sse);
+    const svc = new WorkflowsService(
+      workflows as any,
+      runs as any,
+      nodeRuns as any,
+      artifacts as any,
+      sse,
+    );
     const out = await svc.createRun('o1', 'w1', { label: 'Test' } as any);
 
     expect(out.id).toBe('r1');
@@ -79,22 +85,22 @@ describe('WorkflowsService', () => {
           ],
           edges: [{ source: 'B', target: 'C' }],
         },
-      } as any)) as any,
+      })),
     } as any);
 
     const runs = createMockRepo<WorkflowRunEntity>({
       findOne: jest.fn(async (opts: any) => {
         // first call includes ownerKey
-        if (opts?.where?.id === 'r1') return { id: 'r1', ownerKey: 'o1', workflowId: 'w1' } as any;
-        return { id: 'r1', ownerKey: 'o1', workflowId: 'w1', status: 'queued' } as any;
+        if (opts?.where?.id === 'r1') return { id: 'r1', ownerKey: 'o1', workflowId: 'w1' };
+        return { id: 'r1', ownerKey: 'o1', workflowId: 'w1', status: 'queued' };
       }) as any,
     } as any);
 
     const nodeRuns = createMockRepo<WorkflowNodeRunEntity>({
       find: jest.fn(async () => [
-        { id: 'nrA', workflowRunId: 'r1', nodeId: 'A', iteration: 0 } as any,
-        { id: 'nrB', workflowRunId: 'r1', nodeId: 'B', iteration: 0 } as any,
-        { id: 'nrC', workflowRunId: 'r1', nodeId: 'C', iteration: 0 } as any,
+        { id: 'nrA', workflowRunId: 'r1', nodeId: 'A', iteration: 0 },
+        { id: 'nrB', workflowRunId: 'r1', nodeId: 'B', iteration: 0 },
+        { id: 'nrC', workflowRunId: 'r1', nodeId: 'C', iteration: 0 },
       ]) as any,
       delete: jest.fn(async () => undefined) as any,
     } as any);
@@ -105,7 +111,13 @@ describe('WorkflowsService', () => {
 
     const sse = { publish: jest.fn() } as any;
 
-    const svc = new WorkflowsService(workflows as any, runs as any, nodeRuns as any, artifacts as any, sse);
+    const svc = new WorkflowsService(
+      workflows as any,
+      runs as any,
+      nodeRuns as any,
+      artifacts as any,
+      sse,
+    );
     await svc.rerunFrom('o1', 'r1', 'A');
 
     // nodeRuns.find called with In([...downstream])
@@ -131,11 +143,15 @@ describe('WorkflowsService', () => {
 
   it('rerunFrom rejects unknown nodeId', async () => {
     const workflows = createMockRepo<WorkflowEntity>({
-      findOne: jest.fn(async () => ({ id: 'w1', ownerKey: 'o1', graph: { nodes: [{ id: 'A' }] } } as any)) as any,
+      findOne: jest.fn(async () => ({
+        id: 'w1',
+        ownerKey: 'o1',
+        graph: { nodes: [{ id: 'A' }] },
+      })),
     } as any);
     const runs = createMockRepo<WorkflowRunEntity>({
-      findOne: jest.fn(async () => ({ id: 'r1', ownerKey: 'o1', workflowId: 'w1' } as any)) as any,
-    } as any);
+      findOne: jest.fn(async () => ({ id: 'r1', ownerKey: 'o1', workflowId: 'w1' })) as any,
+    });
 
     const svc = new WorkflowsService(
       workflows as any,

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { ConfigService } from '@nestjs/config';
 import type { ConfigGetOptions } from '@nestjs/config/dist/config.service';
 import type { SseEnvelopeOf, SseEventType } from '@shared/contracts';

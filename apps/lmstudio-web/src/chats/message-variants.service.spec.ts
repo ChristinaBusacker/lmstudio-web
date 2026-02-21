@@ -35,7 +35,7 @@ describe('MessageVariantsService', () => {
     const repo = createMockRepo<MessageVariantEntity>({
       findOne: jest.fn(
         async () => ({ id: 'v2', messageId: 'm1', isActive: true }) as MessageVariantEntity,
-      ),
+      ) as any,
     });
     const svc = new MessageVariantsService(repo as unknown as never);
 
@@ -65,7 +65,7 @@ describe('MessageVariantsService', () => {
             content: 'a',
             reasoning: null,
           }) as MessageVariantEntity,
-      ),
+      ) as any,
     });
     const svc = new MessageVariantsService(repo as unknown as never);
 
@@ -82,11 +82,10 @@ describe('MessageVariantsService', () => {
             { messageId: 'm1', cnt: '2' },
             { messageId: 'm2', cnt: '5' },
           ] as unknown[],
-      ),
+      ) as any,
     });
 
     const repo = createMockRepo<MessageVariantEntity>({
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       createQueryBuilder: jest.fn((_alias: string) => qb),
     });
     const svc = new MessageVariantsService(repo as unknown as never);

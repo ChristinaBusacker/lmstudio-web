@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { EntityManager, Repository } from 'typeorm';
 

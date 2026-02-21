@@ -14,7 +14,9 @@ describe('WebSearchService', () => {
   });
 
   it('uses searxng when configured and stores artifact when runId provided', async () => {
-    config.get.mockImplementation((k: string) => (k === 'SEARXNG_BASE_URL' ? 'http://sx' : undefined));
+    config.get.mockImplementation((k: string) =>
+      k === 'SEARXNG_BASE_URL' ? 'http://sx' : undefined,
+    );
 
     mockFetch(async (url) => {
       expect(url).toContain('http://sx/search');
@@ -26,7 +28,13 @@ describe('WebSearchService', () => {
         statusText: 'OK',
         json: async () => ({
           results: [
-            { title: 'T', url: 'https://e', content: 'S', engine: 'google', publishedDate: '2020-01-01' },
+            {
+              title: 'T',
+              url: 'https://e',
+              content: 'S',
+              engine: 'google',
+              publishedDate: '2020-01-01',
+            },
           ],
         }),
       };
@@ -46,13 +54,17 @@ describe('WebSearchService', () => {
   });
 
   it('throws ServiceUnavailableException when searxng configured but unreachable', async () => {
-    config.get.mockImplementation((k: string) => (k === 'SEARXNG_BASE_URL' ? 'http://sx' : undefined));
+    config.get.mockImplementation((k: string) =>
+      k === 'SEARXNG_BASE_URL' ? 'http://sx' : undefined,
+    );
     (global as any).fetch = jest.fn(async () => {
       throw new Error('connection refused');
     });
 
     const svc = new WebSearchService(config, artifacts);
-    await expect(svc.search({ q: 'x', limit: 3 })).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await expect(svc.search({ q: 'x', limit: 3 })).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
   });
 
   it('falls back to DuckDuckGo when searxng not configured', async () => {

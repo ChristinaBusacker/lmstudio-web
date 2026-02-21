@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { ChatsService } from './chats.service';
 import { MessageVariantsService } from './message-variants.service';
 import { SseBusService } from '../sse/sse-bus.service';
@@ -133,7 +132,7 @@ describe('ChatsService', () => {
 
   it('ensureAutoTitle does not overwrite a real title', async () => {
     const chatsRepo = createMockRepo<ChatEntity>({
-      findOne: jest.fn(async () => ({ id: 'c1', title: 'Real Title' }) as ChatEntity),
+      findOne: jest.fn(async () => ({ id: 'c1', title: 'Real Title' }) as ChatEntity) as any,
     });
 
     const { svc } = mkService({ chats: chatsRepo });
@@ -144,7 +143,7 @@ describe('ChatsService', () => {
 
   it('ensureAutoTitle trims and truncates to 60 chars and publishes events', async () => {
     const chatsRepo = createMockRepo<ChatEntity>({
-      findOne: jest.fn(async () => ({ id: 'c1', title: 'Untitled' }) as ChatEntity),
+      findOne: jest.fn(async () => ({ id: 'c1', title: 'Untitled' }) as ChatEntity) as any,
     });
     const { svc, sse } = mkService({ chats: chatsRepo });
 
@@ -199,7 +198,7 @@ describe('ChatsService', () => {
         if (id === 'target') return { id: 'target', folderId: 'f1', sortKey: 10 } as ChatEntity;
         if (id === 'before') return { id: 'before', folderId: 'f2', sortKey: 5 } as ChatEntity;
         return null;
-      }),
+      }) as any,
     });
 
     const { svc } = mkService({ chats: chatsRepo });

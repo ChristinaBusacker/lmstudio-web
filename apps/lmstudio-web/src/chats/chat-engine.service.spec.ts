@@ -36,9 +36,8 @@ async function drain<T>(
   gen: AsyncGenerator<T, unknown, void>,
 ): Promise<{ items: T[]; ret: unknown }> {
   const items: T[] = [];
-  // eslint-disable-next-line no-constant-condition
+
   while (true) {
-    // eslint-disable-next-line no-await-in-loop
     const r = await gen.next();
     if (r.done) return { items, ret: r.value };
     items.push(r.value);

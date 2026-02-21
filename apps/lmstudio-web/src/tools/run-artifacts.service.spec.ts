@@ -12,10 +12,20 @@ describe('RunArtifactsService', () => {
 
   it('creates JSON artifacts with expected fields', async () => {
     const svc = new RunArtifactsService(repo);
-    const res = await svc.createJson({ runId: 'r1', toolName: 't', json: { a: 1 }, filename: 'x.json' });
+    const res = await svc.createJson({
+      runId: 'r1',
+      toolName: 't',
+      json: { a: 1 },
+      filename: 'x.json',
+    });
     expect(res).toEqual(expect.objectContaining({ id: 'a1', runId: 'r1', kind: 'json' }));
     expect(repo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ runId: 'r1', toolName: 't', mimeType: 'application/json', filename: 'x.json' }),
+      expect.objectContaining({
+        runId: 'r1',
+        toolName: 't',
+        mimeType: 'application/json',
+        filename: 'x.json',
+      }),
     );
   });
 

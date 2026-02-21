@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { RunsService } from './runs.service';
 import type { RunEntity } from './entities/run.entity';
 import type { DeepPartial, Repository, UpdateResult } from 'typeorm';

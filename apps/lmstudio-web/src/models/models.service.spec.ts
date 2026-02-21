@@ -58,7 +58,12 @@ describe('ModelsService', () => {
   });
 
   it('getModel throws NotFoundException when model is missing', async () => {
-    mockFetch(async () => ({ ok: true, status: 200, statusText: 'OK', json: async () => ({ models: [] }) }));
+    mockFetch(async () => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ({ models: [] }),
+    }));
     const svc = new ModelsService(sse, config);
     await expect(svc.getModel('nope')).rejects.toThrow('Model not found');
   });
@@ -90,7 +95,9 @@ describe('ModelsService', () => {
           ok: true,
           status: 200,
           statusText: 'OK',
-          json: async () => ({ models: [{ key: 'm1', type: 'llm', state: 'not-loaded', max_context_length: 1 }] }),
+          json: async () => ({
+            models: [{ key: 'm1', type: 'llm', state: 'not-loaded', max_context_length: 1 }],
+          }),
         };
       }
       if (url.endsWith('/api/v1/models/load')) {
@@ -111,13 +118,23 @@ describe('ModelsService', () => {
     // Authorization header is attached when token present
     const loadCall = calls.find((c) => c.url.endsWith('/api/v1/models/load'))!;
     expect(loadCall.init.headers.Authorization).toContain('Bearer');
-    expect(JSON.parse(loadCall.init.body)).toEqual({ model: 'm1', echo_load_config: true, context_length: 123 });
+    expect(JSON.parse(loadCall.init.body)).toEqual({
+      model: 'm1',
+      echo_load_config: true,
+      context_length: 123,
+    });
 
     expect(sse.publish).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'models.changed', payload: expect.objectContaining({ reason: 'model-loading-started' }) }),
+      expect.objectContaining({
+        type: 'models.changed',
+        payload: expect.objectContaining({ reason: 'model-loading-started' }),
+      }),
     );
     expect(sse.publish).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'models.changed', payload: expect.objectContaining({ reason: 'model-loaded' }) }),
+      expect.objectContaining({
+        type: 'models.changed',
+        payload: expect.objectContaining({ reason: 'model-loaded' }),
+      }),
     );
   });
 
@@ -126,7 +143,9 @@ describe('ModelsService', () => {
       ok: true,
       status: 200,
       statusText: 'OK',
-      json: async () => ({ models: [{ key: 'm1', type: 'llm', state: 'not-loaded', loaded_instances: [] }] }),
+      json: async () => ({
+        models: [{ key: 'm1', type: 'llm', state: 'not-loaded', loaded_instances: [] }],
+      }),
     }));
 
     const svc = new ModelsService(sse, config);
