@@ -4,6 +4,7 @@ import { ChatPage } from './pages/chat-page/chat-page';
 import { SettingsPage } from './pages/settings-page/settings-page';
 import { FolderPage } from './pages/folder-page/folder-page';
 import { WorkflowPage } from './pages/workflow-page/workflow-page';
+import { DocumentationPage } from './pages/documentation-page/documentation-page';
 
 export const routes: Routes = [
   {
@@ -22,6 +23,10 @@ export const routes: Routes = [
   {
     path: 'settings',
     component: SettingsPage,
+  },
+  {
+    path: 'docs',
+    component: DocumentationPage,
   },
   {
     path: 'workflow/:workflowId',

@@ -1,0 +1,22 @@
+<div class="doc">
+  <header class="doc__header">
+    <h1 class="doc__title">{{ content().title }}</h1>
+    <p class="doc__subtitle">{{ 'docs.subtitle' | i18n | async }}</p>
+  </header>
+
+  <app-tabs class="doc__tabs">
+    <app-tab [label]="'docs.tab.general' | i18n | async">
+      <section class="doc__section">
+        <h2 class="doc__sectionTitle">{{ content().tabs.general.heading }}</h2>
+        <markdown [data]="content().tabs.general.markdown"></markdown>
+      </section>
+    </app-tab>
+
+    <app-tab [label]="'docs.tab.workflows' | i18n | async">
+      <section class="doc__section">
+        <h2 class="doc__sectionTitle">{{ content().tabs.workflows.heading }}</h2>
+        <markdown [data]="content().tabs.workflows.markdown"></markdown>
+      </section>
+    </app-tab>
+  </app-tabs>
+</div>

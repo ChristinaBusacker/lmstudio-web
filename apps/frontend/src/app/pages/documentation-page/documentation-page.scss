@@ -1,0 +1,55 @@
+.doc {
+  padding: 18px 18px 48px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.doc__header {
+  margin-bottom: 16px;
+}
+
+.doc__title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.doc__subtitle {
+  margin: 6px 0 0;
+  opacity: 0.8;
+}
+
+.doc__tabs {
+  margin-top: 18px;
+}
+
+.doc__section {
+  padding: 14px 2px;
+}
+
+.doc__sectionTitle {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+:host ::ng-deep markdown {
+  line-height: 1.5;
+}
+
+:host ::ng-deep markdown h2 {
+  margin-top: 20px;
+  font-size: 16px;
+}
+
+:host ::ng-deep markdown h3 {
+  margin-top: 18px;
+  font-size: 15px;
+}
+
+:host ::ng-deep markdown code {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+}

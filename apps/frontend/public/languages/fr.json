@@ -28,6 +28,7 @@
   "common.save": "Enregistrer",
   "common.search": "Rechercher",
   "common.settings": "Paramètres",
+  "common.documentation": "Documentation",
   "common.show": "Afficher",
   "common.true": "vrai",
   "common.undo": "Annuler",
@@ -214,5 +215,8 @@
   "workflow.run.resume": "Reprendre",
   "workflow.runs.none": "Aucune exécution pour le moment.",
   "workflow.runs.selectRun": "Sélectionnez une exécution pour voir ses exports.",
-  "workflow.runs.title": "Exécutions"
+  "workflow.runs.title": "Exécutions",
+  "docs.subtitle": "Comment fonctionnent les workflows, nœuds, upstreams et cas particuliers.",
+  "docs.tab.general": "Général",
+  "docs.tab.workflows": "Workflow"
 }

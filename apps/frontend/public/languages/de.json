@@ -28,6 +28,7 @@
   "common.save": "Speichern",
   "common.search": "Suchen",
   "common.settings": "Einstellungen",
+  "common.documentation": "Dokumentation",
   "common.show": "Anzeigen",
   "common.true": "wahr",
   "common.undo": "Rückgängig",
@@ -214,5 +215,8 @@
   "workflow.run.resume": "Run fortsetzen",
   "workflow.runs.none": "Noch keine Runs.",
   "workflow.runs.selectRun": "Wähle einen Run aus, um seine Exporte zu sehen.",
-  "workflow.runs.title": "Runs"
+  "workflow.runs.title": "Runs",
+  "docs.subtitle": "Wie Workflows, Nodes, Upstreams und Sonderfälle funktionieren.",
+  "docs.tab.general": "Allgemein",
+  "docs.tab.workflows": "Workflow"
 }
