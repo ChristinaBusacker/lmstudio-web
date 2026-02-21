@@ -41,6 +41,7 @@ describe('ModelsController', () => {
     ];
     models.listModels.mockResolvedValue(list);
     await expect(controller.list()).resolves.toBe(list);
+    expect(models.listModels).toHaveBeenCalledTimes(1);
   });
 
   it('loaded() delegates to ModelsService', async () => {
@@ -49,6 +50,7 @@ describe('ModelsController', () => {
     ];
     models.listLoaded.mockResolvedValue(loaded);
     await expect(controller.loaded()).resolves.toBe(loaded);
+    expect(models.listLoaded).toHaveBeenCalledTimes(1);
   });
 
   it('get() delegates to ModelsService', async () => {
@@ -61,14 +63,20 @@ describe('ModelsController', () => {
   it('load() delegates to ModelsService with id and dto', async () => {
     const resp: LoadModelResponseDto = { state: 'loaded' } as LoadModelResponseDto;
     models.loadModel.mockResolvedValue(resp);
-    await expect(controller.load('m1', { forceNewInstance: true })).resolves.toBe(resp);
-    expect(models.loadModel).toHaveBeenCalledWith('m1', { forceNewInstance: true });
+
+    const dto = { forceNewInstance: true };
+
+    await expect(controller.load('m1', dto)).resolves.toBe(resp);
+    expect(models.loadModel).toHaveBeenCalledWith('m1', dto);
   });
 
   it('unload() delegates to ModelsService with id and dto', async () => {
     const resp: UnloadModelResponseDto = { state: 'not-loaded' } as UnloadModelResponseDto;
     models.unloadModel.mockResolvedValue(resp);
-    await expect(controller.unload('m1', { identifier: 'i1' })).resolves.toBe(resp);
-    expect(models.unloadModel).toHaveBeenCalledWith('m1', { instanceId: 'i1' });
+
+    const dto = { identifier: 'i1' };
+
+    await expect(controller.unload('m1', dto)).resolves.toBe(resp);
+    expect(models.unloadModel).toHaveBeenCalledWith('m1', dto);
   });
 });

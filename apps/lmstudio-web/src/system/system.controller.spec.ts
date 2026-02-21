@@ -11,7 +11,14 @@ describe('SystemController', () => {
 
   beforeEach(async () => {
     const snapshot: ExternalServiceStatus[] = [
-      { name: 'lmstudio', ok: true, checkedAt: '2026-01-01T00:00:00.000Z', enabled: true },
+      {
+        name: 'lmstudio',
+        ok: true,
+        checkedAt: '2026-01-01T00:00:00.000Z',
+        enabled: true,
+        baseUrl: null,
+        error: null,
+      },
     ];
 
     monitor = {
@@ -28,7 +35,16 @@ describe('SystemController', () => {
 
   it('getExternalStatus() returns snapshot wrapped in {services: ...}', () => {
     expect(controller.getExternalStatus()).toEqual({
-      services: [{ key: 'lmstudio', ok: true, checkedAt: '2026-01-01T00:00:00.000Z' }],
+      services: [
+        {
+          name: 'lmstudio',
+          ok: true,
+          checkedAt: '2026-01-01T00:00:00.000Z',
+          enabled: true,
+          baseUrl: null,
+          error: null,
+        },
+      ],
     });
     expect(monitor.getSnapshot).toHaveBeenCalledTimes(1);
   });
