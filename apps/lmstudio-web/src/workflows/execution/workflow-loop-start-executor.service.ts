@@ -21,6 +21,7 @@ import {
 
 import { compareStringIds } from './workflow-executor.utils';
 import { WorkflowNodeExecutorService } from './workflow-node-executor.service';
+import { ensureWithinBudget, getWorkflowBudgets, byteLengthUtf8 } from './workflow-budget.util';
 
 @Injectable()
 export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
@@ -143,6 +144,29 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
       ctx.input = null;
     }
 
+    // IMPORTANT:
+    // The loopStart node acts as a *context provider* for its body DURING loop execution.
+    // Body nodes may have edges that reference this loopStart node as their upstream.
+    // In that case, the body should see:
+    //   - the original upstream input that entered the loop
+    //   - the output of the previous iteration ("last")
+    //
+    // We will populate ctx.nodes[nodeId] per iteration (see below) and overwrite it with
+    // the final loop output after the loop completes.
+    const originalUpstream = ctx.input;
+    const budgets = getWorkflowBudgets();
+
+    // Safety: prevent huge upstream payloads from being propagated into a loop.
+    // (Even if the body only uses parts of it, a mistake elsewhere can easily balloon prompts.)
+    const originalUpstreamText = this.toText(originalUpstream);
+    ensureWithinBudget(
+      originalUpstreamText,
+      budgets.maxUpstreamBytes,
+      `Loop upstream for node ${nodeId}`,
+    );
+
+    ctx.nodes[nodeId] = { upstream: originalUpstream, last: null, iteration: 0, index: -1 };
+
     // Dependency set for shortcut templating {{nodeId.*}}
     ctx.__depsForRender = new Set<string>(sourcesSorted);
 
@@ -170,25 +194,31 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
       if (!conditionPrompt) throw new Error(`LoopStart ${nodeId} missing loop.conditionPrompt`);
     }
 
-    // Resolve profile for condition evaluation (only if needed)
+    // Resolve profile for condition evaluation (ONLY needed for while/until)
     const profileName = getString(node.profileName).trim();
     if (!profileName) throw new Error(`LoopStart ${nodeId} missing profileName`);
 
-    const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
-    if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
+    let modelKey = '';
+    let systemPrompt = '';
+    const params: Record<string, unknown> = {};
 
-    const profileObj = toJsonObject(profile as unknown) ?? EMPTY_JSON_OBJECT;
-    const params: Record<string, unknown> = {
-      ...(toJsonObject(profileObj.params) ?? EMPTY_JSON_OBJECT),
-    };
+    if (mode !== 'count') {
+      const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
+      if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-    // loop condition must never use tools
-    params.toolsEnabled = false;
+      // Settings profiles are TypeORM entities (class instances). See llm-node-executor for details.
+      const profileAny = profile as any;
+      Object.assign(params, toJsonObject(profileAny?.params) ?? EMPTY_JSON_OBJECT);
 
-    const modelKey = getString(params.modelKey).trim();
-    if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
+      // loop condition must never use tools
+      (params as any).toolsEnabled = false;
 
-    const systemPrompt = getString(profileObj.systemPrompt).trim();
+      modelKey = getString(params.modelKey).trim();
+      if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
+
+      systemPrompt =
+        typeof profileAny?.systemPrompt === 'string' ? profileAny.systemPrompt.trim() : '';
+    }
 
     const startedAt = new Date();
     await this.workflows.upsertNodeRun(runId, nodeId, {
@@ -209,8 +239,20 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
 
     const limit = mode === 'count' ? Math.min(maxIterations, count ?? 0) : maxIterations;
 
+    let lastProduced: string | null = null;
+    let totalProducedBytes = 0;
+
     let index = 0;
     while (index < limit) {
+      // Expose loop context to nodes directly connected to loopStart.
+      // This is the "upstream" those nodes resolve via the edge loopStart -> node.
+      ctx.nodes[nodeId] = {
+        upstream: originalUpstream,
+        last: lastProduced,
+        iteration: index + 1,
+        index,
+      };
+
       ctx.loop = {
         index,
         iteration: index + 1,
@@ -242,6 +284,14 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
 
       const produced = lastBodyId ? this.toText(ctx.nodes[lastBodyId]) : '';
       items.push(produced);
+      lastProduced = produced;
+
+      totalProducedBytes += byteLengthUtf8(produced);
+      if (totalProducedBytes > budgets.maxLoopTotalProducedBytes) {
+        throw new Error(
+          `context budget exceeded: loop output grew to ${totalProducedBytes} bytes (limit ${budgets.maxLoopTotalProducedBytes} bytes)`,
+        );
+      }
 
       // COUNT MODE: deterministic. No LLM call.
       if (mode === 'count') {
@@ -270,7 +320,14 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
         joined: items.join(joiner),
       };
 
-      const condInputText = this.toText({ upstream: ctx.input, loop: loopState });
+      const condInputText = this.toText({ upstream: originalUpstream, loop: loopState });
+      // Safety: prevent the loop condition context from growing unbounded.
+      ensureWithinBudget(
+        condInputText,
+        budgets.maxLoopConditionBytes,
+        `Loop condition context for node ${nodeId} (iteration ${index + 1})`,
+      );
+
       const renderedCond = renderTemplate(conditionPrompt, { ...ctx, input: loopState });
 
       const question =
@@ -284,6 +341,13 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
         `Do not include any other keys, text, or explanation.\n\n` +
         `---\nUPSTREAM_INPUT:\n${condInputText}\n---\n\n` +
         renderedCond;
+
+      // Safety: prompt budget for the condition call itself.
+      ensureWithinBudget(
+        finalPrompt,
+        budgets.maxPromptBytes,
+        `Loop condition prompt for node ${nodeId} (iteration ${index + 1})`,
+      );
 
       const gen = this.engine.streamChat(
         `${runId}:${nodeId}:loop-condition:${index}`,

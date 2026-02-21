@@ -21,6 +21,11 @@ describe('LlmNodeExecutorService', () => {
   afterEach(() => {
     jest.useRealTimers();
     jest.clearAllMocks();
+
+    delete process.env.WORKFLOW_MAX_PROMPT_BYTES;
+    delete process.env.WORKFLOW_MAX_UPSTREAM_BYTES;
+    delete process.env.WORKFLOW_MAX_LOOP_CONDITION_BYTES;
+    delete process.env.WORKFLOW_MAX_LOOP_TOTAL_PRODUCED_BYTES;
   });
 
   it('throws when profileName or prompt is missing', async () => {
@@ -157,5 +162,78 @@ describe('LlmNodeExecutorService', () => {
     });
 
     expect(ctx.nodes.n2).toEqual({ a: 1 });
+  });
+
+  it('automatically appends upstream input when prompt does not reference {{input}}', async () => {
+    const workflows = {
+      upsertNodeRun: jest.fn().mockResolvedValue(undefined),
+      createArtifact: jest.fn().mockResolvedValue({ id: 'a1' }),
+    } as any;
+
+    // Simulate a TypeORM-style profile entity (class instance)
+    class ProfileEntity {
+      systemPrompt = '';
+      params = { modelKey: 'm1' };
+    }
+
+    const settings = {
+      resolveProfile: jest.fn().mockResolvedValue(new ProfileEntity()),
+    } as any;
+
+    const engine = {
+      streamChat: jest.fn().mockReturnValue(makeAsyncGen(['OK'])),
+    } as any;
+
+    const svc = new LlmNodeExecutorService(workflows, settings, engine);
+
+    const ctx: any = { nodes: {}, input: { hello: 'world' }, loop: null };
+
+    await svc.execute({
+      runId: 'r1',
+      nodeId: 'n1',
+      node: { id: 'n1', type: 'lmstudio.llm', profileName: 'GPT', prompt: 'Summarize.' } as any,
+      ctx,
+      iteration: 0,
+    } as any);
+
+    const call = (engine.streamChat as any).mock.calls[0];
+    const messages = call[1];
+    expect(messages[0].role).toBe('user');
+    expect(messages[0].content).toContain('Summarize.');
+    expect(messages[0].content).toContain('UPSTREAM');
+    expect(messages[0].content).toContain('"hello": "world"');
+  });
+
+  it('aborts early when prompt exceeds WORKFLOW_MAX_PROMPT_BYTES', async () => {
+    process.env.WORKFLOW_MAX_PROMPT_BYTES = '50';
+
+    const workflows = {
+      upsertNodeRun: jest.fn().mockResolvedValue(undefined),
+      createArtifact: jest.fn().mockResolvedValue({ id: 'a1' }),
+    } as any;
+
+    const settings = {
+      resolveProfile: jest.fn().mockResolvedValue({ systemPrompt: '', params: { modelKey: 'm1' } }),
+    } as any;
+
+    const engine = {
+      streamChat: jest.fn(),
+    } as any;
+
+    const svc = new LlmNodeExecutorService(workflows, settings, engine);
+
+    const ctx: any = { nodes: {}, input: 'X'.repeat(1000) };
+
+    await expect(
+      svc.execute({
+        runId: 'r1',
+        nodeId: 'n1',
+        node: { id: 'n1', type: 'lmstudio.llm', profileName: 'p1', prompt: 'Summarize.' } as any,
+        ctx,
+        iteration: 0,
+      } as any),
+    ).rejects.toThrow(/context budget exceeded/i);
+
+    expect(engine.streamChat).not.toHaveBeenCalled();
   });
 });

@@ -8,6 +8,7 @@ import type { LmMessage } from '../../common/types/llm.types';
 import { renderTemplate, safeJsonParse, toPrettyText } from '../engine/template-renderer';
 import { getPath, getString, isJsonObject } from '@shared/index';
 import { isRecord, toJsonObject, toJsonValue } from '../../utils/typed-access';
+import { ensureWithinBudget, getWorkflowBudgets } from './workflow-budget.util';
 
 @Injectable()
 export class LlmNodeExecutorService implements WorkflowNodeExecutor {
@@ -47,12 +48,31 @@ export class LlmNodeExecutorService implements WorkflowNodeExecutor {
     ctx.__depsForRender = ctx.__depsForRender ?? new Set<string>();
     const renderedPrompt = renderTemplate(rawPrompt, ctx);
 
+    // Automatic upstream injection:
+    // If this node has upstream input (ctx.input) and the prompt does not explicitly reference {{input}},
+    // we append the upstream as plain text. Templating stays optional for precise control, but
+    // data-flow edges should always provide the upstream to the node.
+    const wantsExplicitInput = /\{\{\s*input(?:\.|\s*\}\})/i.test(rawPrompt);
+    const upstreamText = this.toText(ctx.input).trim();
+    const finalPrompt =
+      !wantsExplicitInput && upstreamText
+        ? `${renderedPrompt}\n\n---\nUPSTREAM:\n${upstreamText}`
+        : renderedPrompt;
+
+    // Safety: prevent giant prompts from freezing the host during "processing prompt".
+    const budgets = getWorkflowBudgets();
+    ensureWithinBudget(finalPrompt, budgets.maxPromptBytes, `LLM prompt for node ${nodeId}`);
+
     const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
     if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-    const profileObj = toJsonObject(profile as unknown);
+    // NOTE:
+    // Settings profiles are TypeORM entities (class instances). Our typed-access helpers intentionally
+    // treat ONLY plain objects as records, so `toJsonObject(profile)` would return {} and drop params.
+    // Therefore we read `params` directly and normalize it.
+    const profileAny = profile as any;
     const params: Record<string, unknown> = {
-      ...(profileObj ? (toJsonObject(profileObj.params) ?? {}) : {}),
+      ...(toJsonObject(profileAny?.params) ?? {}),
     };
 
     const modelKey = getString(params.modelKey).trim();
@@ -76,7 +96,8 @@ export class LlmNodeExecutorService implements WorkflowNodeExecutor {
     // Enforce: no tool calls in workflow LLM nodes
     params.toolsEnabled = false;
 
-    const systemPrompt = profileObj ? getString(profileObj.systemPrompt).trim() : '';
+    const systemPrompt =
+      typeof profileAny?.systemPrompt === 'string' ? profileAny.systemPrompt.trim() : '';
 
     await this.workflows.upsertNodeRun(runId, nodeId, {
       iteration,
@@ -91,7 +112,7 @@ export class LlmNodeExecutorService implements WorkflowNodeExecutor {
     });
 
     const streamId = `${runId}:${nodeId}:${iteration}`;
-    const messages = this.buildMessages(systemPrompt, renderedPrompt);
+    const messages = this.buildMessages(systemPrompt, finalPrompt);
 
     this.logger.log(
       `Workflow LLM node ${nodeId}: tools=OFF structured=${getPath(params, 'structuredOutput.enabled') === true}`,

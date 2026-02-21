@@ -28,6 +28,7 @@
   "common.save": "Save",
   "common.search": "Search",
   "common.settings": "Settings",
+  "common.documentation": "Documentation",
   "common.show": "Show",
   "common.true": "true",
   "common.undo": "Undo",
@@ -214,5 +215,9 @@
   "workflow.run.resume": "Resume run",
   "workflow.runs.none": "No runs yet.",
   "workflow.runs.selectRun": "Select a run to see its exports.",
-  "workflow.runs.title": "Runs"
+  "workflow.runs.title": "Runs",
+  "docs.subtitle": "Concepts, workflow behavior, upstream rules, loops and built-in tools.",
+  "docs.tab.general": "General",
+  "docs.tab.workflows": "Workflows",
+  "docs.tab.tools": "Tools"
 }

@@ -45,10 +45,10 @@ export class WorkflowConditionNodeExecutorService implements WorkflowNodeExecuto
     const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
     if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-    const profileObj = toJsonObject(profile as unknown);
-    if (!profileObj) throw new Error(`Invalid settings profile: ${profileName}`);
-
-    const params: Record<string, unknown> = { ...(toJsonObject(profileObj.params) ?? {}) };
+    // Settings profiles are TypeORM entities (class instances). Our typed-access helpers only treat
+    // plain objects as records, so `toJsonObject(profile)` would become {} and drop params.
+    const profileAny = profile as any;
+    const params: Record<string, unknown> = { ...(toJsonObject(profileAny?.params) ?? {}) };
     const modelKey = getString(params.modelKey).trim();
     if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
@@ -66,7 +66,8 @@ export class WorkflowConditionNodeExecutorService implements WorkflowNodeExecuto
       },
     };
 
-    const systemPrompt = getString(profileObj.systemPrompt).trim();
+    const systemPrompt =
+      typeof profileAny?.systemPrompt === 'string' ? profileAny.systemPrompt.trim() : '';
 
     ctx.__depsForRender = ctx.__depsForRender ?? new Set<string>();
     let renderedPrompt = renderTemplate(rawPrompt, ctx);
