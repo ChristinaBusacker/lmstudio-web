@@ -22,6 +22,18 @@ function makeVariantSnapshot(chatId: string): Omit<SseEnvelopeOf<'variant.snapsh
   };
 }
 
+function makeWorkflowEvent(
+  workflowId: string,
+  runId?: string,
+): Omit<SseEnvelopeOf<'workflow.run.status'>, 'id' | 'ts'> {
+  return {
+    type: 'workflow.run.status',
+    workflowId,
+    runId,
+    payload: { status: 'running' },
+  };
+}
+
 describe('SseBusService', () => {
   beforeEach(() => {
     jest.useFakeTimers();
@@ -61,6 +73,28 @@ describe('SseBusService', () => {
 
     const replay = bus.getChatReplay('c1', persisted.id);
     expect(replay.find((e) => e.id === ephemeral.id)).toBeUndefined();
+  });
+
+  it('stores workflow-scoped events for replay, including workflow-run replay when runId is present', () => {
+    const bus = new SseBusService();
+    const w1 = bus.publish(makeWorkflowEvent('w1', 'wr1'));
+    const w2 = bus.publish(makeWorkflowEvent('w1', 'wr1'));
+    const wOther = bus.publish(makeWorkflowEvent('w2', 'wr2'));
+
+    expect(bus.getWorkflowReplay('w1', w1.id).map((e) => e.id)).toEqual([w2.id]);
+    expect(bus.getWorkflowRunReplay('wr1', w1.id).map((e) => e.id)).toEqual([w2.id]);
+    expect(bus.getWorkflowReplay('w2', wOther.id)).toEqual([]);
+  });
+
+  it('stores global run.status events in run replay buffer (non-chat non-workflow)', () => {
+    const bus = new SseBusService();
+
+    // run.status always includes chatId in this app, so emulate a global-ish event without chatId
+    const e1 = bus.publish({ type: 'run.status', payload: { status: 'queued' } });
+    const e2 = bus.publish({ type: 'run.status', payload: { status: 'running' } });
+
+    const replay = bus.getRunReplay(e1.id);
+    expect(replay.map((e) => e.id)).toEqual([e2.id]);
   });
 
   it('sweeps old buffers based on TTL', () => {
