@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { GenerationSettingsProfileEntity } from './entities/generation-settings-profile.entity';
+import { makeUniqueName } from '../utils/unique-name.util';
 
 export type CreateGenerationProfileInput = {
   ownerKey?: string; // default "default"
@@ -51,6 +52,24 @@ export class SettingsService {
    */
   private normalizeName(name: string): string {
     return (name ?? '').trim();
+  }
+
+  private async ensureUniqueName(
+    ownerKey: string,
+    desiredName: string,
+    excludeId?: string,
+  ): Promise<string> {
+    const name = this.normalizeName(desiredName);
+    if (!name) return name;
+
+    const list = await this.profiles.find({
+      where: { ownerKey },
+      select: ['id', 'name'],
+    });
+
+    const names = list.filter((p) => !excludeId || p.id !== excludeId).map((p) => p.name);
+
+    return makeUniqueName(name, names);
   }
 
   /**
@@ -122,6 +141,7 @@ export class SettingsService {
   async create(input: CreateGenerationProfileInput): Promise<GenerationSettingsProfileEntity> {
     const ownerKey = this.normalizeOwnerKey(input.ownerKey);
     const name = this.normalizeName(input.name);
+    const uniqueName = await this.ensureUniqueName(ownerKey, name);
     if (!name) throw new BadRequestException('name must not be empty');
 
     const params = input.params ?? {};
@@ -133,7 +153,7 @@ export class SettingsService {
     if (!shouldBeDefault) {
       const entity = this.profiles.create({
         ownerKey,
-        name,
+        name: uniqueName,
         params,
         isDefault: false,
       });
@@ -148,7 +168,7 @@ export class SettingsService {
 
       const entity = repo.create({
         ownerKey,
-        name,
+        name: uniqueName,
         params,
         isDefault: true,
       });
