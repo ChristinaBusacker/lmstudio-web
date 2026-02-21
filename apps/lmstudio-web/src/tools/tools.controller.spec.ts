@@ -93,20 +93,29 @@ describe('ToolsController', () => {
     const entries: ParsedFile[] = [
       { name: 'file', mimeType: 'txt', kind: 'test', content: {}, warnings: [] },
     ];
-    const resp: {
-      sourceAssetId: 'a1';
-      entries: ParsedFile[];
-      artifactId: null;
-    } = {
+    const serviceResp = {
+      sourceUrl: null,
       sourceAssetId: 'a1',
       entries,
       artifactId: null,
     };
     docRead.read.mockResolvedValue(
-      resp as unknown as Awaited<ReturnType<DocReaderService['read']>>,
+      serviceResp as unknown as Awaited<ReturnType<DocReaderService['read']>>,
     );
 
-    await expect(controller.readDoc({ assetId: 'a1', runId: 'r1' })).resolves.toEqual(resp);
+    await expect(controller.readDoc({ assetId: 'a1', runId: 'r1' })).resolves.toEqual({
+      sourceUrl: null,
+      sourceAssetId: 'a1',
+      files: [
+        {
+          name: 'file',
+          mimeType: 'txt',
+          text: null,
+          error: null,
+        },
+      ],
+      artifactId: null,
+    });
     expect(docRead.read).toHaveBeenCalledWith({ assetId: 'a1', runId: 'r1' });
   });
 });
