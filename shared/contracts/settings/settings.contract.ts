@@ -32,3 +32,23 @@ export interface UpdateSettingsProfileRequest {
   params?: SettingsParams;
   isDefault?: boolean;
 }
+
+// ---- Import / Export ----
+
+export interface SettingsProfileExportBundle {
+  version: number;
+  profile: {
+    name: string;
+    params: JsonObject;
+  };
+}
+
+export interface ImportSettingsProfileRequest {
+  version: number;
+  profile: {
+    name: string;
+    params: JsonObject;
+  };
+  /** Optional override name for the imported profile */
+  name?: string;
+}

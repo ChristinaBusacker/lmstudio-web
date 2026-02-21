@@ -14,6 +14,7 @@ import { RunState } from '@shared/contracts';
 import { ImportWorkflowBundleDto } from './dto/import-workflow-bundle.dto';
 import { NodeModelEdge, NodeModelNode } from '@shared/types/node-model.types';
 import { JsonObject } from '@shared/types/json';
+import { makeUniqueName } from '../utils/unique-name.util';
 
 type WorkflowExportBundle = {
   workflow: WorkflowEntity;
@@ -47,9 +48,22 @@ export class WorkflowsService {
 
   async create(ownerKey: string, dto: CreateWorkflowDto) {
     const graph = dto.graph ?? { nodes: [], edges: [] };
+
+    const desired = String(dto.name ?? '').trim();
+    if (!desired) throw new BadRequestException('name must not be empty');
+
+    const existing = await this.workflows.find({
+      where: { ownerKey },
+      select: ['name'],
+    });
+    const uniqueName = makeUniqueName(
+      desired,
+      existing.map((w) => w.name),
+    );
+
     const wf = this.workflows.create({
       ownerKey,
-      name: dto.name,
+      name: uniqueName,
       description: dto.description ?? null,
       graph,
     });
@@ -554,7 +568,10 @@ export class WorkflowsService {
 
     const wf = this.workflows.create({
       ownerKey,
-      name: dto.name ?? bundle.workflow.name ?? 'Imported Workflow',
+      name: makeUniqueName(
+        ownerKey,
+        (dto.name ?? bundle.workflow.name ?? 'Imported Workflow').trim() || 'Imported Workflow',
+      ),
       description: bundle.workflow.description ?? null,
       graph: bundle.workflow.graph ?? { nodes: [] },
     });

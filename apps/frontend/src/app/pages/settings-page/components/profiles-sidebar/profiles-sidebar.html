@@ -28,9 +28,15 @@
     <div class="empty">{{ 'common.loading' | i18n | async }}</div>
   } @else if (filteredProfiles().length === 0) {
     <div class="empty">{{ 'profiles.none' | i18n | async }}</div>
-    <button class="btn btn-primary" (click)="onCreate()">
-      {{ 'profiles.create' | i18n | async }}
-    </button>
+    <div class="row row-actions">
+      <button class="btn btn-primary" (click)="onCreate()">
+        {{ 'profiles.create' | i18n | async }}
+      </button>
+
+      <button class="btn btn-ghost" type="button" (click)="triggerImport()">
+        {{ 'profiles.import' | i18n | async }}
+      </button>
+    </div>
   } @else {
     <div class="list">
       @for (p of filteredProfiles(); track p.id) {
@@ -61,6 +67,14 @@
             </button>
 
             <button
+              class="btn btn-ghost"
+              type="button"
+              (click)="$event.stopPropagation(); exportProfile(p.id)"
+            >
+              {{ 'profiles.export' | i18n | async }}
+            </button>
+
+            <button
               class="btn btn-warn"
               type="button"
               (click)="$event.stopPropagation(); deleteProfileId.emit(p.id)"
@@ -72,9 +86,24 @@
         </button>
       }
 
-      <button class="btn btn-primary" (click)="onCreate()">
-        {{ 'profiles.create' | i18n | async }}
-      </button>
+      <div class="row row-actions">
+        <button class="btn btn-primary" (click)="onCreate()">
+          {{ 'profiles.create' | i18n | async }}
+        </button>
+
+        <button class="btn btn-ghost" type="button" (click)="triggerImport()">
+          {{ 'profiles.import' | i18n | async }}
+        </button>
+      </div>
     </div>
   }
 </div>
+
+<!-- Shared hidden file input for importing profiles -->
+<input
+  #importFile
+  type="file"
+  accept="application/json"
+  hidden
+  (change)="onImportFileSelected($event)"
+/>

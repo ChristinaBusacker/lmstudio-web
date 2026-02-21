@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, IsNull, LessThan, Repository } from 'typeorm';
+import { makeUniqueName } from '../utils/unique-name.util';
 import { ChatEntity } from './entities/chat.entity';
 import { MessageEntity } from './entities/message.entity';
 import { MessageVariantsService } from './message-variants.service';
@@ -33,8 +34,23 @@ export class ChatsService {
 
     const nextSortKey = (max ?? 0) + 1;
 
+    let finalTitle: string | null = title?.trim() ? title.trim() : null;
+
+    if (finalTitle) {
+      const existing = await this.chats.find({
+        where: { deletedAt: IsNull(), folderId: IsNull() },
+        select: ['title'],
+      });
+
+      const names = existing
+        .map((c) => c.title)
+        .filter((t): t is string => !!t && t.trim().length > 0);
+
+      finalTitle = makeUniqueName(finalTitle, names);
+    }
+
     const chat = this.chats.create({
-      title: title?.trim() ? title.trim() : null,
+      title: finalTitle,
       activeHeadMessageId: null,
       folderId: null,
       deletedAt: null,
@@ -188,7 +204,14 @@ export class ChatsService {
   async ensureAutoTitle(chatId: string, firstUserText: string) {
     const chat = await this.chats.findOne({ where: { id: chatId } });
     if (!chat) return;
-    if (chat.title && chat.title !== 'Untitled' && chat.title.trim().length > 0) return;
+
+    const currentTitle = (chat.title ?? '').trim();
+
+    // Accept: "Untitled" OR "Untitled (number)" (case-insensitive)
+    const isAutoPlaceholderTitle =
+      currentTitle.length === 0 || /^untitled(?:\s*\(\d+\))?$/i.test(currentTitle);
+
+    if (!isAutoPlaceholderTitle) return;
 
     const cleaned = firstUserText.replace(/\s+/g, ' ').trim();
     const title = cleaned.length > 60 ? cleaned.slice(0, 60) + '…' : cleaned;

@@ -225,3 +225,13 @@ input[type='range' i] {
     transform: rotate(360deg);
   }
 }
+
+app-workflow-node-ports .content-projection {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+}
+
+ng-diagram-port {
+  transform: scale(2) translate(-50%, -50%) !important;
+}

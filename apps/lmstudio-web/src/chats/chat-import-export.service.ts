@@ -6,6 +6,7 @@ import { ChatEntity } from './entities/chat.entity';
 import { MessageEntity } from './entities/message.entity';
 import { MessageVariantEntity } from './entities/message-variant.entity';
 import { ChatExportBundleDto } from './dto/chat-export.dto';
+import { makeUniqueName } from '../utils/unique-name.util';
 
 @Injectable()
 export class ChatImportExportService {
@@ -83,8 +84,18 @@ export class ChatImportExportService {
     }
 
     return this.chats.manager.transaction(async (trx) => {
+      const desiredTitle = (bundle.title ?? 'Imported Chat').trim() || 'Imported Chat';
+      const existing = await trx.find(ChatEntity, {
+        where: { folderId: null as any, deletedAt: null as any },
+        select: ['title'],
+      });
+      const names = existing
+        .map((c) => c.title)
+        .filter((t): t is string => !!t && t.trim().length > 0);
+      const uniqueTitle = makeUniqueName(desiredTitle, names);
+
       const chat = trx.create(ChatEntity, {
-        title: bundle.title ?? 'Imported Chat',
+        title: uniqueTitle,
         defaultSettingsProfileId: bundle.defaultSettingsProfileId ?? null,
         folderId: null,
         activeHeadMessageId: null,

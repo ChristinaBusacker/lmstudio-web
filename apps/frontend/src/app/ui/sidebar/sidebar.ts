@@ -31,6 +31,8 @@ import {
   DeleteWorkflow,
   UpdateWorkflow,
 } from '../../core/state/workflows/workflow.actions';
+import { SystemState } from '../../core/state/system/system.state';
+import type { ExternalServiceStatus } from '../../core/state/system/system.models';
 
 @Component({
   selector: 'app-sidebar',
@@ -50,9 +52,17 @@ export class Sidebar {
   readonly fodlers$ = this.store.select(FoldersState.items);
   readonly workflows$ = this.store.select(WorkflowsState.workflows);
 
+  readonly external$ = this.store.select(SystemState.external);
+
   private readonly dialog = inject(DialogService);
 
   router = inject(Router);
+
+  externalStatusDot(status: ExternalServiceStatus | null): 'ok' | 'warn' | 'bad' {
+    if (!status) return 'warn'; // no snapshot yet
+    if (!status.enabled) return 'warn';
+    return status.ok ? 'ok' : 'bad';
+  }
 
   readonly menu = signal<MenuState>({
     open: false,

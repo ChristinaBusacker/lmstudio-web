@@ -15,6 +15,7 @@ import {
   OpenChat,
   RegenerateAssistantMessage,
   SendMessage,
+  SetPendingModelKey,
 } from './chat-detail.actions';
 import type { ChatDetailStateModel } from './chat-detail.model';
 import type { StateContext } from '@ngxs/store';
@@ -29,6 +30,7 @@ import type { StateContext } from '@ngxs/store';
     messages: [],
     messageById: {},
     runs: {},
+    pendingModelKey: null,
     lastSyncAt: null,
     error: null,
   },
@@ -72,6 +74,11 @@ export class ChatDetailState {
     return s.runs;
   }
 
+  @Selector()
+  static pendingModelKey(s: ChatDetailStateModel): string | null {
+    return s.pendingModelKey;
+  }
+
   // ---------- Actions ----------
 
   @Action(OpenChat)
@@ -84,6 +91,7 @@ export class ChatDetailState {
       messages: [],
       messageById: {},
       runs: {},
+      pendingModelKey: null,
       error: null,
     });
 
@@ -100,9 +108,15 @@ export class ChatDetailState {
       messages: [],
       messageById: {},
       runs: {},
+      pendingModelKey: null,
       lastSyncAt: null,
       error: null,
     });
+  }
+
+  @Action(SetPendingModelKey)
+  setPendingModelKey(ctx: StateContext<ChatDetailStateModel>, action: SetPendingModelKey) {
+    ctx.patchState({ pendingModelKey: action.modelKey });
   }
 
   @Action(LoadThread)
@@ -139,11 +153,43 @@ export class ChatDetailState {
 
   @Action(SendMessage)
   sendMessage(ctx: StateContext<ChatDetailStateModel>, action: SendMessage) {
-    // V1: we rely on SSE + eventual REST refresh if needed.
+    // Optimistic UX: show the user message immediately.
+    // The real server-side message IDs will arrive via SSE (variant snapshots) or a later thread refresh.
+    const s = ctx.getState();
+    const now = new Date().toISOString();
+
+    const parentMessageId = s.meta?.activeHeadMessageId ?? null;
+    const localMessageId = `local-${action.payload.clientRequestId}`;
+
+    const optimisticUserMessage: ThreadMessage = {
+      id: localMessageId,
+      chatId: action.chatId,
+      role: 'user',
+      parentMessageId,
+      variantsCount: 1,
+      createdAt: now,
+      activeVariant: {
+        id: `local-variant-${action.payload.clientRequestId}`,
+        variantIndex: 0,
+        isActive: true,
+        content: action.payload.content,
+        reasoning: null,
+        stats: null,
+        createdAt: now,
+      },
+    };
+
+    // Avoid duplicates if the user double-clicked or the action is retried.
+    if (!s.messageById[localMessageId]) {
+      ctx.patchState({
+        messages: [...s.messages, optimisticUserMessage],
+        messageById: { ...s.messageById, [localMessageId]: optimisticUserMessage },
+      });
+    }
+
     return this.runsApi.send(action.chatId, action.payload).pipe(
       tap((res) => {
         ctx.dispatch(new EnqueuedRunLocal(res));
-        this.toast.success('Run created', `Run ${res.runId}`);
       }),
       catchError((err) => {
         console.error('[ChatDetail] sendMessage failed', err);
@@ -158,7 +204,6 @@ export class ChatDetailState {
     return this.runsApi.regenerate(action.messageId, action.payload).pipe(
       tap((res) => {
         ctx.dispatch(new EnqueuedRunLocal(res));
-        this.toast.success('Run created', `Run ${res.runId}`);
       }),
       catchError((err) => {
         console.error('[ChatDetail] regenerate failed', err);
@@ -234,6 +279,16 @@ export class ChatDetailState {
         },
       },
     });
+
+    // Once a run is actually running or finished, we no longer need the optimistic model hint.
+    if (
+      action.payload.status === 'running' ||
+      action.payload.status === 'completed' ||
+      action.payload.status === 'failed' ||
+      action.payload.status === 'canceled'
+    ) {
+      if (s.pendingModelKey) ctx.patchState({ pendingModelKey: null });
+    }
 
     // When a run completes/fails/cancels, safest V1 move is: refresh thread once.
     if (

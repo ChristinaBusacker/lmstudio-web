@@ -8,6 +8,7 @@ import { MessageVariantEntity } from './entities/message-variant.entity';
 import type { ChatExportBundleDto } from './dto/chat-export.dto';
 
 type Trx = {
+  find: <T>(_cls: new () => T) => Promise<T[]>;
   create: <T>(cls: new () => T, partial: Partial<T>) => T;
   save: <T>(entity: T) => Promise<T>;
   update: <T>(cls: new () => T, criteria: unknown, partial: Partial<T>) => Promise<unknown>;
@@ -220,6 +221,10 @@ describe('ChatImportExportService', () => {
     let variantSaveCount = 0;
 
     const trx: Trx = {
+      find: async <T>(_cls: new () => T): Promise<T[]> => {
+        // Used by importChat() to gather existing chat titles for unique naming.
+        return [] as T[];
+      },
       create: <T>(cls: new () => T, partial: Partial<T>): T => {
         lastCreateCls = cls.name;
         created.push({ cls: cls.name, partial });

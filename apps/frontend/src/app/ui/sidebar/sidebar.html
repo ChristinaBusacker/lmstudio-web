@@ -99,6 +99,19 @@
   </button>
 </section>
 
+@let ext = external$ | async;
+
+<div class="sidebar-footer">
+  <div class="service-status" [title]="'LM Studio'">
+    <span class="dot" [class]="externalStatusDot(ext?.['lmstudio'] ?? null)"></span>
+    <span class="label">LM Studio</span>
+  </div>
+  <div class="service-status" [title]="'SearXNG'">
+    <span class="dot" [class]="externalStatusDot(ext?.['searxng'] ?? null)"></span>
+    <span class="label">SearXNG</span>
+  </div>
+</div>
+
 @if (menu().open) {
   <app-context-menu
     [position]="menu().pos"

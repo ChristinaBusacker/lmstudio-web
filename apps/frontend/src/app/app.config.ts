@@ -37,6 +37,7 @@ import { GlobalErrorHandler } from './core/errors/global-error-handler';
 import { httpErrorToastInterceptor } from './core/http/http-error-toast.interceptor';
 import { UserPreferencesState } from './core/state/user-preferences/user-preferences.state';
 import { I18nState } from './core/i18n/i18n.state';
+import { SystemState } from './core/state/system/system.state';
 import { LanguageService } from './core/i18n/language.service';
 import { firstValueFrom } from 'rxjs';
 import { setI18nInjector } from './core/i18n/i18n.util';
@@ -64,6 +65,7 @@ export const appConfig: ApplicationConfig = {
         WorkflowsState,
         UserPreferencesState,
         I18nState,
+        SystemState,
       ],
       withNgxsReduxDevtoolsPlugin(),
     ),

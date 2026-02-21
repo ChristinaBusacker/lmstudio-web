@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
@@ -113,5 +113,64 @@ describe('SettingsController', () => {
     const res = await controller.setDefault('p4');
     expect(settings.setDefaultById).toHaveBeenCalledWith('p4');
     expect(res.isDefault).toBe(true);
+  });
+
+  it('exportProfile() returns a bundle (version + profile)', async () => {
+    const profile: Partial<GenerationSettingsProfileEntity> = {
+      id: 'pExport',
+      ownerKey: 'default',
+      name: 'Export Me',
+      params: { modelKey: 'm1', temperature: 0.7 },
+      isDefault: false,
+      createdAt: new Date('2026-01-10T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-10T00:00:00.000Z'),
+    };
+    settings.getById.mockResolvedValue(profile as GenerationSettingsProfileEntity);
+
+    const res = await controller.exportProfile('pExport');
+    expect(res).toEqual({
+      version: 1,
+      profile: {
+        name: 'Export Me',
+        params: { modelKey: 'm1', temperature: 0.7 },
+      },
+    });
+  });
+
+  it('exportProfile() throws NotFoundException if missing', async () => {
+    settings.getById.mockResolvedValue(null);
+    await expect(controller.exportProfile('missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('importProfile() creates a new profile (ownerKey="default", isDefault=false)', async () => {
+    const created: Partial<GenerationSettingsProfileEntity> = {
+      id: 'pImported',
+      ownerKey: 'default',
+      name: 'Imported',
+      params: { modelKey: 'm2' },
+      isDefault: false,
+      createdAt: new Date('2026-01-11T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-11T00:00:00.000Z'),
+    };
+    settings.create.mockResolvedValue(created as GenerationSettingsProfileEntity);
+
+    const res = await controller.importProfile({
+      version: 1,
+      profile: { name: 'Imported', params: { modelKey: 'm2' } },
+    });
+
+    expect(settings.create).toHaveBeenCalledWith({
+      ownerKey: 'default',
+      name: 'Imported',
+      params: { modelKey: 'm2' },
+      isDefault: false,
+    });
+    expect(res.id).toBe('pImported');
+  });
+
+  it('importProfile() throws BadRequestException when name is missing/empty', async () => {
+    await expect(
+      controller.importProfile({ version: 1, profile: { name: '   ', params: {} } }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

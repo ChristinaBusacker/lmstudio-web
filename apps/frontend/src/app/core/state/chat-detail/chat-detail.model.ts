@@ -32,6 +32,12 @@ export interface ChatDetailStateModel {
     }
   >;
 
+  /**
+   * Best-effort UI hint to show a nicer status message while a run is queued.
+   * This is NOT sent to the backend.
+   */
+  pendingModelKey: string | null;
+
   lastSyncAt: string | null;
   error: string | null;
 }

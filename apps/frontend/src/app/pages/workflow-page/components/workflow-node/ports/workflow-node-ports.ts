@@ -1,5 +1,7 @@
+import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { NgDiagramPortComponent } from 'ng-diagram';
+import { I18nPipe } from '../../../../../core/i18n/i18n.pipe';
 import {
   CONDITION_FALSE_PORT,
   CONDITION_TRUE_PORT,
@@ -12,14 +14,14 @@ import {
   NODE_MERGE,
   NODE_PREVIEW,
 } from '../../../workflow-diagram.adapter';
-import { I18nPipe } from '../../../../../core/i18n/i18n.pipe';
 
 @Component({
   selector: 'app-workflow-node-ports',
   standalone: true,
-  imports: [NgDiagramPortComponent, I18nPipe],
+  imports: [NgDiagramPortComponent, I18nPipe, CommonModule],
   templateUrl: './workflow-node-ports.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrls: ['./workflow-node-ports.scss'],
 })
 export class WorkflowNodePortsComponent {
   nodeId = input.required<string>();

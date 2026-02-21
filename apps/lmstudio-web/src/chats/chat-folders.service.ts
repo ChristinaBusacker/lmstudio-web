@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
+import { makeUniqueName } from '../utils/unique-name.util';
 import { ChatFolderEntity } from './entities/chat-folder.entity';
 import { ChatEntity } from './entities/chat.entity';
 import { SseBusService } from '../sse/sse-bus.service';
@@ -27,8 +28,20 @@ export class ChatFoldersService {
   }
 
   async create(name: string) {
+    const desired = name.trim();
+
+    const existing = await this.folders.find({
+      where: { deletedAt: IsNull() },
+      select: ['name'],
+    });
+
+    const unique = makeUniqueName(
+      desired,
+      existing.map((f) => f.name),
+    );
+
     const f = this.folders.create({
-      name: name.trim(),
+      name: unique,
       deletedAt: null,
     });
 
