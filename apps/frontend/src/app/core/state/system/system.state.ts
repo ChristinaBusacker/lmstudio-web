@@ -17,9 +17,7 @@ export class SystemState {
   }
 
   @Selector()
-  static service(
-    state: SystemStateModel,
-  ): (name: string) => ExternalServiceStatus | null {
+  static service(state: SystemStateModel): (name: string) => ExternalServiceStatus | null {
     return (name: string) => state.external[name] ?? null;
   }
 
