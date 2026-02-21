@@ -2,7 +2,7 @@ import { WorkflowLoopStartExecutorService } from './workflow-loop-start-executor
 
 // Minimal mocks: we only test loopStart passthrough behavior, not DB persistence or LLM calls.
 describe('WorkflowLoopStartExecutorService', () => {
-  it('should expose its upstream input as node output during body execution (passthrough)', async () => {
+  it('should expose loop context (upstream + last) to body nodes connected to loopStart', async () => {
     const workflows = {
       upsertNodeRun: jest.fn().mockResolvedValue(undefined),
       createArtifact: jest.fn().mockResolvedValue({ id: 'artifact-1' }),
@@ -22,9 +22,18 @@ describe('WorkflowLoopStartExecutorService', () => {
 
     const dispatcher = {
       executeNodeInternal: jest.fn(async ({ nodeId, ctx }: any) => {
-        // This is the core assertion for the regression:
-        // body nodes must be able to read the loopStart output as upstream.
-        expect(ctx.nodes['LOOP']).toBe('UPSTREAM');
+        // Core regression assertions:
+        // body nodes directly connected to loopStart must see the original upstream + last iteration output.
+        const loopCtx = ctx.nodes['LOOP'];
+        expect(loopCtx).toBeTruthy();
+        expect(loopCtx.upstream).toBe('UPSTREAM');
+
+        if (ctx.loop?.iteration === 1) {
+          expect(loopCtx.last).toBeNull();
+        }
+        if (ctx.loop?.iteration === 2) {
+          expect(loopCtx.last).toBe('out:1');
+        }
 
         // Simulate a body node producing output.
         ctx.nodes[nodeId] = `out:${ctx.loop?.iteration}`;

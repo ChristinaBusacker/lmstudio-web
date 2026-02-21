@@ -144,14 +144,16 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
     }
 
     // IMPORTANT:
-    // The loopStart node acts as a passthrough for its upstream input DURING loop execution.
+    // The loopStart node acts as a *context provider* for its body DURING loop execution.
     // Body nodes may have edges that reference this loopStart node as their upstream.
-    // If we only write ctx.nodes[nodeId] at the end (with the final loop output),
-    // the body execution will fail with "Missing upstream output".
+    // In that case, the body should see:
+    //   - the original upstream input that entered the loop
+    //   - the output of the previous iteration ("last")
     //
-    // Therefore we pre-populate the node output with the upstream input snapshot,
-    // and overwrite it with the final loop output after the loop completes.
-    ctx.nodes[nodeId] = ctx.input;
+    // We will populate ctx.nodes[nodeId] per iteration (see below) and overwrite it with
+    // the final loop output after the loop completes.
+    const originalUpstream = ctx.input;
+    ctx.nodes[nodeId] = { upstream: originalUpstream, last: null, iteration: 0, index: -1 };
 
     // Dependency set for shortcut templating {{nodeId.*}}
     ctx.__depsForRender = new Set<string>(sourcesSorted);
@@ -225,8 +227,19 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
 
     const limit = mode === 'count' ? Math.min(maxIterations, count ?? 0) : maxIterations;
 
+    let lastProduced: string | null = null;
+
     let index = 0;
     while (index < limit) {
+      // Expose loop context to nodes directly connected to loopStart.
+      // This is the "upstream" those nodes resolve via the edge loopStart -> node.
+      ctx.nodes[nodeId] = {
+        upstream: originalUpstream,
+        last: lastProduced,
+        iteration: index + 1,
+        index,
+      };
+
       ctx.loop = {
         index,
         iteration: index + 1,
@@ -258,6 +271,7 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
 
       const produced = lastBodyId ? this.toText(ctx.nodes[lastBodyId]) : '';
       items.push(produced);
+      lastProduced = produced;
 
       // COUNT MODE: deterministic. No LLM call.
       if (mode === 'count') {
@@ -286,7 +300,7 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
         joined: items.join(joiner),
       };
 
-      const condInputText = this.toText({ upstream: ctx.input, loop: loopState });
+      const condInputText = this.toText({ upstream: originalUpstream, loop: loopState });
       const renderedCond = renderTemplate(conditionPrompt, { ...ctx, input: loopState });
 
       const question =
