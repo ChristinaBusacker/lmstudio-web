@@ -216,7 +216,8 @@
   "workflow.runs.none": "Aucune exécution pour le moment.",
   "workflow.runs.selectRun": "Sélectionnez une exécution pour voir ses exports.",
   "workflow.runs.title": "Exécutions",
-  "docs.subtitle": "Comment fonctionnent les workflows, nœuds, upstreams et cas particuliers.",
+  "docs.subtitle": "Concepts, règles d'upstream, boucles, cas particuliers et outils intégrés.",
   "docs.tab.general": "Général",
-  "docs.tab.workflows": "Workflow"
+  "docs.tab.workflows": "Workflows",
+  "docs.tab.tools": "Outils"
 }

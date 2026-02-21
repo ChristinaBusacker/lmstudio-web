@@ -13,7 +13,7 @@ import { en_doc } from './docs/en.doc';
 import { de_doc } from './docs/de.doc';
 import { fr_doc } from './docs/fr.doc';
 
-type DocTabId = 'general' | 'workflows';
+type DocTabId = 'general' | 'workflows' | 'tools';
 
 interface DocContent {
   title: string;

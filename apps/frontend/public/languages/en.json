@@ -216,7 +216,8 @@
   "workflow.runs.none": "No runs yet.",
   "workflow.runs.selectRun": "Select a run to see its exports.",
   "workflow.runs.title": "Runs",
-  "docs.subtitle": "How workflows, nodes, upstreams and special cases work.",
+  "docs.subtitle": "Concepts, workflow behavior, upstream rules, loops and built-in tools.",
   "docs.tab.general": "General",
-  "docs.tab.workflows": "Workflow"
+  "docs.tab.workflows": "Workflows",
+  "docs.tab.tools": "Tools"
 }

@@ -18,5 +18,12 @@
         <markdown [data]="content().tabs.workflows.markdown"></markdown>
       </section>
     </app-tab>
+
+    <app-tab [label]="'docs.tab.tools' | i18n | async">
+      <section class="doc__section">
+        <h2 class="doc__sectionTitle">{{ content().tabs.tools.heading }}</h2>
+        <markdown [data]="content().tabs.tools.markdown"></markdown>
+      </section>
+    </app-tab>
   </app-tabs>
 </div>

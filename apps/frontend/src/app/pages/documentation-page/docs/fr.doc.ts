@@ -1,103 +1,153 @@
+// Comments in English as requested.
+
+/**
+ * User-facing documentation content (French).
+ *
+ * Accuracy notes:
+ * - Upstream wiring is implemented via data edges (port-right -> port-left) as ctx.input.
+ * - Condition branching is implemented by filtering active edges based on boolean condition output.
+ * - LoopStart provides a loop context object (upstream + last iteration output) to directly connected body nodes.
+ * - LLM nodes append upstream automatically unless the prompt explicitly references {{input}}.
+ * - Safety budgets are enforced by backend env variables (bytes) to avoid oversized prompts.
+ */
+
 export const fr_doc = {
   general: {
-    heading: 'Général',
+    heading: "À propos de l'application",
     markdown: `
-Cette page documente les **workflows** et les conventions les plus importantes du moteur d’exécution.
+LMStudio Web est une **interface orientée workflows** pour construire et exécuter des processus IA multi-étapes, de manière reproductible.
 
-## Qu’est-ce qu’un workflow ?
-Un workflow est un graphe orienté composé de **nœuds** et de **liaisons**.
+Au lieu de gérer des chaînes de prompts à la main (copier-coller, notes, etc.), vous modélisez un flux sous forme de graphe et le moteur l’exécute.
 
-- Une **liaison** signifie : le nœud source doit s’exécuter avant le nœud cible.
-- La **sortie** du nœud source devient l’**upstream** (entrée) du nœud cible.
+## Ce que c’est
 
-Le moteur exécute les nœuds selon leurs **dépendances** (ordre topologique). Si deux nœuds dépendent uniquement du même upstream, leur ordre relatif peut varier.
+- Un **éditeur de workflows** : des étapes (nœuds) reliées par des connexions (arêtes).
+- Un **moteur d’exécution** : exécute les nœuds dans l’ordre des dépendances, stocke les résultats intermédiaires, permet pause/reprise/annulation.
+- Un système **avec outils** : lecture web/documents et autres aides déterministes utilisables dans les workflows.
 
-## Upstream (flux de données)
-Si **Node A** est relié à **Node B**, alors **Node B reçoit automatiquement la sortie de Node A** comme upstream.
+## Ce que ce n’est pas
 
-Cela fonctionne même sans templating.
+- Pas un « agent magique » qui improvise tout seul.
+- Pas un remplacement d’interface de chat.
+- Pas un service cloud, mais un outil pensé pour une configuration **LM Studio locale**.
 
-### Templating (optionnel)
-Le templating sert à injecter des valeurs précises dans des champs.
+## Comment l’utiliser (modèle mental)
 
-- Utilise-le quand tu veux une propriété spécifique d’un nœud.
-- Ne l’utilise pas juste pour “avoir l’upstream”, il est déjà disponible.
+1. Créer un workflow et ajouter des nœuds.
+2. Relier les nœuds pour définir le **flux de données** et l’**ordre d’exécution**.
+3. Lancer un run. Chaque nœud produit un output utilisable comme upstream par les suivants.
 
-## Runs : pause, reprise, annulation
-Les runs doivent être contrôlables :
+Si vous connaissez les pipelines/DAGs, vous êtes déjà à la maison.
 
-- **Pause** : autorisé de terminer l’appel tool/modèle en cours puis de s’arrêter.
-- **Resume** : reprend là où ça s’est arrêté.
-- **Cancel** : stoppe le run.
+## Runs : contrôle et répétabilité
 
-## Sécurité (budgets)
-Les boucles et le contenu web peuvent produire de très gros upstreams. Le backend peut appliquer des budgets, par exemple :
+- **Pause** : on peut terminer l’appel en cours (outil/modèle) puis s’arrêter.
+- **Reprise** : continue là où le run s’est arrêté.
+- **Annulation** : stoppe le run.
 
-- nombre max d’itérations
-- taille max du prompt
-- taille max du contexte de condition de boucle
-
-Si un budget est dépassé, le run s’arrête avec une erreur claire (ex. : « context budget exceeded »).
-        `.trim(),
+Sur des modèles locaux, le contrôle est crucial, surtout quand les prompts deviennent gros.
+    `.trim(),
   },
   workflows: {
-    heading: 'Nœuds de workflow',
+    heading: 'Workflows, nœuds et upstreams',
     markdown: `
-Cette section documente les types de nœuds workflow et leur comportement upstream.
+Cet onglet explique les concepts du moteur de workflows et les **comportements spéciaux** importants en pratique.
 
-## Types de nœuds
+## Qu’est-ce qu’un workflow ?
 
-### \`lmstudio.llm\`
-Exécute un appel LLM via un **profil de paramètres**.
+Un workflow est un **graphe orienté** :
 
-- Si le profil est « Default », le profil actuellement marqué comme défaut est utilisé.
-- Aucun tool n’est nécessaire ici.
-- Le structured output vient du profil, sauf override explicite via l’UI (checkbox dans \`WorkflowNodeComponent\`).
+- Des **nœuds** (nodes) représentent des étapes.
+- Des **arêtes** (edges) relient ces étapes.
 
-### \`workflow.asset\`
-Sélecteur d’asset.
+Une arête a deux effets :
 
-- Ouvre un document et le lit via \`doc_read\`.
-- Le contenu devient la sortie du nœud.
+1. **Dépendance** : la source doit s’exécuter avant la cible.
+2. **Flux de données** : l’output de la source devient l’upstream de la cible.
 
-### \`workflow.tool\`
-Exécute un tool call pour produire des résultats intermédiaires utilisables ensuite.
+Le moteur exécute le graphe dans un ordre sûr (tri topologique). Si plusieurs nœuds sont indépendants, leur ordre relatif n’est pas garanti.
 
-### \`workflow.condition\`
-Demande au LLM si la condition est satisfaite.
+## Nœuds
 
-**Règle de branchement :**
-- Si **true**, seul le chemin true s’exécute (le false est ignoré).
-- Si **false**, seul le chemin false s’exécute.
+Chaque nœud a un type (ex. \`lmstudio.llm\`, \`workflow.loopStart\`) et une logique d’exécution dédiée côté backend.
+Chaque exécution produit un output (string/JSON) stocké dans le contexte du run.
 
-**Dans une boucle :** évaluation par itération.
+## Arêtes, dépendances et ordre d’exécution
 
-### \`workflow.loopStart\`
-Début d’une boucle.
+- **A → B** : A est une dépendance de B.
+- **A → B → C** : A puis B puis C.
+- **A → B** et **A → D** (sans autres deps) : B et D peuvent s’exécuter dans n’importe quel ordre après A.
+
+## Upstreams (flux de données)
+
+Un upstream est l’output d’un nœud fourni comme input au nœud suivant.
+
+**Règle :** si Node A a une arête de données vers Node B, alors **Node B reçoit automatiquement l’output de Node A**.
+
+### Arêtes de données vs arêtes de contrôle
+
+Convention actuelle de l’UI :
+
+- seules les arêtes \`port-right\` → \`port-left\` sont considérées comme **arêtes de données** (alimentent \`ctx.input\`).
+- les autres arêtes sont du contrôle (ne construisent pas automatiquement \`ctx.input\`).
+
+### Templating (optionnel)
+
+Le templating sert à viser des valeurs précises, pas à « récupérer l’upstream ».
+
+- utilisez-le pour une propriété spécifique,
+- sinon, l’upstream est déjà disponible.
+
+## Comportement d’input des nœuds LLM
+
+Pour simplifier les cas courants :
+
+- si le prompt ne référence pas explicitement \`{{input}}\`, le moteur **ajoute automatiquement** l’upstream à la fin du prompt (section séparée).
+- si le prompt référence \`{{input}}\` / \`{{input.xxx}}\`, rien n’est ajouté automatiquement.
+
+## Branching conditionnel (\`workflow.condition\`)
+
+\`workflow.condition\` demande au modèle si une condition est vraie ou fausse et retourne un booléen.
+
+- output **true** : seule la branche **true** est active.
+- output **false** : seule la branche **false** est active.
+
+Si un nœud a des arêtes entrantes mais aucune n’est active, il est **skippé**.
+
+## Boucles (\`workflow.loopStart\` / \`workflow.loopEnd\`)
+
+Les boucles sont puissantes, et aussi une source classique d’explosion de contexte.
+
+### Structure
+
+\`loopStart → (nœuds du body...) → loopEnd\`
 
 Modes :
-- **count** : nombre fixe d’itérations
-- **until** : jusqu’à ce que la condition devienne true
-- **while** : tant que la condition reste true
 
-**Upstream du body (important) :**
-Les nœuds connectés directement à \`workflow.loopStart\` reçoivent un contexte de boucle :
+- **count** : nombre d’itérations fixe
+- **while** : tant que la condition reste true
+- **until** : jusqu’à ce que la condition devienne true
+
+### Contexte de boucle (important)
+
+Les nœuds directement reliés à \`workflow.loopStart\` reçoivent un **objet de contexte**, pas un texte brut :
 
 \`\`\`ts
 {
-  upstream: <upstream d’entrée de la boucle>,
-  last: <sortie de l’itération précédente> | null,
-  iteration: number,
-  index: number
+  upstream: <input original entrant dans la boucle>,
+  last: <output de l’itération précédente> | null,
+  iteration: number, // 1-based
+  index: number      // 0-based
 }
 \`\`\`
 
-Les nœuds plus loin dans le body reçoivent l’upstream normal (ex. \`A -> B\`).
+Les nœuds plus loin dans le body suivent la règle normale :
 
-### \`workflow.loopEnd\`
-Fin d’une boucle.
+- \`loopStart → Node A → Node B\` ⇒ Node B reçoit uniquement l’output de Node A.
 
-La sortie agrège toutes les itérations :
+### Agrégation au \`loopEnd\`
+
+\`workflow.loopEnd\` agrège les outputs :
 
 \`\`\`ts
 {
@@ -106,14 +156,109 @@ La sortie agrège toutes les itérations :
 }
 \`\`\`
 
+### Input de condition en boucle (croissance contrôlée)
+
+Pour les modes \`while\`/\`until\`, la condition est évaluée avec :
+
+- l’upstream original
+- les outputs accumulés de la boucle
+
+C’est l’endroit prévu pour la croissance de contexte.
+
+## Sécurité d’exécution (budgets)
+
+Les gros upstreams (web_read + boucles) peuvent créer des prompts trop grands pour les modèles locaux.
+Le backend peut donc appliquer des budgets (en octets) via env :
+
+- \`WORKFLOW_MAX_PROMPT_BYTES\`
+- \`WORKFLOW_MAX_UPSTREAM_BYTES\`
+- \`WORKFLOW_MAX_LOOP_CONDITION_BYTES\`
+- \`WORKFLOW_MAX_LOOP_TOTAL_PRODUCED_BYTES\`
+
+En cas de dépassement : arrêt propre avec un message clair (ex. « context budget exceeded »).
+
+## Types de nœuds (référence)
+
+### \`lmstudio.llm\`
+Appel LLM basé sur un **profil de settings**.
+
+- Profil "Default" ⇒ profil marqué par défaut.
+- Structured output selon le profil, sauf override UI.
+- Les tools ne sont pas exécutés implicitement.
+
+### \`workflow.asset\`
+Sélecteur d’asset : lit un document via \`doc_read\`.
+
+### \`workflow.tool\`
+Exécute un tool déterministe et expose le résultat.
+
+### \`workflow.condition\`
+Condition booléenne + branching.
+
+### \`workflow.loopStart\`
+Début de boucle + provider du loop context.
+
+### \`workflow.loopEnd\`
+Fin de boucle + agrégation \`{ items, joined }\`.
+
 ### \`workflow.merge\`
-Fusionne plusieurs entrées, similaire à \`loopEnd\`, avec des ports personnalisés.
+Fusionne plusieurs entrées (ports personnalisés), utile après une condition.
 
 ### \`workflow.export\`
-Crée un artefact à partir des outputs entrants. Pas de magie.
+Crée un artefact à partir des outputs des ports entrants.
 
 ### \`ui.preview\`
-Nœud purement UI pour afficher une prévisualisation.
-        `.trim(),
+Nœud UI : aperçu côté frontend.
+    `.trim(),
+  },
+  tools: {
+    heading: 'Outils (helpers déterministes)',
+    markdown: `
+Les tools sont des opérations déterministes exécutables dans un workflow pour produire des données intermédiaires fiables.
+
+- Tools : reproductibles.
+- LLM : génération probabiliste.
+
+## Outils web & documents
+
+### \`web_search(q, limit?)\`
+Recherche sur le web (utile pour l’actualité et les URLs).
+
+### \`web_read(url)\`
+Lit une page web et extrait le texte principal.
+
+### \`doc_read(assetId)\`
+Lit un document uploadé via son assetId.
+
+## Outils temps
+
+### \`current_time(timezone?)\`
+Retourne la date/heure actuelle avec timezone.
+
+### \`resolve_relative_date(text, timezone?, baseTime?, forwardDate?)\`
+Résout des expressions relatives en timestamp ISO.
+
+### \`date_math(...)\`
+Arithmétique de dates déterministe.
+
+## Maths
+
+### \`math(expression, variables?, precision?)\`
+Calculateur déterministe.
+
+## JSON
+
+### \`json_validate(json, schema)\`
+Valide du JSON contre un JSON Schema.
+
+### \`json_repair(text)\`
+Répare du texte « JSON-ish » en JSON valide.
+
+## Conseils
+
+- Utilisez les tools pour les faits/structure.
+- Gardez les LLM nodes pour l’écriture/raisonnement.
+- Dans les boucles : résumer et limiter les outputs pour éviter les prompts énormes.
+    `.trim(),
   },
 };
