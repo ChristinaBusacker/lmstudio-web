@@ -20,11 +20,9 @@ $theme-dark: (
   // Text
   text: #fefefe,
   text-muted: rgba(255, 255, 255, 0.65),
-
   // Borders / dividers
   border: rgba(255, 255, 255, 0.12),
   border-strong: rgba(255, 255, 255, 0.2),
-
   // Brand
   primary: #3b82f6,
   primary-hover: #1b3b6e,
@@ -38,16 +36,14 @@ $theme-dark: (
   // UI primitives
   shadow-1: 0 8px 24px rgba(0, 0, 0, 0.35),
   overlay-backdrop: rgba(0, 0, 0, 0.6),
-
   // Inputs
   input-bg: rgba(255, 255, 255, 0.06),
   input-border: rgba(255, 255, 255, 0.1),
   input-text: rgba(255, 255, 255, 0.92),
   input-placeholder: rgba(255, 255, 255, 0.45),
-
   // Cards
   card-bg: #303030,
-  card-border: rgba(255, 255, 255, 0.08),
+  card-border: rgba(255, 255, 255, 0.08)
 );
 
 // For now, LMStudio is a slightly tuned Dark theme (same base values).
@@ -68,10 +64,8 @@ $theme-light: (
 
   text: #0f172a,
   text-muted: rgba(15, 23, 42, 0.65),
-
   border: rgba(15, 23, 42, 0.14),
   border-strong: rgba(15, 23, 42, 0.22),
-
   primary: #2563eb,
   primary-hover: #1e40af,
 
@@ -82,12 +76,10 @@ $theme-light: (
 
   shadow-1: 0 10px 26px rgba(15, 23, 42, 0.12),
   overlay-backdrop: rgba(15, 23, 42, 0.4),
-
   input-bg: rgba(15, 23, 42, 0.04),
   input-border: rgba(15, 23, 42, 0.12),
   input-text: rgba(15, 23, 42, 0.92),
   input-placeholder: rgba(15, 23, 42, 0.45),
-
   card-bg: #ffffff,
   card-border: rgba(15, 23, 42, 0.12),
 );
@@ -99,13 +91,10 @@ $theme-glass: (
   surface-1: rgba(20, 24, 36, 0.55),
   surface-2: rgba(10, 12, 18, 0.55),
   surface-3: rgba(255, 255, 255, 0.06),
-
   text: rgba(255, 255, 255, 0.94),
   text-muted: rgba(255, 255, 255, 0.66),
-
   border: rgba(255, 255, 255, 0.14),
   border-strong: rgba(255, 255, 255, 0.22),
-
   primary: #7c5cff,
   primary-hover: #4a2bbf,
 
@@ -116,17 +105,44 @@ $theme-glass: (
 
   shadow-1: 0 14px 40px rgba(0, 0, 0, 0.38),
   overlay-backdrop: rgba(0, 0, 0, 0.5),
-
   input-bg: rgba(255, 255, 255, 0.06),
   input-border: rgba(255, 255, 255, 0.14),
   input-text: rgba(255, 255, 255, 0.92),
   input-placeholder: rgba(255, 255, 255, 0.5),
-
   card-bg: rgba(20, 24, 36, 0.55),
   card-border: rgba(255, 255, 255, 0.14),
-
   // Glass-only token
-  glass-blur: 18px,
+  glass-blur: 18px
+);
+
+// "Gaming" is a punchier, more playful variant.
+// It uses a background image and more translucent surfaces to let the background shine through.
+$theme-gaming: (
+  bg: #0b0d12,
+  surface-1: rgba(18, 22, 33, 0.78),
+  surface-2: rgba(10, 12, 18, 0.72),
+  surface-3: rgba(255, 255, 255, 0.06),
+  text: rgba(248, 250, 255, 0.96),
+  text-muted: rgba(248, 250, 255, 0.68),
+  border: rgba(255, 255, 255, 0.14),
+  border-strong: rgba(255, 255, 255, 0.22),
+  primary: #a855f7,
+  primary-hover: #7c3aed,
+  overlay-backdrop: rgba(0, 0, 0, 0.7),
+  input-bg: rgba(255, 255, 255, 0.06),
+  input-border: rgba(255, 255, 255, 0.16),
+  input-text: rgba(255, 255, 255, 0.94),
+  input-placeholder: rgba(255, 255, 255, 0.55),
+  card-bg: rgba(18, 22, 33, 0.78),
+  card-border: rgba(255, 255, 255, 0.14),
+  bg-image: url('/themes/gaming-bg.jpg'),
+  bg-overlay: radial-gradient(
+      900px 520px at 60% 35%,
+      rgba(168, 85, 247, 0.22),
+      rgba(0, 0, 0, 0) 60%
+    ),
+  bg-overlay-2: linear-gradient(180deg, rgba(11, 13, 18, 0.72), rgba(11, 13, 18, 0.92)),
+  panel-blur: 10px,
 );
 
 @function get-theme($name) {
@@ -135,6 +151,9 @@ $theme-glass: (
   }
   @if $name == 'Light' {
     @return $theme-light;
+  }
+  @if $name == 'Gaming' {
+    @return $theme-gaming;
   }
   @if $name == 'Glass' {
     @return $theme-glass;

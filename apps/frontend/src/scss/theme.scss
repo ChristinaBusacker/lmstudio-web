@@ -8,7 +8,7 @@
   Theme system
   ------------
   Body receives one of these classes:
-    theme-LMStudio | theme-Dark | theme-Light | theme-Glass
+    theme-LMStudio | theme-Dark | theme-Light | theme-Glass | theme-Gaming
 
   We define all colors as semantic CSS variables. Existing `--color-*` vars are
   kept as aliases to avoid touching every component right now.
@@ -44,4 +44,27 @@ body.theme-Glass {
   color-scheme: dark;
   @include mixins.emit-vars(themes.get-theme('Glass'));
   @include mixins.emit-aliases();
+}
+
+body.theme-Gaming {
+  color-scheme: dark;
+  @include mixins.emit-vars(themes.get-theme('Gaming'));
+  @include mixins.emit-aliases();
+
+  // Background stack: overlays + image + fallback color.
+  // Tokens are defined in the Gaming theme map.
+  background: var(--bg-overlay-2), var(--bg-overlay), var(--bg-image), var(--bg);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+
+  // Give panels a bit of blur to improve readability on top of the background.
+  .sidebar,
+  .header,
+  .card,
+  .app-dialog-panel {
+    backdrop-filter: blur(var(--panel-blur));
+    -webkit-backdrop-filter: blur(var(--panel-blur));
+  }
 }

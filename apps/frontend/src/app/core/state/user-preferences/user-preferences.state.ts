@@ -15,7 +15,7 @@ const STORAGE_KEY = 'lmstudio-web:userPreferences';
   name: 'userPreferences',
   defaults: {
     language: 'de',
-    theme: 'LMStudio',
+    theme: 'Dark',
   },
 })
 @Injectable()
@@ -44,7 +44,7 @@ export class UserPreferencesState {
       ...s,
       ...action.payload,
       // Always ensure default exists.
-      theme: (action.payload.theme ?? s.theme ?? 'LMStudio') as ThemeName,
+      theme: (action.payload.theme ?? s.theme ?? 'Dark') as ThemeName,
     };
     ctx.setState(next);
     this.writeToStorage(next);
@@ -68,7 +68,9 @@ export class UserPreferencesState {
 
       const themeRaw = getString(parsed, 'theme');
       const theme: ThemeName =
-        themeRaw === 'Dark' || themeRaw === 'Light' || themeRaw === 'Glass' ? themeRaw : 'LMStudio';
+        themeRaw === 'Dark' || themeRaw === 'Light' || themeRaw === 'Glass' || themeRaw === 'Gaming'
+          ? themeRaw
+          : 'Dark';
 
       return { language, theme };
     } catch {
