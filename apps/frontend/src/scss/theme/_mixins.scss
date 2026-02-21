@@ -1,0 +1,29 @@
+@use 'sass:map';
+
+// Comments in English as requested.
+
+/**
+ * Emits CSS custom properties for a given theme map.
+ *
+ * We keep the theme definition in SCSS maps (readable, diffable), and
+ * generate the actual `--token: value;` lines from that map.
+ */
+@mixin emit-vars($vars) {
+  @each $key, $value in $vars {
+    --#{$key}: #{$value};
+  }
+}
+
+/**
+ * Common alias layer so existing code can keep using the old `--color-*` variables.
+ *
+ * Over time, components should prefer the semantic tokens (`--bg`, `--text`, ...).
+ */
+@mixin emit-aliases() {
+  --color-bg: var(--bg);
+  --color-container: var(--surface-1);
+  --color-bg-dark: var(--surface-2);
+  --color-text: var(--text);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-hover);
+}

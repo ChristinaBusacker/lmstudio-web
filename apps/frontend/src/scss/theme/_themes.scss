@@ -1,0 +1,144 @@
+@use 'sass:map';
+
+// Comments in English as requested.
+
+/**
+ * Theme token maps.
+ *
+ * IMPORTANT:
+ * The values that previously lived in `:root { --color-* }` were meant as the
+ * Dark theme. We keep them as the canonical values for Dark (and LMStudio for now).
+ */
+
+$theme-dark: (
+  // Core surfaces
+  bg: #212121,
+  surface-1: #303030,
+  surface-2: #161616,
+  surface-3: #3a3a3a,
+
+  // Text
+  text: #fefefe,
+  text-muted: rgba(255, 255, 255, 0.65),
+
+  // Borders / dividers
+  border: rgba(255, 255, 255, 0.12),
+  border-strong: rgba(255, 255, 255, 0.2),
+
+  // Brand
+  primary: #3b82f6,
+  primary-hover: #1b3b6e,
+
+  // Feedback
+  danger: #ae2222,
+  danger-hover: #741515,
+  warning: #f59e0b,
+  success: #22c55e,
+
+  // UI primitives
+  shadow-1: 0 8px 24px rgba(0, 0, 0, 0.35),
+  overlay-backdrop: rgba(0, 0, 0, 0.6),
+
+  // Inputs
+  input-bg: rgba(255, 255, 255, 0.06),
+  input-border: rgba(255, 255, 255, 0.1),
+  input-text: rgba(255, 255, 255, 0.92),
+  input-placeholder: rgba(255, 255, 255, 0.45),
+
+  // Cards
+  card-bg: #303030,
+  card-border: rgba(255, 255, 255, 0.08),
+);
+
+// For now, LMStudio is a slightly tuned Dark theme (same base values).
+// If you want it to look more "LM Studio"-ish later, you only change this map.
+$theme-lmstudio: map.merge(
+  $theme-dark,
+  (
+    primary: #7c5cff,
+    primary-hover: #4a2bbf,
+  )
+);
+
+$theme-light: (
+  bg: #f6f7fb,
+  surface-1: #ffffff,
+  surface-2: #eceef6,
+  surface-3: #e1e5f2,
+
+  text: #0f172a,
+  text-muted: rgba(15, 23, 42, 0.65),
+
+  border: rgba(15, 23, 42, 0.14),
+  border-strong: rgba(15, 23, 42, 0.22),
+
+  primary: #2563eb,
+  primary-hover: #1e40af,
+
+  danger: #b91c1c,
+  danger-hover: #7f1d1d,
+  warning: #d97706,
+  success: #15803d,
+
+  shadow-1: 0 10px 26px rgba(15, 23, 42, 0.12),
+  overlay-backdrop: rgba(15, 23, 42, 0.4),
+
+  input-bg: rgba(15, 23, 42, 0.04),
+  input-border: rgba(15, 23, 42, 0.12),
+  input-text: rgba(15, 23, 42, 0.92),
+  input-placeholder: rgba(15, 23, 42, 0.45),
+
+  card-bg: #ffffff,
+  card-border: rgba(15, 23, 42, 0.12),
+);
+
+$theme-glass: (
+  // A glass theme is mostly about translucency and blur.
+  // Background can be a gradient to avoid the "washed out" look.
+  bg: radial-gradient(1200px 800px at 10% 10%, rgba(124, 92, 255, 0.25), transparent 60%),
+  surface-1: rgba(20, 24, 36, 0.55),
+  surface-2: rgba(10, 12, 18, 0.55),
+  surface-3: rgba(255, 255, 255, 0.06),
+
+  text: rgba(255, 255, 255, 0.94),
+  text-muted: rgba(255, 255, 255, 0.66),
+
+  border: rgba(255, 255, 255, 0.14),
+  border-strong: rgba(255, 255, 255, 0.22),
+
+  primary: #7c5cff,
+  primary-hover: #4a2bbf,
+
+  danger: #ae2222,
+  danger-hover: #741515,
+  warning: #f59e0b,
+  success: #22c55e,
+
+  shadow-1: 0 14px 40px rgba(0, 0, 0, 0.38),
+  overlay-backdrop: rgba(0, 0, 0, 0.5),
+
+  input-bg: rgba(255, 255, 255, 0.06),
+  input-border: rgba(255, 255, 255, 0.14),
+  input-text: rgba(255, 255, 255, 0.92),
+  input-placeholder: rgba(255, 255, 255, 0.5),
+
+  card-bg: rgba(20, 24, 36, 0.55),
+  card-border: rgba(255, 255, 255, 0.14),
+
+  // Glass-only token
+  glass-blur: 18px,
+);
+
+@function get-theme($name) {
+  @if $name == 'Dark' {
+    @return $theme-dark;
+  }
+  @if $name == 'Light' {
+    @return $theme-light;
+  }
+  @if $name == 'Glass' {
+    @return $theme-glass;
+  }
+  // Default
+  @return $theme-lmstudio;
+}

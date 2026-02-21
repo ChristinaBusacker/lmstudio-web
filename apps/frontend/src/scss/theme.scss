@@ -1,0 +1,47 @@
+@use './theme/base';
+@use './theme/mixins';
+@use './theme/themes';
+
+// Comments in English as requested.
+
+/*
+  Theme system
+  ------------
+  Body receives one of these classes:
+    theme-LMStudio | theme-Dark | theme-Light | theme-Glass
+
+  We define all colors as semantic CSS variables. Existing `--color-*` vars are
+  kept as aliases to avoid touching every component right now.
+
+  NOTE: We set a default theme on :root to prevent FOUC (flash of un-themed content)
+  before the app applies the body class.
+*/
+
+:root {
+  @include mixins.emit-vars(themes.get-theme('Dark'));
+  @include mixins.emit-aliases();
+}
+
+body.theme-LMStudio {
+  color-scheme: dark;
+  @include mixins.emit-vars(themes.get-theme('LMStudio'));
+  @include mixins.emit-aliases();
+}
+
+body.theme-Dark {
+  color-scheme: dark;
+  @include mixins.emit-vars(themes.get-theme('Dark'));
+  @include mixins.emit-aliases();
+}
+
+body.theme-Light {
+  color-scheme: light;
+  @include mixins.emit-vars(themes.get-theme('Light'));
+  @include mixins.emit-aliases();
+}
+
+body.theme-Glass {
+  color-scheme: dark;
+  @include mixins.emit-vars(themes.get-theme('Glass'));
+  @include mixins.emit-aliases();
+}
