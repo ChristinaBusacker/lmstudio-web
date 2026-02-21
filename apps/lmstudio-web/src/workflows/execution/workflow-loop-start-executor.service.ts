@@ -143,6 +143,16 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
       ctx.input = null;
     }
 
+    // IMPORTANT:
+    // The loopStart node acts as a passthrough for its upstream input DURING loop execution.
+    // Body nodes may have edges that reference this loopStart node as their upstream.
+    // If we only write ctx.nodes[nodeId] at the end (with the final loop output),
+    // the body execution will fail with "Missing upstream output".
+    //
+    // Therefore we pre-populate the node output with the upstream input snapshot,
+    // and overwrite it with the final loop output after the loop completes.
+    ctx.nodes[nodeId] = ctx.input;
+
     // Dependency set for shortcut templating {{nodeId.*}}
     ctx.__depsForRender = new Set<string>(sourcesSorted);
 
@@ -184,7 +194,6 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
 
     // loop condition must never use tools
     params.toolsEnabled = false;
-
     const modelKey = getString(params.modelKey).trim();
     if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
 
