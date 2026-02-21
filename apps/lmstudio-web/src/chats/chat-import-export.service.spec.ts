@@ -106,7 +106,8 @@ describe('ChatImportExportService', () => {
       find: jest.fn(async () => [m1, m2]),
     };
     const variants: Partial<Repository<MessageVariantEntity>> = {
-      find: jest.fn(async () => [v10, v21, v20]),
+      // service relies on DB ordering: order: { variantIndex: 'ASC' }
+      find: jest.fn(async () => [v10, v20, v21]),
     };
 
     const svc = new ChatImportExportService(

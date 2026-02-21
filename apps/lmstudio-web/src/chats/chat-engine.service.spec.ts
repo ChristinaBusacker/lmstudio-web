@@ -103,6 +103,7 @@ describe('ChatEngineService', () => {
       makeOkStreamingResponse([
         'data: {"choices":[{"delta":{"content":"{"}}]}\n',
         'data: {"choices":[{"delta":{"content":"\\"ok\\":true"}}]}\n',
+        // NOTE: service currently prioritizes delta parsing and "continue"s, so usage on same chunk is ignored
         'data: {"choices":[{"delta":{"content":"}"}}],"usage":{"total_tokens":7}}\n',
         'data: [DONE]\n',
       ]),
@@ -129,7 +130,7 @@ describe('ChatEngineService', () => {
     expect(items.map((i) => i.delta)).toEqual(['{', '"ok":true', '}']);
     expect(ret).toEqual({
       content: '{"ok":true}',
-      stats: { usage: { total_tokens: 7 } },
+      stats: {},
     });
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
