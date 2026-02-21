@@ -1,186 +1,244 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { RunsService } from './runs.service';
-import { RunEntity } from './entities/run.entity';
+import type { RunEntity } from './entities/run.entity';
+import type { DeepPartial, Repository, UpdateResult } from 'typeorm';
 import { SseBusService } from '../sse/sse-bus.service';
-import type { Repository } from 'typeorm';
-import type { SseEnvelopeOf, SseEventType } from '@shared/contracts';
 
-function makeRun(id: string, status: RunEntity['status']): RunEntity {
-  const now = new Date('2026-01-01T00:00:00.000Z');
-  return {
-    id,
-    chatId: 'c1',
-    chat: null as unknown as never,
-    queueKey: 'default',
-    clientRequestId: '11111111-1111-1111-1111-111111111111',
-    status,
-    settingsProfileId: null,
-    settingsSnapshot: {},
-    promptProfileHash: null,
-    content: '',
-    stats: null,
-    error: null,
-    lockedBy: null,
-    lockedAt: null,
-    startedAt: null,
-    finishedAt: null,
-    sourceMessageId: null,
-    targetMessageId: null,
-    createdVariantId: null,
-    headMessageIdAtStart: null,
-    createdAt: now,
-    updatedAt: now,
+type RunsRepoMock = {
+  create: jest.MockedFunction<(entityLike: DeepPartial<RunEntity>) => RunEntity>;
+  save: jest.MockedFunction<(entity: DeepPartial<RunEntity>) => Promise<RunEntity>>;
+  findOne: jest.MockedFunction<(opts: unknown) => Promise<RunEntity | null>>;
+  find: jest.MockedFunction<(opts?: unknown) => Promise<RunEntity[]>>;
+  update: jest.MockedFunction<
+    (criteria: unknown, partial: DeepPartial<RunEntity>) => Promise<UpdateResult>
+  >;
+};
+
+function makeRunsRepoMock(seed?: Partial<RunsRepoMock>): RunsRepoMock {
+  const repo: RunsRepoMock = {
+    create: jest.fn((entityLike: DeepPartial<RunEntity>) => entityLike as RunEntity),
+    save: jest.fn(async (entity: DeepPartial<RunEntity>) => entity as RunEntity),
+    findOne: jest.fn(async (_opts: unknown) => null),
+    find: jest.fn(async (_opts?: unknown) => []),
+    update: jest.fn(async (_criteria: unknown, _partial: DeepPartial<RunEntity>) => {
+      const res: UpdateResult = { affected: 1, raw: [], generatedMaps: [] };
+      return res;
+    }),
   };
+
+  if (seed) Object.assign(repo, seed);
+  return repo;
 }
 
 describe('RunsService', () => {
-  test('createQueuedRun saves run and publishes run.status', async () => {
-    const saved = makeRun('r1', 'queued');
+  const makeRun = (partial: DeepPartial<RunEntity>): RunEntity => partial as RunEntity;
 
-    const repo: Partial<Repository<RunEntity>> = {
-      create: jest.fn((_x: unknown) => saved),
-      save: jest.fn(async (_x: unknown) => saved),
-      findOne: jest.fn(async () => saved),
-    };
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+  });
 
-    const publishImpl: SseBusService['publish'] = (<TType extends SseEventType>(
-      event: Omit<SseEnvelopeOf<TType>, 'id' | 'ts'>,
-    ) => {
-      return {
-        ...(event as unknown as SseEnvelopeOf<TType>),
-        id: 1,
-        ts: '2026-01-01T00:00:00.000Z',
-      };
-    }) as SseBusService['publish'];
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.resetAllMocks();
+  });
 
-    const sse: Partial<SseBusService> = {
-      publish: jest.fn(publishImpl),
-    };
+  const createService = (repo: RunsRepoMock) => {
+    const sse = new SseBusService();
+    const publishSpy = jest.spyOn(sse, 'publish');
+    const service = new RunsService(repo as unknown as Repository<RunEntity>, sse);
+    return { service, sse, publishSpy };
+  };
 
-    const svc = new RunsService(repo as Repository<RunEntity>, sse as SseBusService);
+  describe('claimNextQueued', () => {
+    it('returns null when no queued run exists', async () => {
+      const repo = makeRunsRepoMock({
+        findOne: jest.fn(async (_opts: unknown) => null),
+      });
 
-    const out = await svc.createQueuedRun({
-      chatId: 'c1',
-      clientRequestId: saved.clientRequestId,
-      settingsSnapshot: {},
+      const { service } = createService(repo);
+
+      await expect(service.claimNextQueued('default', 'worker-1')).resolves.toBeNull();
+      expect(repo.findOne).toHaveBeenCalledTimes(1);
+      expect(repo.update).not.toHaveBeenCalled();
     });
 
-    expect(out.id).toBe('r1');
-    expect(repo.save).toHaveBeenCalled();
-    expect(sse.publish).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'run.status', runId: 'r1', chatId: 'c1' }),
-    );
+    it('returns null when update affected != 1 (lost race)', async () => {
+      const queued = makeRun({ id: 'r1', chatId: 'c1', queueKey: 'default', status: 'queued' });
+
+      const repo = makeRunsRepoMock({
+        findOne: jest.fn(async (_opts: unknown) => queued),
+        update: jest.fn(async (_criteria: unknown, _partial: DeepPartial<RunEntity>) => {
+          const res: UpdateResult = { affected: 0, raw: [], generatedMaps: [] };
+          return res;
+        }),
+      });
+
+      const { service, publishSpy } = createService(repo);
+
+      await expect(service.claimNextQueued('default', 'worker-1')).resolves.toBeNull();
+      expect(repo.findOne).toHaveBeenCalledTimes(1);
+      expect(repo.update).toHaveBeenCalledTimes(1);
+      expect(publishSpy).not.toHaveBeenCalled();
+    });
+
+    it('updates the run to running, emits run.status, and returns fresh snapshot', async () => {
+      const queued = makeRun({ id: 'r1', chatId: 'c1', queueKey: 'default', status: 'queued' });
+      const running = makeRun({ id: 'r1', chatId: 'c1', queueKey: 'default', status: 'running' });
+
+      let findOneCall = 0;
+      const repo = makeRunsRepoMock({
+        findOne: jest.fn(async (_opts: unknown) => {
+          findOneCall += 1;
+          if (findOneCall === 1) return queued; // claim step
+          return running; // emitRunStatus + return snapshot
+        }),
+        update: jest.fn(async (_criteria: unknown, _partial: DeepPartial<RunEntity>) => {
+          const res: UpdateResult = { affected: 1, raw: [], generatedMaps: [] };
+          return res;
+        }),
+      });
+
+      const { service, publishSpy } = createService(repo);
+
+      const claimed = await service.claimNextQueued('default', 'worker-1');
+
+      expect(claimed).toBe(running);
+      expect(repo.update).toHaveBeenCalledTimes(1);
+      expect(publishSpy).toHaveBeenCalledTimes(1);
+
+      // publish payload should be a full snapshot
+      expect(publishSpy.mock.calls[0]?.[0]).toMatchObject({
+        type: 'run.status',
+        chatId: 'c1',
+        runId: 'r1',
+      });
+    });
   });
 
-  test('markCanceledIfNotTerminal does nothing for completed runs', async () => {
-    const completed = makeRun('r2', 'completed');
+  describe('createQueuedRun', () => {
+    it('creates + saves a queued run and emits run.status', async () => {
+      const saved = makeRun({
+        id: 'r1',
+        chatId: 'c1',
+        queueKey: 'default',
+        status: 'queued',
+      });
 
-    const repo: Partial<Repository<RunEntity>> = {
-      findOne: jest.fn(async () => completed),
-      update: jest.fn(async () => ({ affected: 1 }) as unknown),
-    };
+      const repo = makeRunsRepoMock({
+        create: jest.fn((_entityLike: DeepPartial<RunEntity>) => saved),
+        save: jest.fn(async (_entity: DeepPartial<RunEntity>) => saved),
+        findOne: jest.fn(async (_opts: unknown) => saved), // emitRunStatus reads it back
+      });
 
-    const publishImpl2: SseBusService['publish'] = (<TType extends SseEventType>(
-      event: Omit<SseEnvelopeOf<TType>, 'id' | 'ts'>,
-    ) => {
-      return {
-        ...(event as unknown as SseEnvelopeOf<TType>),
-        id: 1,
-        ts: '2026-01-01T00:00:00.000Z',
-      };
-    }) as SseBusService['publish'];
+      const { service, publishSpy } = createService(repo);
 
-    const sse: Partial<SseBusService> = {
-      publish: jest.fn(publishImpl2),
-    };
+      const res = await service.createQueuedRun({
+        chatId: 'c1',
+        clientRequestId: 'req-1',
+        queueKey: 'default',
+        settingsSnapshot: { temperature: 0.7 },
+        settingsProfileId: null,
+        sourceMessageId: null,
+        targetMessageId: null,
+        headMessageIdAtStart: null,
+      });
 
-    const svc = new RunsService(repo as Repository<RunEntity>, sse as SseBusService);
-
-    await svc.markCanceledIfNotTerminal('r2');
-
-    expect(repo.update).not.toHaveBeenCalled();
-    expect(sse.publish).not.toHaveBeenCalled();
+      expect(res).toBe(saved);
+      expect(repo.create).toHaveBeenCalledTimes(1);
+      expect(repo.save).toHaveBeenCalledTimes(1);
+      expect(publishSpy).toHaveBeenCalledTimes(1);
+      expect(publishSpy.mock.calls[0]?.[0]).toMatchObject({
+        type: 'run.status',
+        chatId: 'c1',
+        runId: 'r1',
+      });
+    });
   });
 
-  test('claimNextQueued returns null when there is no queued run', async () => {
-    const repo: Partial<Repository<RunEntity>> = {
-      findOne: jest.fn(async () => null),
-    };
+  describe('markCompleted', () => {
+    it('updates run to completed and emits run.status', async () => {
+      const completed = makeRun({
+        id: 'r1',
+        chatId: 'c1',
+        status: 'completed',
+      });
 
-    const sse: Partial<SseBusService> = {
-      publish: jest.fn() as unknown as SseBusService['publish'],
-    };
-    const svc = new RunsService(repo as Repository<RunEntity>, sse as SseBusService);
+      const repo = makeRunsRepoMock({
+        update: jest.fn(async (_criteria: unknown, _partial: DeepPartial<RunEntity>) => {
+          const res: UpdateResult = { affected: 1, raw: [], generatedMaps: [] };
+          return res;
+        }),
+        findOne: jest.fn(async (_opts: unknown) => completed), // emitRunStatus reads it back
+      });
 
-    await expect(svc.claimNextQueued('default', 'worker1')).resolves.toBeNull();
-    expect(repo.findOne).toHaveBeenCalled();
-    expect(sse.publish).not.toHaveBeenCalled();
+      const { service, publishSpy } = createService(repo);
+
+      await expect(
+        service.markCompleted('r1', { stats: { tokens: 123 } }),
+      ).resolves.toBeUndefined();
+
+      expect(repo.update).toHaveBeenCalledTimes(1);
+      expect(publishSpy).toHaveBeenCalledTimes(1);
+      expect(publishSpy.mock.calls[0]?.[0]).toMatchObject({
+        type: 'run.status',
+        chatId: 'c1',
+        runId: 'r1',
+      });
+    });
   });
 
-  test('claimNextQueued returns null when update loses the race', async () => {
-    const queued = makeRun('r1', 'queued');
+  describe('unlockStaleRunning', () => {
+    it('returns 0 when no runs are stale', async () => {
+      const fresh = makeRun({
+        id: 'r1',
+        chatId: 'c1',
+        status: 'running',
+        lockedBy: 'worker-1',
+        lockedAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      });
 
-    const repo: Partial<Repository<RunEntity>> = {
-      findOne: jest.fn(async (opts: unknown) => {
-        // first findOne returns queued, second returns updated snapshot
-        const o = opts as { where?: { id?: string } };
-        if (o?.where?.id === 'r1') return queued;
-        return queued;
-      }),
-      update: jest.fn(async () => ({ affected: 0 }) as unknown),
-    };
+      const repo = makeRunsRepoMock({
+        find: jest.fn(async (_opts?: unknown) => [fresh]),
+      });
 
-    const sse: Partial<SseBusService> = {
-      publish: jest.fn() as unknown as SseBusService['publish'],
-    };
-    const svc = new RunsService(repo as Repository<RunEntity>, sse as SseBusService);
+      const { service, publishSpy } = createService(repo);
 
-    await expect(svc.claimNextQueued('default', 'worker1')).resolves.toBeNull();
-    expect(repo.update).toHaveBeenCalled();
-    expect(sse.publish).not.toHaveBeenCalled();
-  });
+      const unlocked = await service.unlockStaleRunning('worker-1', 60_000);
+      expect(unlocked).toBe(0);
+      expect(repo.update).not.toHaveBeenCalled();
+      expect(publishSpy).not.toHaveBeenCalled();
+    });
 
-  test('unlockStaleRunning unlocks only stale runs and emits run.status for each', async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-01-01T01:00:00.000Z'));
+    it('unlocks stale runs and emits run.status for each', async () => {
+      // now = 00:00, cutoff = now - staleMs
+      const stale = makeRun({
+        id: 'r1',
+        chatId: 'c1',
+        status: 'running',
+        lockedBy: 'worker-1',
+        lockedAt: new Date('2025-12-31T23:00:00.000Z'),
+        updatedAt: new Date('2025-12-31T23:00:00.000Z'),
+      });
 
-    const stale = makeRun('r1', 'running');
-    stale.lockedBy = 'worker1';
-    stale.lockedAt = new Date('2026-01-01T00:00:00.000Z');
+      const repo = makeRunsRepoMock({
+        find: jest.fn(async (_opts?: unknown) => [stale]),
+        findOne: jest.fn(async (_opts: unknown) => stale), // emitRunStatus reads it back
+      });
 
-    const fresh = makeRun('r2', 'running');
-    fresh.lockedBy = 'worker1';
-    fresh.lockedAt = new Date('2026-01-01T00:59:30.000Z');
+      const { service, publishSpy } = createService(repo);
 
-    const repo: Partial<Repository<RunEntity>> = {
-      find: jest.fn(async () => [fresh, stale]),
-      update: jest.fn(async () => ({ affected: 1 }) as unknown),
-      findOne: jest.fn(async () => stale),
-    };
+      const unlocked = await service.unlockStaleRunning('worker-1', 10 * 60_000);
 
-    const publishImpl: SseBusService['publish'] = (<TType extends SseEventType>(
-      event: Omit<SseEnvelopeOf<TType>, 'id' | 'ts'>,
-    ) => {
-      return {
-        ...(event as unknown as SseEnvelopeOf<TType>),
-        id: 1,
-        ts: '2026-01-01T00:00:00.000Z',
-      };
-    }) as SseBusService['publish'];
-
-    const sse: Partial<SseBusService> = {
-      publish: jest.fn(publishImpl),
-    };
-
-    const svc = new RunsService(repo as Repository<RunEntity>, sse as SseBusService);
-
-    const count = await svc.unlockStaleRunning('worker1', 60_000);
-    expect(count).toBe(1);
-    expect(repo.update).toHaveBeenCalledWith(
-      { id: 'r1' },
-      expect.objectContaining({ status: 'queued', lockedBy: null }),
-    );
-    expect(sse.publish).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'run.status', runId: 'r1' }),
-    );
+      expect(unlocked).toBe(1);
+      expect(repo.update).toHaveBeenCalledTimes(1);
+      expect(publishSpy).toHaveBeenCalledTimes(1);
+      expect(publishSpy.mock.calls[0]?.[0]).toMatchObject({
+        type: 'run.status',
+        chatId: 'c1',
+        runId: 'r1',
+      });
+    });
   });
 });

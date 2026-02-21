@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import type { Repository } from 'typeorm';
+import type { EntityManager, Repository } from 'typeorm';
 
 import { ChatImportExportService } from './chat-import-export.service';
 import { ChatEntity } from './entities/chat.entity';
@@ -128,7 +128,19 @@ describe('ChatImportExportService', () => {
   });
 
   it('importChat rejects unsupported versions and empty bundles', async () => {
-    const chats: Partial<Repository<ChatEntity>> = { manager: { transaction: jest.fn() } };
+    const transaction: EntityManager['transaction'] = jest.fn(
+      async (arg1: unknown, arg2?: unknown) => {
+        const run = (typeof arg1 === 'function' ? arg1 : arg2) as
+          | ((em: EntityManager) => Promise<unknown>)
+          | undefined;
+        if (!run) throw new Error('transaction callback missing');
+        return run({} as unknown as EntityManager);
+      },
+    );
+
+    const chats: Partial<Repository<ChatEntity>> = {
+      manager: { transaction } as unknown as EntityManager,
+    };
     const messages: Partial<Repository<MessageEntity>> = {};
     const variants: Partial<Repository<MessageVariantEntity>> = {};
 
@@ -225,10 +237,14 @@ describe('ChatImportExportService', () => {
 
         if (lastCreateCls === MessageVariantEntity.name) {
           variantSaveCount += 1;
-          // attach a deterministic id if the object supports it
-          if (isRecord(entity) && typeof entity.id !== 'string') {
-            entity.id = `newVar${variantSaveCount}`;
+          // attach a deterministic id without mutating unknown generic objects
+          if (isRecord(entity) && typeof (entity as UnknownRecord).id !== 'string') {
+            return {
+              ...(entity as UnknownRecord),
+              id: `newVar${variantSaveCount}`,
+            } as unknown as T;
           }
+
           return entity;
         }
 
@@ -245,10 +261,19 @@ describe('ChatImportExportService', () => {
       findOneOrFail: async <T>(_cls: new () => T): Promise<T> => savedChat as unknown as T,
     };
 
+    const transaction: EntityManager['transaction'] = async (
+      arg1: unknown,
+      arg2?: unknown,
+    ): Promise<unknown> => {
+      const run = (typeof arg1 === 'function' ? arg1 : arg2) as
+        | ((em: EntityManager) => Promise<unknown>)
+        | undefined;
+      if (!run) throw new Error('transaction callback missing');
+      return run(trx as unknown as EntityManager);
+    };
+
     const chats: Partial<Repository<ChatEntity>> = {
-      manager: {
-        transaction: async <T>(fn: (trxArg: Trx) => Promise<T>): Promise<T> => fn(trx),
-      },
+      manager: { transaction } as unknown as EntityManager,
     };
     const messages: Partial<Repository<MessageEntity>> = {};
     const variants: Partial<Repository<MessageVariantEntity>> = {};
