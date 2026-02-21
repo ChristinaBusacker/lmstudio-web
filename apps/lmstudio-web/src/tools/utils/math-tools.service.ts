@@ -192,7 +192,9 @@ function toRpn(tokens: Token[]): RpnItem[] {
 
     if (t.t === 'op') {
       const isUnary =
-        !prev || prev.t === 'op' || prev.t === 'lp' || prev.t === 'comma' || prev.t === 'rp';
+        // FIX: right-paren ends an expression, so following +/- must be binary
+        !prev || prev.t === 'op' || prev.t === 'lp' || prev.t === 'comma';
+
       const op = isUnary && (t.v === '+' || t.v === '-') ? `u${t.v}` : t.v;
       pushOp(op);
       prev = t;
@@ -210,14 +212,21 @@ function toRpn(tokens: Token[]): RpnItem[] {
           break;
         }
       }
-      // increment func argc (we count commas)
-      for (let j = stack.length - 1; j >= 0; j--) {
-        if (stack[j]!.kind === 'func') {
-          stack[j]!.argc = (stack[j]!.argc ?? 0) + 1;
-          break;
-        }
-        if (stack[j]!.kind === 'lp') break;
+
+      // Find the argument list '(' we are inside of
+      let lpIndex = stack.length - 1;
+      while (lpIndex >= 0 && stack[lpIndex]!.kind !== 'lp') lpIndex -= 1;
+      if (lpIndex < 0) throw new Error('Misplaced comma');
+
+      // In function calls, the function marker is placed directly before '('
+      const funcIndex = lpIndex - 1;
+      const maybeFunc = funcIndex >= 0 ? stack[funcIndex] : undefined;
+      if (!maybeFunc || maybeFunc.kind !== 'func') {
+        throw new Error('Misplaced comma');
       }
+
+      maybeFunc.argc = (maybeFunc.argc ?? 0) + 1;
+
       prev = t;
       continue;
     }

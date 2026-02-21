@@ -18,7 +18,7 @@ export type ParsedFile = {
     json?: unknown | null;
   };
   warnings: string[];
-  stats: {
+  stats?: {
     bytes: number;
     chars: number;
     extractMs: number;
