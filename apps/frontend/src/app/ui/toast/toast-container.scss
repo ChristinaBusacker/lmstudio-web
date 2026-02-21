@@ -18,10 +18,10 @@
   gap: 10px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: rgba(20, 20, 20, 0.92);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  background: var(--surface-1);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
 }
 
 .toast__icon {
@@ -58,17 +58,17 @@
 }
 
 .toast--success {
-  border-color: rgba(80, 220, 140, 0.25);
+  border-color: var(--success);
 }
 
 .toast--info {
-  border-color: rgba(110, 180, 255, 0.25);
+  border-color: var(--primary);
 }
 
 .toast--warning {
-  border-color: rgba(255, 200, 90, 0.25);
+  border-color: var(--warning);
 }
 
 .toast--error {
-  border-color: rgba(255, 110, 110, 0.28);
+  border-color: var(--danger);
 }

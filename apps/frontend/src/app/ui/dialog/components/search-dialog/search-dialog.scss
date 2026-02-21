@@ -17,16 +17,16 @@
   .string-input__field {
     padding: 10px 12px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: #0f0f0f;
-    color: #fff;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--input-text);
     font: inherit;
     outline: none;
     width: 100%;
   }
 
   .string-input__field:focus {
-    border-color: #2e7dff;
+    border-color: var(--focus-ring);
   }
 
   .input-wrapper {
@@ -41,7 +41,8 @@
 
   .results {
     padding: 10px;
-    border: 1px solid black;
+    border: 1px solid var(--border);
+    background: var(--surface-1);
     border-radius: 4px;
     margin-top: 10px;
     display: flex;

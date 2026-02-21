@@ -3,7 +3,7 @@
 }
 
 .dd-over {
-  outline: 2px dashed rgba(0, 0, 0, 0.25);
+  outline: 2px dashed var(--dd-outline);
   outline-offset: 4px;
 }
 
@@ -14,12 +14,12 @@
 
 .dd-placeholder {
   box-sizing: border-box;
-  border: 2px dashed rgba(0, 0, 0, 0.25);
+  border: 2px dashed var(--dd-outline);
   border-radius: 8px;
 }
 
 .dd-target-over {
-  outline: 2px solid rgba(0, 0, 0, 0.35);
+  outline: 2px solid var(--dd-outline-strong);
   outline-offset: 2px;
 }
 .dd-target-disabled {
@@ -38,9 +38,9 @@
 /* Hover while dragging over it */
 .folder.dd-target.dd-target-over {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
-  background: rgba(0, 0, 0, 0.06);
-  outline: 2px solid rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-1);
+  background: var(--dd-hover-bg);
+  outline: 2px solid var(--dd-outline);
   outline-offset: 2px;
 }
 
@@ -62,7 +62,7 @@
 
 .dd-drag-preview {
   opacity: 0.95;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-2);
   border-radius: 10px;
 }
 
@@ -72,6 +72,6 @@
 
 .dd-drag-preview {
   opacity: 0.95;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-2);
   border-radius: 10px;
 }

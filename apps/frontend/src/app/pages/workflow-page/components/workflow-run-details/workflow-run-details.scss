@@ -1,6 +1,6 @@
 .details {
   padding: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--border);
 }
 
 .details__header {
@@ -42,17 +42,17 @@
   padding: 6px 10px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: var(--panel);
+  background: var(--surface-1);
   color: var(--text);
   cursor: pointer;
 }
 
 .details__runActionBtn:hover {
-  background: var(--panel-2);
+  background: var(--surface-hover);
 }
 
 .details__runActionBtn--danger {
-  border-color: rgba(255, 0, 0, 0.35);
+  border-color: var(--danger-border);
 }
 
 .details__workflowExportBtn {
@@ -61,8 +61,8 @@
   gap: 6px;
   padding: 6px 10px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
   color: inherit;
   text-decoration: none;
   font-size: 12px;
@@ -70,7 +70,7 @@
 }
 
 .details__workflowExportBtn:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--surface-hover);
 }
 
 .details__empty {
@@ -92,9 +92,9 @@
   grid-template-columns: 1fr auto;
   gap: 10px;
   padding: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--surface-2);
 }
 
 .details__name {
@@ -117,8 +117,8 @@
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
   opacity: 0.9;
 }
 
@@ -143,8 +143,8 @@
   gap: 6px;
   padding: 6px 10px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
   color: inherit;
   text-decoration: none;
   font-size: 12px;
@@ -153,5 +153,5 @@
 }
 
 .details__download:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--surface-hover);
 }

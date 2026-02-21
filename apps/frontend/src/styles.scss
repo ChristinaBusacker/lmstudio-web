@@ -48,6 +48,18 @@ body {
   color: var(--text);
 }
 
+::selection {
+  background: var(--selection-bg);
+}
+
+:focus-visible {
+  outline-color: var(--focus-ring);
+}
+
+a {
+  color: var(--primary);
+}
+
 span,
 div {
   font-size: 1.4rem;
@@ -201,7 +213,6 @@ input[type='range' i] {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
 }
 
 .loader {
