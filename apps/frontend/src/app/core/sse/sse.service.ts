@@ -29,6 +29,8 @@ import {
   safeJsonParse,
 } from '../utils/typed-access';
 import { JsonObject } from '@shared/index';
+import { ExternalStatusChanged } from '../state/system/system.actions';
+import type { ExternalServiceStatus } from '../state/system/system.models';
 
 @Injectable({ providedIn: 'root' })
 export class SseService {
@@ -161,9 +163,19 @@ export class SseService {
       const servicesRaw = payload ? getArray(payload, 'services') : null;
       const services = (servicesRaw ?? []).filter(isRecord) as JsonRecord[];
 
+      const snapshot: ExternalServiceStatus[] = [];
+
       for (const s of services) {
         const key = String(getString(s, 'name') ?? '');
         if (!key) continue;
+
+        snapshot.push({
+          name: key,
+          enabled: !!getBoolean(s, 'enabled'),
+          ok: !!getBoolean(s, 'ok'),
+          baseUrl: getString(s, 'baseUrl') ?? null,
+          error: getString(s, 'error') ?? null,
+        });
 
         const prev = this.lastExternalOk[key];
         const now = !!getBoolean(s, 'ok');
@@ -191,6 +203,9 @@ export class SseService {
           }
         }
       }
+
+      // Store snapshot for UI (status dots in sidebar, etc.)
+      this.store.dispatch(new ExternalStatusChanged(snapshot));
       return;
     }
 

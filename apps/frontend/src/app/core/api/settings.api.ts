@@ -5,6 +5,8 @@ import type {
   SettingsProfile as SettingsProfileContract,
   CreateSettingsProfileRequest,
   UpdateSettingsProfileRequest,
+  SettingsProfileExportBundle,
+  ImportSettingsProfileRequest,
 } from '@shared/contracts';
 
 export type SettingsProfile = SettingsProfileContract;
@@ -12,6 +14,9 @@ export type SettingsProfile = SettingsProfileContract;
 export type CreateSettingsProfilePayload = CreateSettingsProfileRequest;
 
 export type UpdateSettingsProfilePayload = UpdateSettingsProfileRequest;
+
+export type SettingsProfileExport = SettingsProfileExportBundle;
+export type SettingsProfileImportPayload = ImportSettingsProfileRequest;
 
 @Injectable({ providedIn: 'root' })
 export class SettingsApiService {
@@ -49,5 +54,15 @@ export class SettingsApiService {
       `${this.baseUrl}/profiles/${encodeURIComponent(id)}/default`,
       {},
     );
+  }
+
+  exportProfile(id: string): Observable<SettingsProfileExport> {
+    return this.http.get<SettingsProfileExport>(
+      `${this.baseUrl}/profiles/${encodeURIComponent(id)}/export`,
+    );
+  }
+
+  importProfile(bundle: SettingsProfileImportPayload): Observable<SettingsProfile> {
+    return this.http.post<SettingsProfile>(`${this.baseUrl}/profiles/import`, bundle);
   }
 }

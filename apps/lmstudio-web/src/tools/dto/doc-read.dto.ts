@@ -2,11 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
 
 export class DocReadRequestDto {
-  @ApiPropertyOptional({ description: 'Read document from URL (http/https)', nullable: true })
-  @IsOptional()
-  @IsString()
-  url?: string;
-
   @ApiPropertyOptional({ description: 'Read document from uploaded Asset id', nullable: true })
   @IsOptional()
   @IsString()

@@ -1,5 +1,6 @@
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
   background-color: var(--color-bg-dark);
   color: var(--color-text);
   padding: 20px 10px;
@@ -145,5 +146,52 @@
   & .addBtn {
     margin-top: 13px;
     align-self: flex-start;
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 12px;
+    max-width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    opacity: 0.9;
+  }
+
+  .service-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    user-select: none;
+  }
+
+  .service-status .label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  .dot.ok {
+    background: #2ecc71;
+    border-color: rgba(46, 204, 113, 0.5);
+  }
+
+  .dot.warn {
+    background: #f1c40f;
+    border-color: rgba(241, 196, 15, 0.5);
+  }
+
+  .dot.bad {
+    background: #e74c3c;
+    border-color: rgba(231, 76, 60, 0.5);
   }
 }

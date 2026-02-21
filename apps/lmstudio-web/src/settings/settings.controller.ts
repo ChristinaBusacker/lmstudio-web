@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  BadRequestException,
   NotFoundException,
   Param,
   Patch,
@@ -24,11 +25,54 @@ import {
   SettingsProfileDto,
   UpdateSettingsProfileDto,
 } from './dto/settings.dto';
+import {
+  SettingsProfileExportBundleDto,
+  SettingsProfileImportBundleDto,
+} from './dto/settings-import-export.dto';
 
 @ApiTags('Settings')
 @Controller('settings')
 export class SettingsController {
   constructor(private readonly settings: SettingsService) {}
+
+  @Get('profiles/:id/export')
+  @ApiOperation({ summary: 'Export a settings profile as JSON bundle' })
+  @ApiParam({ name: 'id', description: 'Profile id' })
+  @ApiOkResponse({ type: SettingsProfileExportBundleDto })
+  @ApiNotFoundResponse({ description: 'Profile not found' })
+  async exportProfile(@Param('id') id: string): Promise<SettingsProfileExportBundleDto> {
+    const p = await this.settings.getById(id);
+    if (!p) throw new NotFoundException('Profile not found');
+
+    return {
+      version: 1,
+      profile: {
+        name: String(p.name),
+        params: ((p.params ?? {}) as Record<string, unknown>) ?? {},
+      },
+    };
+  }
+
+  @Post('profiles/import')
+  @ApiOperation({ summary: 'Import a settings profile from JSON bundle (ownerKey="default")' })
+  @ApiCreatedResponse({ type: SettingsProfileDto })
+  @ApiBadRequestResponse({ description: 'Invalid payload' })
+  async importProfile(@Body() dto: SettingsProfileImportBundleDto) {
+    const name = (dto.name ?? dto.profile?.name ?? '').trim();
+    if (!name) {
+      throw new BadRequestException('name must not be empty');
+    }
+
+    const created = await this.settings.create({
+      ownerKey: 'default',
+      name,
+      params: (dto.profile?.params ?? {}) as Record<string, any>,
+      // importing should never hijack the default profile
+      isDefault: false,
+    });
+
+    return this.toDto(created);
+  }
 
   @Get('profiles')
   @ApiOperation({ summary: 'List all settings profiles (ownerKey="default")' })
