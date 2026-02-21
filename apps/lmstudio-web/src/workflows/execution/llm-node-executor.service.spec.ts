@@ -158,4 +158,44 @@ describe('LlmNodeExecutorService', () => {
 
     expect(ctx.nodes.n2).toEqual({ a: 1 });
   });
+
+  it('automatically appends upstream input when prompt does not reference {{input}}', async () => {
+    const workflows = {
+      upsertNodeRun: jest.fn().mockResolvedValue(undefined),
+      createArtifact: jest.fn().mockResolvedValue({ id: 'a1' }),
+    } as any;
+
+    // Simulate a TypeORM-style profile entity (class instance)
+    class ProfileEntity {
+      systemPrompt = '';
+      params = { modelKey: 'm1' };
+    }
+
+    const settings = {
+      resolveProfile: jest.fn().mockResolvedValue(new ProfileEntity()),
+    } as any;
+
+    const engine = {
+      streamChat: jest.fn().mockReturnValue(makeAsyncGen(['OK'])),
+    } as any;
+
+    const svc = new LlmNodeExecutorService(workflows, settings, engine);
+
+    const ctx: any = { nodes: {}, input: { hello: 'world' }, loop: null };
+
+    await svc.execute({
+      runId: 'r1',
+      nodeId: 'n1',
+      node: { id: 'n1', type: 'lmstudio.llm', profileName: 'GPT', prompt: 'Summarize.' } as any,
+      ctx,
+      iteration: 0,
+    } as any);
+
+    const call = (engine.streamChat as any).mock.calls[0];
+    const messages = call[1];
+    expect(messages[0].role).toBe('user');
+    expect(messages[0].content).toContain('Summarize.');
+    expect(messages[0].content).toContain('UPSTREAM');
+    expect(messages[0].content).toContain('"hello": "world"');
+  });
 });

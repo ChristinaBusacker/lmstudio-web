@@ -47,6 +47,17 @@ export class LlmNodeExecutorService implements WorkflowNodeExecutor {
     ctx.__depsForRender = ctx.__depsForRender ?? new Set<string>();
     const renderedPrompt = renderTemplate(rawPrompt, ctx);
 
+    // Automatic upstream injection:
+    // If this node has upstream input (ctx.input) and the prompt does not explicitly reference {{input}},
+    // we append the upstream as plain text. Templating stays optional for precise control, but
+    // data-flow edges should always provide the upstream to the node.
+    const wantsExplicitInput = /\{\{\s*input(?:\.|\s*\}\})/i.test(rawPrompt);
+    const upstreamText = this.toText(ctx.input).trim();
+    const finalPrompt =
+      !wantsExplicitInput && upstreamText
+        ? `${renderedPrompt}\n\n---\nUPSTREAM:\n${upstreamText}`
+        : renderedPrompt;
+
     const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
     if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
@@ -96,7 +107,7 @@ export class LlmNodeExecutorService implements WorkflowNodeExecutor {
     });
 
     const streamId = `${runId}:${nodeId}:${iteration}`;
-    const messages = this.buildMessages(systemPrompt, renderedPrompt);
+    const messages = this.buildMessages(systemPrompt, finalPrompt);
 
     this.logger.log(
       `Workflow LLM node ${nodeId}: tools=OFF structured=${getPath(params, 'structuredOutput.enabled') === true}`,
