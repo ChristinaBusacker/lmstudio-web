@@ -56,8 +56,16 @@ function normalizeTesseractModule(mod: unknown): TesseractModule {
 }
 
 export async function importTesseract(): Promise<TesseractModule> {
-  const modUnknown: unknown = await import('tesseract.js');
-  return normalizeTesseractModule(modUnknown);
+  // Prefer require() in Node/Jest so jest.mock('tesseract.js') works reliably
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+    const modUnknown: unknown = require('tesseract.js');
+    return normalizeTesseractModule(modUnknown);
+  } catch {
+    // Fallback to dynamic import (e.g. bundlers / ESM)
+    const modUnknown: unknown = await import('tesseract.js');
+    return normalizeTesseractModule(modUnknown);
+  }
 }
 
 async function tryOcrImage(bytes: Buffer): Promise<{ text: string; warnings: string[] } | null> {
