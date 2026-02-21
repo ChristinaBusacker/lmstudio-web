@@ -8,6 +8,7 @@ import type { LmMessage } from '../../common/types/llm.types';
 import { renderTemplate, safeJsonParse, toPrettyText } from '../engine/template-renderer';
 import { getPath, getString, isJsonObject } from '@shared/index';
 import { isRecord, toJsonObject, toJsonValue } from '../../utils/typed-access';
+import { ensureWithinBudget, getWorkflowBudgets } from './workflow-budget.util';
 
 @Injectable()
 export class LlmNodeExecutorService implements WorkflowNodeExecutor {
@@ -57,6 +58,10 @@ export class LlmNodeExecutorService implements WorkflowNodeExecutor {
       !wantsExplicitInput && upstreamText
         ? `${renderedPrompt}\n\n---\nUPSTREAM:\n${upstreamText}`
         : renderedPrompt;
+
+    // Safety: prevent giant prompts from freezing the host during "processing prompt".
+    const budgets = getWorkflowBudgets();
+    ensureWithinBudget(finalPrompt, budgets.maxPromptBytes, `LLM prompt for node ${nodeId}`);
 
     const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
     if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
