@@ -50,9 +50,13 @@ export class LlmNodeExecutorService implements WorkflowNodeExecutor {
     const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
     if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-    const profileObj = toJsonObject(profile as unknown);
+    // NOTE:
+    // Settings profiles are TypeORM entities (class instances). Our typed-access helpers intentionally
+    // treat ONLY plain objects as records, so `toJsonObject(profile)` would return {} and drop params.
+    // Therefore we read `params` directly and normalize it.
+    const profileAny = profile as any;
     const params: Record<string, unknown> = {
-      ...(profileObj ? (toJsonObject(profileObj.params) ?? {}) : {}),
+      ...(toJsonObject(profileAny?.params) ?? {}),
     };
 
     const modelKey = getString(params.modelKey).trim();
@@ -76,7 +80,8 @@ export class LlmNodeExecutorService implements WorkflowNodeExecutor {
     // Enforce: no tool calls in workflow LLM nodes
     params.toolsEnabled = false;
 
-    const systemPrompt = profileObj ? getString(profileObj.systemPrompt).trim() : '';
+    const systemPrompt =
+      typeof profileAny?.systemPrompt === 'string' ? profileAny.systemPrompt.trim() : '';
 
     await this.workflows.upsertNodeRun(runId, nodeId, {
       iteration,

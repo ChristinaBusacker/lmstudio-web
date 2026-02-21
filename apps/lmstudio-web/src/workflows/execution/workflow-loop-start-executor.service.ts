@@ -180,24 +180,31 @@ export class WorkflowLoopStartExecutorService implements WorkflowNodeExecutor {
       if (!conditionPrompt) throw new Error(`LoopStart ${nodeId} missing loop.conditionPrompt`);
     }
 
-    // Resolve profile for condition evaluation (only if needed)
+    // Resolve profile for condition evaluation (ONLY needed for while/until)
     const profileName = getString(node.profileName).trim();
     if (!profileName) throw new Error(`LoopStart ${nodeId} missing profileName`);
 
-    const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
-    if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
+    let modelKey = '';
+    let systemPrompt = '';
+    const params: Record<string, unknown> = {};
 
-    const profileObj = toJsonObject(profile as unknown) ?? EMPTY_JSON_OBJECT;
-    const params: Record<string, unknown> = {
-      ...(toJsonObject(profileObj.params) ?? EMPTY_JSON_OBJECT),
-    };
+    if (mode !== 'count') {
+      const profile = await this.settings.resolveProfile(this.ownerKey, profileName);
+      if (!profile) throw new Error(`Settings profile not found: ${profileName}`);
 
-    // loop condition must never use tools
-    params.toolsEnabled = false;
-    const modelKey = getString(params.modelKey).trim();
-    if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
+      // Settings profiles are TypeORM entities (class instances). See llm-node-executor for details.
+      const profileAny = profile as any;
+      Object.assign(params, toJsonObject(profileAny?.params) ?? EMPTY_JSON_OBJECT);
 
-    const systemPrompt = getString(profileObj.systemPrompt).trim();
+      // loop condition must never use tools
+      (params as any).toolsEnabled = false;
+
+      modelKey = getString(params.modelKey).trim();
+      if (!modelKey) throw new Error(`Profile "${profileName}" has no modelKey`);
+
+      systemPrompt =
+        typeof profileAny?.systemPrompt === 'string' ? profileAny.systemPrompt.trim() : '';
+    }
 
     const startedAt = new Date();
     await this.workflows.upsertNodeRun(runId, nodeId, {
