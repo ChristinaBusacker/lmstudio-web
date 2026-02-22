@@ -86,9 +86,6 @@ export class FolderPage implements OnInit {
               .pipe(takeUntilDestroyed(this.destroyRef))
               .subscribe((result) => {
                 if (result.action === 'confirm' && result.data) {
-                  console.log('New title:', result.data);
-                  // z.B. Store dispatch
-                  // this.store.dispatch(new RenameChat(result.data));
                   this.store.dispatch(new RenameChat(id, result.data));
                 }
 

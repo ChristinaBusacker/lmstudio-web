@@ -32,6 +32,7 @@ Example badges:
 ## What This Project Is (and Is Not)
 
 ### What it **is**
+
 - Local web interface for LM Studio
 - Runs entirely on your own machine
 - Accessible via local network (LAN)
@@ -39,6 +40,7 @@ Example badges:
 - Includes chats, reusable settings profiles, and workflows
 
 ### What it **is not**
+
 - No cloud account system
 - No hosted models
 - No vendor lock-in
@@ -54,6 +56,7 @@ Example badges:
 - **Communication:** REST + SSE (Server-Sent Events) for live updates
 
 The backend is responsible for:
+
 - creating and managing runs
 - streaming and persisting chat messages
 - executing tool calls in a controlled environment
@@ -61,6 +64,7 @@ The backend is responsible for:
 - optionally querying external services (web search)
 
 The frontend focuses on:
+
 - a responsive chat UI
 - profiles + workflows UX
 - live updates via SSE
@@ -71,21 +75,25 @@ The frontend focuses on:
 ## Core Features
 
 ### Chat & Runs
+
 - Chat threads with message variants and streaming output
 - Deterministic “run” concept (requests are traceable and inspectable)
 - Auto-title generation from the first user message (works for `Untitled`, `Untitled (1)` etc.)
 
 ### Settings Profiles
+
 - Multiple profiles for model settings (temperature, tokens, etc.)
 - Import/export profiles as JSON bundles
 - “Set default” behavior for quick switching
 
 ### Workflows
+
 - Workflow definitions stored locally
 - Import/export workflow bundles
 - Workflow execution via node-style steps (including tool nodes)
 
 ### External service health
+
 - Live status for connected services (e.g. LM Studio / SearXNG) via SSE
 - UI shows connection state so it’s obvious when something is offline
 
@@ -94,12 +102,14 @@ The frontend focuses on:
 ## Theming
 
 The UI supports multiple themes via CSS variables (semantic tokens) and a body class:
+
 - `theme-Dark` (default)
 - `theme-Light`
 - `theme-Glass` (light glassmorphism style)
 - `theme-Gaming` (neon / background-driven style)
 
 Themes are built around **semantic CSS variables** like:
+
 - `--bg`, `--surface-1`, `--text`, `--border`
 - `--primary`, `--focus-ring`
 - component-level tokens (e.g. chat bubbles, hover states)
@@ -111,6 +121,7 @@ This makes it possible to evolve the UI look without scattering hardcoded colors
 ## Localization (i18n)
 
 The UI is available in:
+
 - **Deutsch (de)**
 - **English (en)**
 - **Français (fr)**
@@ -127,32 +138,41 @@ Tools are exposed to the model via structured schemas and executed by the backen
 ### Available Tools (Tool Orchestrator)
 
 #### `current_time`
+
 Return the current date/time with timezone info.
 Useful before interpreting relative phrases like “yesterday”.
 
 #### `resolve_relative_date`
+
 Resolve human time expressions (e.g. “next Friday 5pm”) into ISO datetimes.
 
 #### `date_math`
+
 Deterministic date math (add/subtract, startOf/endOf, rounding) in a timezone.
 
 #### `math`
+
 Evaluate mathematical expressions deterministically.
 
 #### `json_validate`
+
 Validate JSON against a JSON Schema and return detailed errors.
 
 #### `json_repair`
+
 Repair “JSON-ish” text (single quotes, trailing commas, unquoted keys) into valid JSON when possible.
 
 #### `web_search`
+
 Search the web and return a list of results.
 Typically backed by **SearXNG** when configured.
 
 #### `web_read`
+
 Fetch a webpage and extract the main readable text and metadata.
 
 #### `doc_read`
+
 Read a document from an uploaded `assetId`.
 Supports ZIP archives (returns multiple entries).
 Returns structured extraction (text/json/code/pdf/docx/image) depending on content.
@@ -162,6 +182,7 @@ Returns structured extraction (text/json/code/pdf/docx/image) depending on conte
 ## File Upload & Document Support
 
 Documents are handled via the **assets system**:
+
 - Upload → receive `assetId`
 - Tools refer to assets by `assetId` (not raw URLs)
 
@@ -199,14 +220,13 @@ If SearXNG is not configured, web search may be limited depending on build setti
 
 ## Running the Application
 
-From the repository root:
-
 ```bash
 # install deps
 npm install
 
-# start backend + frontend (depending on your workspace scripts)
-npm run dev
+npm run build
+
+npm start
 ```
 
 Then open the UI in your browser.
@@ -216,6 +236,7 @@ Then open the UI in your browser.
 ## Database & Persistence
 
 Data is stored locally in SQLite:
+
 - chats
 - runs
 - messages and variants
@@ -242,6 +263,7 @@ This project is intentionally local-first: if you delete the DB file, you reset 
 **MIT** (recommended).
 
 Why MIT:
+
 - It makes the repository usable for others (and recruiters) without ambiguity
 - It’s permissive and portfolio-friendly
 - It avoids the “UNLICENSED = don’t touch this” signal
