@@ -17,6 +17,8 @@ It builds on top of LM Studio’s local runtime and exposes it through a structu
 - License: MIT
 - Node: recommended recent LTS - (tested with v24.12.0)
 
+![CI](https://github.com/ChristinaBusacker/lmstudio-web/actions/workflows/ci.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 ---
 
 ## What This Project Is (and Is Not)
