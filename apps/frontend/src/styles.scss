@@ -71,8 +71,8 @@ div {
 }
 
 .icon {
-  &.icon-black .svg-wrapper svg {
-    fill: black !important;
+  &.icon-primary .svg-wrapper svg {
+    fill: var(--primary) !important;
   }
 }
 
@@ -230,6 +230,12 @@ input[type='range' i] {
   to {
     transform: rotate(360deg);
   }
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 app-workflow-node-ports .content-projection {

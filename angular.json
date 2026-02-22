@@ -46,6 +46,9 @@
               "node_modules/prismjs/components/prism-css.min.js",
               "node_modules/prismjs/components/prism-scss.min.js",
               "node_modules/clipboard/dist/clipboard.min.js"
+            ],
+            "externalDependencies": [
+              "themes/*"
             ]
           },
           "configurations": {

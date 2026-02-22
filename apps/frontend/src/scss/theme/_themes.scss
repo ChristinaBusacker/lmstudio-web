@@ -21,14 +21,12 @@ $theme-dark: (
   surface-hover: rgba(255, 255, 255, 0.06),
   surface-active: rgba(255, 255, 255, 0.1),
   surface-selected: rgba(59, 130, 246, 0.22),
-
   // Text
   text: #fefefe,
   text-muted: rgba(255, 255, 255, 0.65),
   // Borders / dividers
   border: rgba(255, 255, 255, 0.12),
   border-strong: rgba(255, 255, 255, 0.2),
-
   // Focus / selection
   focus-ring: rgba(59, 130, 246, 0.45),
   selection-bg: rgba(59, 130, 246, 0.25),
@@ -56,12 +54,10 @@ $theme-dark: (
   // Cards
   card-bg: #303030,
   card-border: rgba(255, 255, 255, 0.08),
-
   // Chat
   chat-user-bg: rgba(59, 130, 246, 0.22),
   chat-assistant-bg: rgba(255, 255, 255, 0.05),
   chat-status-bg: rgba(255, 255, 255, 0.04),
-
   // Drag & drop affordances
   dd-outline: rgba(0, 0, 0, 0.25),
   dd-outline-strong: rgba(0, 0, 0, 0.35),
@@ -90,12 +86,10 @@ $theme-light: (
   surface-hover: rgba(15, 23, 42, 0.04),
   surface-active: rgba(15, 23, 42, 0.08),
   surface-selected: rgba(37, 99, 235, 0.18),
-
   text: #0f172a,
   text-muted: rgba(15, 23, 42, 0.65),
   border: rgba(15, 23, 42, 0.14),
   border-strong: rgba(15, 23, 42, 0.22),
-
   focus-ring: rgba(37, 99, 235, 0.35),
   selection-bg: rgba(37, 99, 235, 0.2),
   primary: #2563eb,
@@ -117,63 +111,85 @@ $theme-light: (
   input-placeholder: rgba(15, 23, 42, 0.45),
   card-bg: #ffffff,
   card-border: rgba(15, 23, 42, 0.12),
-
   chat-user-bg: rgba(37, 99, 235, 0.16),
   chat-assistant-bg: rgba(15, 23, 42, 0.035),
   chat-status-bg: rgba(15, 23, 42, 0.03),
-
   dd-outline: rgba(15, 23, 42, 0.18),
   dd-outline-strong: rgba(15, 23, 42, 0.28),
-  dd-hover-bg: rgba(15, 23, 42, 0.04)
+  dd-hover-bg: rgba(15, 23, 42, 0.04),
 );
 
 $theme-glass: (
-  // A glass theme is mostly about translucency and blur.
-  // Background can be a gradient to avoid the "washed out" look.
-  bg: radial-gradient(1200px 800px at 10% 10%, rgba(124, 92, 255, 0.25), transparent 60%),
-  surface-1: rgba(20, 24, 36, 0.55),
-  surface-2: rgba(10, 12, 18, 0.55),
-  surface-3: rgba(255, 255, 255, 0.06),
+  // Light glassmorphism theme.
+  // Key idea: a calm, bright background + translucent white surfaces + strong blur.
+  bg: #f4f7ef,
 
-  surface-hover: rgba(255, 255, 255, 0.08),
-  surface-active: rgba(255, 255, 255, 0.12),
-  surface-selected: rgba(124, 92, 255, 0.24),
-  text: rgba(255, 255, 255, 0.94),
-  text-muted: rgba(255, 255, 255, 0.66),
-  border: rgba(255, 255, 255, 0.14),
-  border-strong: rgba(255, 255, 255, 0.22),
+  // Let a background image shine through.
+  // Use a relative URL so it works with non-root baseHref (e.g. /ui/).
+  bg-image: url('themes/glass-bg.jpg'),
+  // Two overlays: a bright veil + a subtle vignette for readability.
+  bg-overlay: radial-gradient(
+      1200px 700px at 18% 12%,
+      rgba(255, 255, 255, 0.55),
+      rgba(255, 255, 255, 0) 62%
+    ),
+  bg-overlay-2: radial-gradient(
+      1400px 900px at 60% 40%,
+      rgba(2, 6, 23, 0.08),
+      rgba(2, 6, 23, 0) 62%
+    ),
+  // Core surfaces (translucent whites)
+  surface-1: rgba(255, 255, 255, 0.34),
+  surface-2: rgba(255, 255, 255, 0.48),
+  surface-3: rgba(255, 255, 255, 0.2),
+  // Surface interaction states (slightly stronger opacity)
+  surface-hover: rgba(255, 255, 255, 0.22),
+  surface-active: rgba(255, 255, 255, 0.32),
+  surface-selected: rgba(14, 165, 233, 0.18),
+  // Text (dark, for a truly "light" theme)
+  text: rgba(12, 20, 32, 0.92),
+  text-muted: rgba(12, 20, 32, 0.64),
+  // Borders: keep them subtle. We'll add a highlight inset via theme.scss.
+  border: rgba(255, 255, 255, 0.55),
+  border-strong: rgba(255, 255, 255, 0.72),
+  // Brand (fresh cyan/teal accent that reads well on green/yellow backgrounds)
+  primary: #0ea5e9,
+  primary-hover: #0284c7,
+  focus-ring: rgba(14, 165, 233, 0.35),
+  selection-bg: rgba(14, 165, 233, 0.22),
+  // Feedback
+  danger: #b91c1c,
+  danger-hover: #7f1d1d,
+  danger-bg: rgba(185, 28, 28, 0.12),
+  danger-border: rgba(185, 28, 28, 0.3),
+  warning: #d97706,
+  success: #15803d,
 
-  focus-ring: rgba(124, 92, 255, 0.55),
-  selection-bg: rgba(124, 92, 255, 0.3),
-  primary: #7c5cff,
-  primary-hover: #4a2bbf,
-
-  danger: #ae2222,
-  danger-hover: #741515,
-  danger-bg: rgba(174, 34, 34, 0.14),
-  danger-border: rgba(174, 34, 34, 0.35),
-  warning: #f59e0b,
-  success: #22c55e,
-
-  shadow-1: 0 14px 40px rgba(0, 0, 0, 0.38),
-  shadow-2: 0 18px 54px rgba(0, 0, 0, 0.48),
-  overlay-backdrop: rgba(0, 0, 0, 0.5),
-  input-bg: rgba(255, 255, 255, 0.06),
-  input-border: rgba(255, 255, 255, 0.14),
-  input-text: rgba(255, 255, 255, 0.92),
-  input-placeholder: rgba(255, 255, 255, 0.5),
-  card-bg: rgba(20, 24, 36, 0.55),
-  card-border: rgba(255, 255, 255, 0.14),
-
-  chat-user-bg: rgba(124, 92, 255, 0.22),
-  chat-assistant-bg: rgba(255, 255, 255, 0.06),
-  chat-status-bg: rgba(255, 255, 255, 0.05),
-
-  dd-outline: rgba(0, 0, 0, 0.25),
-  dd-outline-strong: rgba(0, 0, 0, 0.35),
-  dd-hover-bg: rgba(0, 0, 0, 0.06),
-  // Glass-only token
-  glass-blur: 18px
+  // UI primitives
+  shadow-1: 0 10px 30px rgba(2, 6, 23, 0.12),
+  shadow-2: 0 18px 56px rgba(2, 6, 23, 0.18),
+  overlay-backdrop: rgba(2, 6, 23, 0.35),
+  // Inputs
+  input-bg: rgba(255, 255, 255, 0.28),
+  input-border: rgba(255, 255, 255, 0.62),
+  input-text: rgba(12, 20, 32, 0.92),
+  input-placeholder: rgba(12, 20, 32, 0.5),
+  // Cards
+  card-bg: rgba(255, 255, 255, 0.34),
+  card-border: rgba(255, 255, 255, 0.55),
+  // Chat
+  chat-user-bg: rgba(14, 165, 233, 0.16),
+  chat-assistant-bg: rgba(255, 255, 255, 0.3),
+  chat-status-bg: rgba(255, 255, 255, 0.26),
+  // Drag & drop affordances
+  dd-outline: rgba(2, 6, 23, 0.14),
+  dd-outline-strong: rgba(2, 6, 23, 0.22),
+  dd-hover-bg: rgba(2, 6, 23, 0.03),
+  // Glass-only tokens
+  glass-blur: 18px,
+  panel-blur: 16px,
+  glass-highlight: rgba(255, 255, 255, 0.35),
+  glass-highlight-strong: rgba(255, 255, 255, 0.5)
 );
 
 // "Gaming" is a punchier, more playful variant.
@@ -183,7 +199,6 @@ $theme-gaming: (
   surface-1: rgba(18, 22, 33, 0.78),
   surface-2: rgba(10, 12, 18, 0.72),
   surface-3: rgba(255, 255, 255, 0.06),
-
   surface-hover: rgba(255, 255, 255, 0.08),
   surface-active: rgba(255, 255, 255, 0.12),
   surface-selected: rgba(168, 85, 247, 0.25),
@@ -191,7 +206,6 @@ $theme-gaming: (
   text-muted: rgba(248, 250, 255, 0.68),
   border: rgba(255, 255, 255, 0.14),
   border-strong: rgba(255, 255, 255, 0.22),
-
   focus-ring: rgba(168, 85, 247, 0.55),
   selection-bg: rgba(168, 85, 247, 0.3),
   primary: #a855f7,
@@ -207,16 +221,13 @@ $theme-gaming: (
   input-placeholder: rgba(255, 255, 255, 0.55),
   card-bg: rgba(18, 22, 33, 0.78),
   card-border: rgba(255, 255, 255, 0.14),
-
   chat-user-bg: rgba(168, 85, 247, 0.22),
   chat-assistant-bg: rgba(255, 255, 255, 0.06),
   chat-status-bg: rgba(255, 255, 255, 0.05),
-
   dd-outline: rgba(0, 0, 0, 0.25),
   dd-outline-strong: rgba(0, 0, 0, 0.35),
   dd-hover-bg: rgba(0, 0, 0, 0.06),
-
-  bg-image: url('/themes/gaming-bg.jpg'),
+  bg-image: url('themes/gaming-bg.jpg'),
   bg-overlay: radial-gradient(
       900px 520px at 60% 35%,
       rgba(168, 85, 247, 0.22),
