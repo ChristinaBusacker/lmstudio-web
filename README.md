@@ -11,293 +11,239 @@ It builds on top of LM Studio’s local runtime and exposes it through a structu
 
 ---
 
+## Project status
+
+Badges are optional, but they help people trust the repo at a glance (CI, license, etc.).
+Replace the placeholders below with your actual GitHub org/repo and workflow names.
+
+- CI: `/.github/workflows/ci.yml`
+- License: MIT
+- Node: recommended recent LTS
+
+Example badges:
+
+```md
+![CI](https://github.com/<org>/<repo>/actions/workflows/ci.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+```
+
+---
+
 ## What This Project Is (and Is Not)
 
 ### What it **is**
-
 - Local web interface for LM Studio
 - Runs entirely on your own machine
 - Accessible via local network (LAN)
-- No accounts, no telemetry, no cloud
-- Deterministic execution with inspectable state
-- Explicit tool usage and clear boundaries
+- Backend orchestrates runs and tools deterministically
+- Includes chats, reusable settings profiles, and workflows
 
 ### What it **is not**
-
-- Not a hosted LLM service
-- Not a replacement for LM Studio
-- Not intended for public internet exposure
-- Not a general-purpose OpenAI-compatible server
+- No cloud account system
+- No hosted models
+- No vendor lock-in
+- No “black magic” agent execution (tools are explicit and inspectable)
 
 ---
 
 ## Architecture Overview
 
-```
-Browser (any device)
-        ↓
-   Angular Web UI
-        ↓
-   NestJS Backend
-        ↓
- LM Studio HTTP API
-```
-
-- **Frontend:** Angular SPA
+- **Frontend:** Angular (SPA)
 - **Backend:** NestJS
-- **Database:** SQLite (local file)
-- **ORM:** TypeORM (automatic migrations)
-- **LLM Runtime:** LM Studio
+- **Persistence:** SQLite (local file)
+- **Communication:** REST + SSE (Server-Sent Events) for live updates
 
-Routes:
+The backend is responsible for:
+- creating and managing runs
+- streaming and persisting chat messages
+- executing tool calls in a controlled environment
+- reading uploaded documents (assets)
+- optionally querying external services (web search)
 
-- `/ui` – Web UI
-- `/api` – Backend API
-- `/api/docs` – Swagger / OpenAPI
-
-In production, the backend serves the frontend so the system runs as **a single local application**.
+The frontend focuses on:
+- a responsive chat UI
+- profiles + workflows UX
+- live updates via SSE
+- theming + localization
 
 ---
 
 ## Core Features
 
-- Browser-based UI for LM Studio
-- Works on desktop, tablet, and phone
-- Local SQLite persistence
-- Automatic DB migrations
-- Deterministic chat and workflow execution
-- Tool-based agent loop (no hidden magic)
-- LAN-ready by design
+### Chat & Runs
+- Chat threads with message variants and streaming output
+- Deterministic “run” concept (requests are traceable and inspectable)
+- Auto-title generation from the first user message (works for `Untitled`, `Untitled (1)` etc.)
+
+### Settings Profiles
+- Multiple profiles for model settings (temperature, tokens, etc.)
+- Import/export profiles as JSON bundles
+- “Set default” behavior for quick switching
+
+### Workflows
+- Workflow definitions stored locally
+- Import/export workflow bundles
+- Workflow execution via node-style steps (including tool nodes)
+
+### External service health
+- Live status for connected services (e.g. LM Studio / SearXNG) via SSE
+- UI shows connection state so it’s obvious when something is offline
+
+---
+
+## Theming
+
+The UI supports multiple themes via CSS variables (semantic tokens) and a body class:
+- `theme-Dark` (default)
+- `theme-Light`
+- `theme-Glass` (light glassmorphism style)
+- `theme-Gaming` (neon / background-driven style)
+
+Themes are built around **semantic CSS variables** like:
+- `--bg`, `--surface-1`, `--text`, `--border`
+- `--primary`, `--focus-ring`
+- component-level tokens (e.g. chat bubbles, hover states)
+
+This makes it possible to evolve the UI look without scattering hardcoded colors across components.
+
+---
+
+## Localization (i18n)
+
+The UI is available in:
+- **Deutsch (de)**
+- **English (en)**
+- **Français (fr)**
+
+Language is stored in user preferences and applied instantly.
 
 ---
 
 ## Tools (Agent Capabilities)
 
-This project uses an explicit **tool orchestration system**.  
+This project uses an explicit **tool orchestration system**.
 Tools are exposed to the model via structured schemas and executed by the backend.
 
-### Available Tools
+### Available Tools (Tool Orchestrator)
+
+#### `current_time`
+Return the current date/time with timezone info.
+Useful before interpreting relative phrases like “yesterday”.
+
+#### `resolve_relative_date`
+Resolve human time expressions (e.g. “next Friday 5pm”) into ISO datetimes.
+
+#### `date_math`
+Deterministic date math (add/subtract, startOf/endOf, rounding) in a timezone.
+
+#### `math`
+Evaluate mathematical expressions deterministically.
+
+#### `json_validate`
+Validate JSON against a JSON Schema and return detailed errors.
+
+#### `json_repair`
+Repair “JSON-ish” text (single quotes, trailing commas, unquoted keys) into valid JSON when possible.
 
 #### `web_search`
-
-Search the web.
-
-- Uses **SearXNG** if configured (recommended)
-- Falls back to DuckDuckGo Instant Answers if not
+Search the web and return a list of results.
+Typically backed by **SearXNG** when configured.
 
 #### `web_read`
-
-Fetches and extracts readable text from a public web page.
-
-- Uses Readability-style extraction
-- Intended for articles and documentation
-- Not a general crawler
+Fetch a webpage and extract the main readable text and metadata.
 
 #### `doc_read`
-
-Reads uploaded documents and provides their textual contents to the model.
-
-- Operates on uploaded **assets**
-- Uses `assetId` as the canonical reference
-- URLs are discouraged and sanitized if misused by the model
-
-Supported file types are listed below.
-
-#### (Planned) `vision_read`
-
-Planned extension for **image-capable models**.
-Will allow models with vision support to analyze uploaded images.
+Read a document from an uploaded `assetId`.
+Supports ZIP archives (returns multiple entries).
+Returns structured extraction (text/json/code/pdf/docx/image) depending on content.
 
 ---
 
 ## File Upload & Document Support
 
-### Supported Formats
+Documents are handled via the **assets system**:
+- Upload → receive `assetId`
+- Tools refer to assets by `assetId` (not raw URLs)
 
-The system is intentionally **text-first** and deterministic.
-
-#### Fully Supported
-
-- `.txt`
-- `.md`
-- `.json`
-- `.yaml`, `.yml`
-- `.csv`
-- `.log`
-- `.xml`
-
-#### ZIP Archives
-
-- `.zip`
-- Extracted server-side
-- Each contained text file is processed individually
-- Binary files inside ZIPs are ignored
-
-#### PDF (Limited)
-
-- Text-based PDFs only
-- No OCR
-- Scanned PDFs will likely produce no content
-
-#### Not Supported (stored but not readable)
-
-- Images (`.png`, `.jpg`, …)
-- Office documents (`.docx`, `.xlsx`, `.pptx`)
-- Audio / video
-- Arbitrary binaries
-
-This strict boundary prevents the model from hallucinating file contents.
-
----
-
-## Vision Models (Important Note)
-
-LM Studio supports **vision-capable models** (VLMs).
-However, **this Web UI currently treats images as binary assets only**.
-
-Image understanding requires:
-
-- A vision-capable model loaded in LM Studio
-- A dedicated `vision_read` tool path
-
-This is planned but not enabled by default to avoid undefined behavior.
+ZIP uploads are supported and extracted into multiple entries.
 
 ---
 
 ## Requirements
 
-### Mandatory
-
-- **Node.js** (22 LTS recommended, 20+ should work)
-- **npm**
-- **LM Studio**
-  - Installed locally
-  - HTTP server enabled
-  - Default URL: `http://127.0.0.1:1234`
-
-### Optional
-
-- **Docker** (for SearXNG web search)
-- **Caddy** (for local HTTPS)
+- Node.js (recommended: recent LTS)
+- LM Studio running locally
+- (Optional) SearXNG for web search
 
 ---
 
 ## Environment Configuration
 
-Configuration is handled via environment variables.
-A production template is provided as `.env.prod`.
+The backend can be configured via `.env` variables (examples):
 
-Example:
-
-```env
-HOST=0.0.0.0
-PORT=3000
-
-DB_PATH=./data/app.sqlite
-
-LMSTUDIO_BASE_URL=http://127.0.0.1:1234
-LMSTUDIO_DEFAULT_MODEL=openai/gpt-oss-20b
-
-# Optional web search provider
-SEARXNG_BASE_URL=http://localhost:8080
-
-NODE_ENV=production
-```
+- `LMSTUDIO_BASE_URL` (default `http://127.0.0.1:1234`)
+- `SEARXNG_BASE_URL` (optional)
+- `DB_PATH` (SQLite file location)
 
 ---
 
 ## Web Search Setup (Optional)
 
-### Recommended: Local SearXNG via Docker
+For best results, configure a local SearXNG instance and set:
 
-1. Install Docker
-2. Set `SEARXNG_BASE_URL`
-3. Start the app
+- `SEARXNG_BASE_URL=http://<host>:<port>`
 
-The startup scripts will automatically run:
-
-```bash
-docker compose -f docker-compose.searxng.yml up -d
-```
-
-If not configured, the system falls back to DuckDuckGo Instant Answers.
+If SearXNG is not configured, web search may be limited depending on build settings.
 
 ---
 
 ## Running the Application
 
-### Development / Local Use
+From the repository root:
 
 ```bash
+# install deps
 npm install
-npm run build
-npm start
+
+# start backend + frontend (depending on your workspace scripts)
+npm run dev
 ```
 
-Access:
-
-```
-http://localhost:3000/ui
-```
-
-LAN access:
-
-```
-http://<your-lan-ip>:3000/ui
-```
-
----
-
-## Build Output
-
-After build:
-
-```
-dist/
-  main.js
-  .env
-  data/
-    app.sqlite
-  ui/
-    browser/
-      index.html
-      *.js
-      *.css
-```
-
-Run with:
-
-```bash
-node dist/main.js
-```
+Then open the UI in your browser.
 
 ---
 
 ## Database & Persistence
 
-- SQLite database created automatically
-- Schema migrations run on startup
-- Reset local state:
-  - Stop the app
-  - Delete `data/app.sqlite`
-  - Restart
+Data is stored locally in SQLite:
+- chats
+- runs
+- messages and variants
+- settings profiles
+- workflows
+- assets (metadata)
+
+This project is intentionally local-first: if you delete the DB file, you reset the app.
 
 ---
 
 ## Design Philosophy
 
-This project is intentionally:
-
-- Local-first
-- Deterministic
-- Transparent
-- Tool-driven
-- User-controlled
-
-There is no hidden execution, no implicit web access, and no silent data flow.
+- **Local-first** by default
+- **Inspectability** over magic
+- **Explicit tools** with schemas and deterministic execution
+- **UI clarity**: show status and progress instead of hiding latency
+- **Safe(ish) defaults**: validation + whitelisting on API payloads
 
 ---
 
 ## License
 
-UNLICENSED
+**MIT** (recommended).
+
+Why MIT:
+- It makes the repository usable for others (and recruiters) without ambiguity
+- It’s permissive and portfolio-friendly
+- It avoids the “UNLICENSED = don’t touch this” signal
+
+If you include paid/licensed images in the repo, ensure you have redistribution rights or keep those assets out of public source control.
