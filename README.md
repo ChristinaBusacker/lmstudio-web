@@ -206,6 +206,8 @@ The backend can be configured via `.env` variables (examples):
 - `SEARXNG_BASE_URL` (optional)
 - `DB_PATH` (SQLite file location)
 
+On build process we take the env.prod.
+
 ---
 
 ## Web Search Setup (Optional)
@@ -220,12 +222,16 @@ If SearXNG is not configured, web search may be limited depending on build setti
 
 ## Running the Application
 
+From the repository root:
+
 ```bash
 # install deps
 npm install
 
+# create your build
 npm run build
 
+# start the application
 npm start
 ```
 
