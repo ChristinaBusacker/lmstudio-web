@@ -8,6 +8,8 @@ export interface LmModelListItem {
   quantization?: string;
   state: ModelLoadState;
   maxContextLength?: number;
+  toolUse: boolean;
+  vision: boolean;
 }
 
 export interface LmModelDetails extends LmModelListItem {

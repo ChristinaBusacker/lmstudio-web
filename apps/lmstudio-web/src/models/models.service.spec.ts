@@ -53,6 +53,8 @@ describe('ModelsService', () => {
         quantization: 'q4',
         state: 'loaded',
         maxContextLength: 8192,
+        toolUse: false,
+        vision: false,
       },
     ]);
   });
@@ -113,7 +115,11 @@ describe('ModelsService', () => {
 
     const svc = new ModelsService(sse, config);
     const res = await svc.loadModel('m1', { contextLength: 123 } as any);
-    expect(res).toEqual({ id: 'm1', identifier: 'inst42', state: 'loaded' });
+    expect(res).toEqual({
+      id: 'm1',
+      identifier: 'inst42',
+      state: 'loaded',
+    });
 
     // Authorization header is attached when token present
     const loadCall = calls.find((c) => c.url.endsWith('/api/v1/models/load'))!;

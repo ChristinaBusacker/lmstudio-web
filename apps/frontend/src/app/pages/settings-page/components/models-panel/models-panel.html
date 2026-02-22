@@ -11,7 +11,9 @@
       [(ngModel)]="filter"
       [placeholder]="'common.filter' | i18n | async"
     />
-    <button class="btn btn-ghost" (click)="reloadModels.emit()">{{ 'common.reload' | i18n | async }}</button>
+    <button class="btn btn-ghost" (click)="reloadModels.emit()">
+      {{ 'common.reload' | i18n | async }}
+    </button>
   </div>
 </div>
 
@@ -58,7 +60,9 @@
 
     <!-- Not loaded -->
     <div class="card">
-      <div class="card-title">{{ 'models.available' | i18n | async }} ({{ notLoadedModels.length }})</div>
+      <div class="card-title">
+        {{ 'models.available' | i18n | async }} ({{ notLoadedModels.length }})
+      </div>
 
       @if (notLoadedModels.length === 0) {
         <div class="empty">{{ 'models.noneAvailable' | i18n | async }}</div>
@@ -67,7 +71,15 @@
           @for (m of notLoadedModels; track m.id) {
             <div class="model-item" [title]="m.id">
               <div class="left">
-                <div class="name mono">{{ m.id }}</div>
+                <div class="name mono">
+                  {{ m.id }}
+                </div>
+                @if (m.toolUse) {
+                  <app-icon name="tools-line" />
+                }
+                @if (m.vision) {
+                  <app-icon name="eye-line" />
+                }
 
                 @if (isBusyFn(m.id) | async) {
                   <span class="pill">{{ 'models.busy' | i18n | async }}</span>
