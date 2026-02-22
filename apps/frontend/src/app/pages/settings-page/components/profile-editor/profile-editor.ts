@@ -57,6 +57,8 @@ export class ProfileEditor implements OnChanges {
   advancedJson = '{\n  \n}';
   advancedJsonError: string | null = null;
 
+  currentModelMaxLength: number = 10000;
+
   // Snapshot for "unsaved changes" detection
   private baseline: { name: string; params: SettingsParams; extrasJson: string } | null = null;
 
@@ -76,9 +78,9 @@ export class ProfileEditor implements OnChanges {
 
   get isDirty(): boolean {
     if (!this.baseline) return false;
-    const baseSame =
-      this.editName === this.baseline.name &&
-      stableStringify(normalizeParams(this.editParams)) === stableStringify(this.baseline.params);
+    const editParams = stableStringify(normalizeParams(this.editParams));
+    const baseParams = stableStringify(this.baseline.params);
+    const baseSame = this.editName === this.baseline.name && editParams === baseParams;
     const advSame =
       (this.showAdvanced ? this.advancedJson.trim() : this.baseline.extrasJson.trim()) ===
       this.baseline.extrasJson.trim();
@@ -101,11 +103,36 @@ export class ProfileEditor implements OnChanges {
     this.advancedJsonError = null;
     this.showAdvanced = false;
 
+    const params = JSON.parse(JSON.stringify(normalized)) as SettingsParams;
+
     this.baseline = {
       name: this.editName,
-      params: normalized,
+      params,
       extrasJson: this.advancedJson,
     };
+  }
+
+  onModelChanged(e: Event & { target: HTMLSelectElement }) {
+    const value = e.target.value;
+    const model = this.models?.find((m) => m.id === value);
+    if (model) {
+      this.currentModelMaxLength = parseInt((model.maxContextLength || 8000) * 0.95 + '');
+      if (this.editParams.maxTokens) {
+        if (this.editParams.maxTokens > this.currentModelMaxLength) {
+          this.editParams.maxTokens = parseInt((model.maxContextLength || 8000) * 0.8 + '');
+        }
+      }
+    }
+  }
+
+  onMaxTokenChange(e: Event & { target: HTMLInputElement }) {
+    const max = parseInt(e.target.max);
+    const value = parseInt(e.target.value);
+    console.log(max, value);
+
+    if (value > max) {
+      e.target.value = max + '';
+    }
   }
 
   onToggleAdvanced(): void {

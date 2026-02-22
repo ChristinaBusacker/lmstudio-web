@@ -48,6 +48,8 @@
   "composer.placeholder": "Écrivez quelque chose…",
   "composer.send": "Envoyer",
   "composer.uploadFile": "Téléverser un fichier",
+  "composer.noProfiles": "Veuillez d’abord créer un profil dans les",
+  "composer.noProfilesLink": "Paramètres du profil",
   "cubeInput.clickMe": "Cliquez ici",
   "cubeInput.typeHere": "Tapez ici…",
   "dialog.confirm.title": "Confirmer",

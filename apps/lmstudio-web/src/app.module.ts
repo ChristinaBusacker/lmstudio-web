@@ -29,7 +29,7 @@ import { SystemModule } from './system/system.module';
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        type: 'sqlite',
+        type: 'better-sqlite3',
         database: config.get('DB_PATH', join(process.cwd(), 'data', 'app.sqlite')),
         synchronize: false,
         migrationsRun: true,

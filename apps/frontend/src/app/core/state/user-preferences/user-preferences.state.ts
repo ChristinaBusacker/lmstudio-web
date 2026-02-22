@@ -14,7 +14,7 @@ const STORAGE_KEY = 'lmstudio-web:userPreferences';
 @State<UserPreferencesModel>({
   name: 'userPreferences',
   defaults: {
-    language: 'de',
+    language: 'en',
     theme: 'Dark',
   },
 })

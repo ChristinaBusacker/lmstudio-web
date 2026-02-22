@@ -48,6 +48,8 @@
   "composer.placeholder": "Schreibe etwas…",
   "composer.send": "Senden",
   "composer.uploadFile": "Datei hochladen",
+  "composer.noProfiles": "Bitte erstelle zuerst ein Profil in den",
+  "composer.noProfilesLink": "Profil-Einstellungen",
   "cubeInput.clickMe": "Klick mich",
   "cubeInput.typeHere": "Tippe hier…",
   "dialog.confirm.title": "Bestätigen",

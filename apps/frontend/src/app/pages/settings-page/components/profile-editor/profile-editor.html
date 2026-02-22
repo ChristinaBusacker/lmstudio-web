@@ -56,7 +56,7 @@
     @if (models) {
       <label class="field">
         <span class="label">{{ 'profiles.editor.section.model' | i18n | async }}</span>
-        <select class="select" [(ngModel)]="editParams.modelKey">
+        <select class="select" [(ngModel)]="editParams.modelKey" (change)="onModelChanged($event)">
           <option value="">{{ 'profiles.editor.selectModel' | i18n | async }}</option>
 
           @for (m of models; track m.id) {
@@ -167,7 +167,15 @@
 
     <label class="field">
       <span class="label">{{ 'profiles.editor.maxTokens' | i18n | async }}</span>
-      <input class="input" type="number" min="1" step="1" [(ngModel)]="editParams.maxTokens" />
+      <input
+        class="input"
+        type="number"
+        min="1"
+        step="1"
+        [max]="currentModelMaxLength"
+        [(ngModel)]="editParams.maxTokens"
+        (input)="onMaxTokenChange($event)"
+      />
     </label>
   </div>
 

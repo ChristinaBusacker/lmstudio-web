@@ -11,7 +11,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AssetsApi, type AssetDto } from '@frontend/src/app/core/api/assets.api';
 import { Store } from '@ngxs/store';
 import { catchError, map, Observable, of, tap } from 'rxjs';
@@ -35,7 +35,15 @@ import { SendMessagePayload } from '../../core/state/chat-detail/chat-detail.mod
 
 @Component({
   selector: 'app-composer',
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, Icon, DropFilesDirective, I18nPipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    Icon,
+    DropFilesDirective,
+    I18nPipe,
+    RouterLink,
+  ],
   templateUrl: './composer.html',
   styleUrl: './composer.scss',
 })

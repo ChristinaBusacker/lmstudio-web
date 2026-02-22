@@ -46,7 +46,8 @@
           (input)="onTextareaInput($event)"
           (keydown)="onComposerKeydown($event)"
           (blur)="markTouched()"
-        >{{ value }}</textarea>
+          >{{ value }}</textarea
+        >
       }
 
       <div class="composer__dropHint" [class.visible]="isDragActive">
@@ -117,5 +118,14 @@
 
   @if (uploadError) {
     <div class="upload-error">{{ uploadError }}</div>
+  }
+
+  @if (profiles$ | async; as profiles) {
+    @if (profiles.length < 1) {
+      <div class="noProfiles">
+        {{ 'composer.noProfiles' | i18n | async }}
+        <a [routerLink]="['/', 'settings']">{{ 'composer.noProfilesLink' | i18n | async }}</a>
+      </div>
+    }
   }
 </div>
