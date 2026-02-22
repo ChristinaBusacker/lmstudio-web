@@ -1,6 +1,8 @@
 :host {
   display: block;
-  background-color: var(--color-bg);
+  background-color: var(--surface-1);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
   padding: 12px;
   border-radius: 8px;
 
@@ -13,7 +15,7 @@
     justify-content: space-between;
     gap: 12px;
     padding-bottom: 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--border);
     margin-bottom: 12px;
   }
 
@@ -34,7 +36,7 @@
   .icon-btn {
     border: 0;
     background: transparent;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--text-muted);
     cursor: pointer;
     font: inherit;
     padding: 6px 8px;
@@ -42,6 +44,6 @@
   }
 
   .icon-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--surface-hover);
   }
 }

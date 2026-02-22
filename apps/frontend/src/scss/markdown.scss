@@ -4,12 +4,12 @@
 
   & table {
     width: 100%;
-    -webkit-box-shadow: 5px 5px 21px 5px rgba(0, 0, 0, 0.23);
-    box-shadow: 5px 5px 21px 5px rgba(0, 0, 0, 0.23);
+    -webkit-box-shadow: var(--shadow-1);
+    box-shadow: var(--shadow-1);
     margin: 20px 0;
 
     & th {
-      border-bottom: 1px solid white !important;
+      border-bottom: 1px solid var(--border) !important;
       padding: 10px 15px;
     }
 
@@ -17,8 +17,11 @@
       padding: 10px 15px;
     }
 
-    & tr:nth-child(even) {
-      background-color: rgba(22, 22, 22, 0.6);
+    & tr {
+      background-color: var(--surface-1);
+      &:nth-child(even) {
+        background-color: var(--surface-2);
+      }
     }
   }
 }

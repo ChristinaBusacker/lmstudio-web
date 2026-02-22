@@ -17,14 +17,14 @@
   .string-input__field {
     padding: 10px 12px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: #0f0f0f;
-    color: #fff;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--input-text);
     font: inherit;
     outline: none;
   }
 
   .string-input__field:focus {
-    border-color: #2e7dff;
+    border-color: var(--focus-ring);
   }
 }

@@ -30,7 +30,7 @@
   align-items: center;
 
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border);
   background: transparent;
 
   backface-visibility: hidden;
@@ -40,7 +40,7 @@
   transform: rotateX(0deg) translateZ(var(--d));
   cursor: pointer;
   font: inherit;
-  color: white;
+  color: var(--text);
 }
 
 .back {
@@ -59,9 +59,9 @@
   min-width: 0;
   height: calc(var(--h) - 16px);
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: white;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--input-text);
   padding: 0 10px;
   font: inherit;
   outline: none;
@@ -70,9 +70,9 @@
 .mini {
   height: calc(var(--h) - 16px);
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  color: white;
+  border: 1px solid var(--border);
+  background: var(--surface-hover);
+  color: var(--text);
   padding: 0 12px;
   cursor: pointer;
   font: inherit;

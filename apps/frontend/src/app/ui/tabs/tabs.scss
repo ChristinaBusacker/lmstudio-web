@@ -47,11 +47,11 @@
   transition: background-color 140ms var(--easing);
 
   &:hover:not(:disabled) {
-    background-color: rgba(0, 0, 0, 0.04);
+    background-color: var(--surface-hover);
   }
 
   &:active:not(:disabled) {
-    background-color: rgba(0, 0, 0, 0.08);
+    background-color: var(--surface-active);
   }
 
   &:focus-visible {

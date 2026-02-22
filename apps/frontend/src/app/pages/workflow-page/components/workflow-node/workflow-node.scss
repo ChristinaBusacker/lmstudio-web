@@ -5,8 +5,9 @@
   .node {
     width: 100%;
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background-color: rgba(0, 0, 0, 0.55);
+    border: 1px solid var(--border);
+    background-color: var(--surface-2);
+    box-shadow: var(--shadow-1);
     transition: background-color 0.3s ease;
     position: relative;
 
@@ -17,7 +18,7 @@
     overflow: visible;
 
     &.preview {
-      background-color: #343434;
+      background-color: var(--surface-3);
     }
 
     &.loop {
@@ -26,7 +27,7 @@
   }
 
   &.ng-diagram-node-selected {
-    outline: 1px solid #1096e7;
+    outline: 1px solid var(--focus-ring);
   }
 
   /* We still want clean rounded corners for the inner content */
@@ -38,7 +39,7 @@
 
   .header {
     padding: 10px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--border);
   }
 
   .title {
@@ -68,8 +69,8 @@
   .textarea {
     width: 100%;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
     color: inherit;
     padding: 8px 10px;
     font-size: 12px;
@@ -90,8 +91,8 @@
 
   .preview {
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
     padding: 8px;
   }
 
@@ -155,8 +156,8 @@
   gap: 8px;
   padding: 3px 6px;
   border-radius: 10px 0 0 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
   user-select: none;
   min-width: 62px;
 }
@@ -166,8 +167,8 @@
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-hover);
   flex: 0 0 auto;
 }
 
@@ -179,8 +180,8 @@
   place-items: center;
   font-size: 11px;
   opacity: 0.9;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
   flex: 0 0 auto;
 }
 

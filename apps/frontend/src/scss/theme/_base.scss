@@ -1,0 +1,22 @@
+// Comments in English as requested.
+
+/*
+  Base tokens that are NOT theme-dependent.
+  These should be stable across themes, and you can tweak them later without
+  reworking every component.
+*/
+
+:root {
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --font-size-sm: 1.2rem;
+  --font-size-md: 1.4rem;
+  --font-size-lg: 1.6rem;
+}

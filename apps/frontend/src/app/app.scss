@@ -14,7 +14,7 @@ body {
   width: 280px; /* fixe Breite oder clamp(...) */
   flex: 0 0 auto;
   overflow: auto; /* optional: falls sidebar selbst scrollen darf */
-  border-right: 1px solid #e5e5e5;
+  border-right: 1px solid var(--border);
 }
 
 .content {

@@ -32,7 +32,7 @@
       font-size: 0.75rem;
       padding: 2px 6px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--surface-hover);
     }
 
     .badge.deleted {
@@ -53,7 +53,7 @@
       border-radius: 6px;
 
       &:hover {
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--surface-hover);
       }
 
       &:disabled {
@@ -75,7 +75,7 @@
       border-radius: 6px;
 
       &:hover {
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--surface-hover);
       }
     }
 
@@ -84,8 +84,8 @@
       min-height: 120px;
       resize: vertical;
       border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--input-border);
+      background: var(--input-bg);
       padding: 10px;
       color: inherit;
       font-family:
@@ -104,17 +104,17 @@
       padding: 6px 10px;
       border-radius: 8px;
       cursor: pointer;
-      background: rgba(255, 255, 255, 0.14);
+      background: var(--surface-active);
       color: inherit;
     }
 
     .btn.secondary {
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--surface-hover);
     }
 
     &.user {
       align-self: self-end;
-      background-color: var(--color-container);
+      background-color: var(--chat-user-bg);
       @media (max-width: 768px) {
         width: 80%;
       }
@@ -122,7 +122,7 @@
 
     &.assistant {
       align-self: self-start;
-      background-color: rgba(22, 22, 22, 0.2);
+      background-color: var(--chat-assistant-bg);
     }
   }
 
