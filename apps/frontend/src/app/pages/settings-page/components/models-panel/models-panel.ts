@@ -1,15 +1,16 @@
 // Comments in English as requested.
 
-import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ModelListItemDto } from '@frontend/src/app/core/api/models.api';
+import { Icon } from '@frontend/src/app/ui/icon/icon';
 import { I18nPipe } from '../../../../core/i18n/i18n.pipe';
 
 @Component({
   selector: 'app-models-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, I18nPipe],
+  imports: [CommonModule, FormsModule, I18nPipe, Icon],
   templateUrl: './models-panel.html',
   styleUrl: './models-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,7 +33,7 @@ export class ModelsPanel {
   }
 
   get notLoadedModels(): ModelListItemDto[] {
-    return this.filterModels((m) => m.state === 'not-loaded');
+    return this.filterModels((m) => m.state === 'not-loaded' || m.state === 'unknown');
   }
 
   private filterModels(predicate: (m: ModelListItemDto) => boolean): ModelListItemDto[] {

@@ -60,15 +60,6 @@
             <button
               class="btn btn-ghost"
               type="button"
-              (click)="$event.stopPropagation(); setDefaultId.emit(p.id)"
-              [disabled]="p.isDefault"
-            >
-              {{ 'profiles.setDefault' | i18n | async }}
-            </button>
-
-            <button
-              class="btn btn-ghost"
-              type="button"
               (click)="$event.stopPropagation(); exportProfile(p.id)"
             >
               {{ 'profiles.export' | i18n | async }}

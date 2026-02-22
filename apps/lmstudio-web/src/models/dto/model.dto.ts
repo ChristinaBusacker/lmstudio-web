@@ -26,6 +26,12 @@ export class ModelListItemDto implements LmModelListItem {
 
   @ApiPropertyOptional({ description: 'Max context length reported by LM Studio' })
   maxContextLength?: number;
+
+  @ApiPropertyOptional({ description: 'Is model trained to use tools?' })
+  toolUse: boolean;
+
+  @ApiPropertyOptional({ description: 'Does model support vision?' })
+  vision: boolean;
 }
 
 export class ModelDetailsDto extends ModelListItemDto implements LmModelDetails {

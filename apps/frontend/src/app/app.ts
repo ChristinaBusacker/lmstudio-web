@@ -22,7 +22,7 @@ import { ToastContainer } from './ui/toast/toast-container';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
-  protected readonly title = signal('frontend');
+  protected readonly title = signal('LMStudio Web');
   isSidebarClosed = false;
 
   private readonly store = inject(Store);

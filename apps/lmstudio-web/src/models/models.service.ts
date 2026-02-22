@@ -83,8 +83,8 @@ export class ModelsService {
   }
 
   private mapRestModelToDto(m: LlmModelInfo): ModelListItemDto {
-    const state: ModelLoadState =
-      m.state === 'loaded' || m.state === 'not-loaded' ? (m.state as any) : 'unknown';
+    console.log(m);
+    const state: ModelLoadState = m.loaded_instances.length > 0 ? 'loaded' : 'not-loaded';
 
     return {
       id: m.key,
@@ -94,6 +94,8 @@ export class ModelsService {
       quantization: m.quantization?.name ?? undefined,
       state,
       maxContextLength: m.max_context_length,
+      toolUse: m.capabilities?.trained_for_tool_use || false,
+      vision: m.capabilities?.vision || false,
     };
   }
 
