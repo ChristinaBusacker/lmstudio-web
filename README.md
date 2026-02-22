@@ -198,7 +198,8 @@ The backend can be configured via `.env` variables (examples):
 - `SEARXNG_BASE_URL` (optional)
 - `DB_PATH` (SQLite file location)
 
-For production builds, configuration is read from .env.prod.
+For production builds, configuration is read from .env.prod. For that it will be a .env files created in the dist output with the values from .env.prod.
+For development builds, configuration is read from .env.dev.
 
 ---
 
