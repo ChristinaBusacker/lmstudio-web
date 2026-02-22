@@ -83,7 +83,6 @@ export class ModelsService {
   }
 
   private mapRestModelToDto(m: LlmModelInfo): ModelListItemDto {
-    console.log(m);
     const state: ModelLoadState = m.loaded_instances.length > 0 ? 'loaded' : 'not-loaded';
 
     return {

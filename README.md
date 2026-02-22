@@ -226,7 +226,7 @@ If not configured, the system falls back to DuckDuckGo Instant Answers.
 
 ## Running the Application
 
-### Development / Local Use
+### Development / Local Use / Network Use
 
 ```bash
 npm install
